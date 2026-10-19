@@ -31,10 +31,27 @@ const EVENTS_PER_WEEK := 3
 const STORY_SEED_SALT := 0x53544F52
 const ROUTINE_SEED_SALT := 0x524F5554
 const BUDGET_LEVEL_NAMES := ["сокращённый", "базовый", "приоритетный"]
+const BUDGET_LEVEL_MULTIPLIERS := {
+	"budget_social": [0.50, 1.0, 1.35],
+	"budget_health": [0.50, 1.0, 1.35],
+	"budget_admin": [0.35, 1.0, 1.35],
+	"budget_defense": [0.55, 1.0, 1.35],
+	"budget_debt": [0.70, 1.0, 1.40],
+	"budget_infrastructure": [0.10, 1.0, 1.60]
+}
 const PARLIAMENT_TOTAL_SEATS := 120
 const PARLIAMENT_MAJORITY := 61
 const PARLIAMENT_CONSTITUTIONAL_MAJORITY := 80
 const EMERGENCY_POWERS_MAX_STABILITY := 60
+const DEBT_INITIAL_WEEKLY_RATE := 0.006
+const DEBT_MIN_WEEKLY_RATE := 0.003
+const DEBT_UNDERPAY_RATE_INCREASE := 0.0004
+const DEBT_PRIORITY_RATE_DECREASE := 0.00025
+const WORKFORCE_TAX_PER_MILLION := 1.75
+const SOCIAL_DEPENDENT_COST_PER_MILLION := 0.91
+const MONTHLY_HEALTH_POPULATION_CHANGE := 12000
+const MONTHLY_CHURCH_POPULATION_BONUS := 6000
+const NEW_POPULATION_WORKABLE_SHARE := 0.50
 const PARLIAMENT_FACTIONS := [
 	{"key": "center", "title": "Президентский центр", "seats": 50, "group": "Партия президента"},
 	{"key": "guard", "title": "Старая гвардия", "seats": 32, "group": "Партия президента"},
@@ -42,8 +59,8 @@ const PARLIAMENT_FACTIONS := [
 	{"key": "civic", "title": "Гражданская коалиция", "seats": 20, "group": "Оппозиция"}
 ]
 const WEEKLY_BUDGET_LINES := [
-	{"key": "budget_social", "title": "Социальная помощь", "impact": "Пенсии, пособия, помощь безработным и беженцам."},
-	{"key": "budget_health", "title": "Образование и медицина", "impact": "Школы, больницы, миграционная привлекательность и лечение раненых."},
+	{"key": "budget_social", "title": "Социальная помощь", "impact": "Пенсии, пособия, поддержка людей с инвалидностью и семей с детьми."},
+	{"key": "budget_health", "title": "Образование и медицина", "impact": "Школы, больницы, демография, доля работоспособных и лечение раненых."},
 	{"key": "budget_admin", "title": "Государственный аппарат", "impact": "Работа ведомств, канцелярии и подготовка законов."},
 	{"key": "budget_defense", "title": "Армия и внутренние силы", "impact": "Содержание военнослужащих, техники, авиации и сил безопасности."},
 	{"key": "budget_debt", "title": "Обслуживание долга", "impact": "Обязательные выплаты по государственному долгу."},
@@ -350,7 +367,7 @@ func capture_preview_if_requested() -> void:
 	if "--unrest-smoke-test" in args:
 		run_unrest_smoke_test()
 		return
-	var game_captures := ["--capture-game", "--capture-clans", "--capture-economy", "--capture-budget-icons", "--capture-budget-levels", "--capture-budget-vote", "--capture-army", "--capture-population", "--capture-government", "--capture-candidates", "--capture-minister-vote", "--capture-laws", "--capture-foreign", "--capture-war", "--capture-war-crisis", "--capture-weekly", "--capture-routine", "--capture-result", "--capture-new-week", "--capture-crisis", "--capture-creditor", "--capture-protest", "--capture-unrest"]
+	var game_captures := ["--capture-game", "--capture-clans", "--capture-economy", "--capture-budget-icons", "--capture-budget-levels", "--capture-budget-vote", "--capture-army", "--capture-government", "--capture-candidates", "--capture-minister-vote", "--capture-laws", "--capture-foreign", "--capture-war", "--capture-war-crisis", "--capture-weekly", "--capture-routine", "--capture-result", "--capture-new-week", "--capture-crisis", "--capture-creditor", "--capture-protest", "--capture-unrest"]
 	var requested_capture := ""
 	for capture_arg in game_captures:
 		if capture_arg in args:
@@ -374,8 +391,6 @@ func capture_preview_if_requested() -> void:
 			show_economy(5000)
 		elif requested_capture == "--capture-army":
 			show_army()
-		elif requested_capture == "--capture-population":
-			show_population()
 		elif requested_capture == "--capture-government":
 			show_ministers()
 		elif requested_capture == "--capture-candidates":
@@ -470,8 +485,6 @@ func capture_preview_if_requested() -> void:
 		output_path = "res://preview_budget_vote.png"
 	elif requested_capture == "--capture-army":
 		output_path = "res://preview_army.png"
-	elif requested_capture == "--capture-population":
-		output_path = "res://preview_population.png"
 	elif requested_capture == "--capture-government":
 		output_path = "res://preview_government.png"
 	elif requested_capture == "--capture-candidates":
@@ -779,6 +792,7 @@ func run_logic_smoke_test() -> void:
 		failures.append("Смена модели комплектования не применилась.")
 	change_resource_allocation("metal_to_equipment", 1, "army")
 	var population_before := total_population()
+	var workable_before := workable_population()
 	event_resolved = true
 	events_resolved_this_week = events_required_this_week
 	weekly_event_queue.clear()
@@ -797,6 +811,9 @@ func run_logic_smoke_test() -> void:
 		failures.append("Производство не выпустило наземную технику.")
 	if total_population() != population_before:
 		failures.append("Призыв создал или уничтожил население.")
+	var recruited_from_workforce := int(state.get("army_personnel", 0)) - 50000
+	if workable_population() != workable_before - recruited_from_workforce:
+		failures.append("Призыв не перевёл новобранцев из работоспособного населения.")
 	if failures.is_empty():
 		print("LOGIC_SMOKE_TEST: OK | story=%d | routine=%d | baseline=%d | week=%d | population=%d | personnel=%d | equipment=%d" % [events.size(), recurring_events.size(), events.size() + recurring_events.size(), int(state.get("week", 0)), total_population(), int(state.get("army_personnel", 0)), int(state.get("army_equipment", 0))])
 		get_tree().quit(0)
@@ -1147,8 +1164,20 @@ func run_consequence_smoke_test() -> void:
 		failures.append("Пороги поддержки войны неверно меняют скорость набора.")
 	if war_fatigue_loss(2) != 1 or war_fatigue_loss(6) != 2 or war_fatigue_loss(10) != 3 or war_fatigue_loss(14) != 4:
 		failures.append("Усталость от войны не усиливается по мере затягивания конфликта.")
-	if not is_equal_approx(health_war_loss_multiplier(0), 1.25) or not is_equal_approx(health_war_loss_multiplier(2), 0.80) or monthly_health_migration_balance(0) != -8000 or monthly_health_migration_balance(2) != 8000:
-		failures.append("Финансирование образования и медицины неверно влияет на миграцию или военные потери.")
+	if not is_equal_approx(health_war_loss_multiplier(0), 1.25) or not is_equal_approx(health_war_loss_multiplier(2), 0.80) or monthly_health_population_change(0) != -12000 or monthly_health_population_change(2) != 12000:
+		failures.append("Финансирование образования и медицины неверно влияет на население или военные потери.")
+	start_game("Сид: 1991", 1991)
+	if total_population() != 4250000 or workable_population() != 2510000 or dependent_population() != 1690000:
+		failures.append("Стартовые два показателя населения или расчёт неработоспособных неверны.")
+	if not is_equal_approx(float(weekly_income_breakdown()[0].get("amount", 0.0)), 4.39) or not is_equal_approx(budget_base_amount("budget_social"), 1.54):
+		failures.append("Работоспособные и неработоспособные неверно влияют на налоги или социальные расходы.")
+	state.clan_church = 50
+	state.budget_health = 2
+	var demographic_total_before := total_population()
+	var demographic_workable_before := workable_population()
+	process_population_month()
+	if total_population() != demographic_total_before + 12000 or workable_population() != demographic_workable_before + 6000:
+		failures.append("Приоритетные образование и медицина неверно увеличивают население и его работоспособную часть.")
 	start_game("Сид: 1991", 1991)
 	state.at_war = true
 	state.war_support = 20
@@ -1312,11 +1341,11 @@ func run_consequence_smoke_test() -> void:
 	state.clan_regions = 50
 	state.secular_education = false
 	var church_effects := weekly_clan_effects()
-	if int(church_effects.get("war_support", 0)) != 2 or not is_equal_approx(church_birth_rate_modifier(), 0.20):
-		failures.append("Критическая поддержка Церкви не повышает поддержку войны и рождаемость.")
+	if int(church_effects.get("war_support", 0)) != 2 or monthly_church_population_bonus() != 12000:
+		failures.append("Критическая поддержка Церкви не повышает поддержку войны и население.")
 	state.secular_education = true
 	church_effects = weekly_clan_effects()
-	if int(church_effects.get("war_support", 0)) != 1 or not is_equal_approx(church_birth_rate_modifier(), 0.10):
+	if int(church_effects.get("war_support", 0)) != 1 or monthly_church_population_bonus() != 6000:
 		failures.append("Светское образование не ослабляет вдвое положительное влияние Церкви.")
 	state.clan_church = 20
 	if int(weekly_clan_effects().get("support", 0)) != -2:
@@ -1349,9 +1378,9 @@ func run_consequence_smoke_test() -> void:
 		failures.append("Ограничение СМИ не смягчает потерю поддержки на треть.")
 	start_game("Сид: 1991", 1991)
 	state.budget_social = 0
-	process_weekly_budget_consequences(1)
-	if int(state.get("support", 0)) != 56 or int(state.get("clan_workers", 0)) != 45:
-		failures.append("Сокращение социальной помощи не проявилось уже на следующей неделе.")
+	process_weekly_budget_consequences(2)
+	if int(state.get("support", 0)) != 57 or int(state.get("clan_workers", 0)) != 45:
+		failures.append("Сокращение социальной помощи не проявилось при первом двухнедельном расчёте.")
 	start_game("Сид: 1991", 1991)
 	state.support = 20
 	if not main_stat_caption_color("support").is_equal_approx(RED):
@@ -1685,22 +1714,45 @@ func run_difficulty_smoke_test() -> void:
 	var starting_delta := weekly_actual_income() - weekly_actual_expenses()
 	if starting_delta > -0.80 or starting_delta < -2.20:
 		failures.append("Стартовый недельный баланс должен быть умеренным дефицитом, а не профицитом или немедленной катастрофой.")
+	for budget_key in ["budget_social", "budget_health", "budget_admin", "budget_defense", "budget_infrastructure"]:
+		var base_amount := budget_final_for_level(budget_key, 1, int(state.get("corruption_tier", 0)))
+		var reduced_amount := budget_final_for_level(budget_key, 0, int(state.get("corruption_tier", 0)))
+		var priority_amount := budget_final_for_level(budget_key, 2, int(state.get("corruption_tier", 0)))
+		if base_amount - reduced_amount < 0.45:
+			failures.append("Сокращение статьи «%s» даёт слишком малую недельную экономию." % budget_title(budget_key))
+		if priority_amount <= base_amount:
+			failures.append("Приоритет статьи «%s» не увеличивает недельный расход." % budget_title(budget_key))
 	for key in ["budget_social", "budget_health", "budget_admin", "budget_defense", "budget_debt", "budget_infrastructure"]:
 		state[key] = 0
 	var austerity_support_start := int(state.get("support", 0))
 	var austerity_stability_start := int(state.get("stability", 0))
 	var austerity_debt_start := float(state.get("debt", 0.0))
+	var austerity_rate_start := debt_weekly_interest_rate()
 	for closed_week in range(1, 9):
 		process_weekly_budget_consequences(closed_week)
 	var austerity_support_end := int(state.get("support", 0))
 	var austerity_stability_end := int(state.get("stability", 0))
 	var austerity_debt_end := float(state.get("debt", 0.0))
-	if austerity_support_start - austerity_support_end < 8:
-		failures.append("Восемь недель сокращения социальной помощи почти не влияют на поддержку.")
-	if austerity_stability_start - austerity_stability_end < 10:
-		failures.append("Одновременное сокращение школ, больниц и инфраструктуры недостаточно опасно.")
+	var austerity_rate_end := debt_weekly_interest_rate()
+	var austerity_support_loss := austerity_support_start - austerity_support_end
+	var austerity_stability_loss := austerity_stability_start - austerity_stability_end
+	if austerity_support_loss < 3 or austerity_support_loss > 6:
+		failures.append("Восемь недель сокращения социальной помощи должны создавать заметную, но не обвальную потерю поддержки.")
+	if austerity_stability_loss < 5 or austerity_stability_loss > 8:
+		failures.append("Одновременное сокращение школ, больниц и инфраструктуры должно быть опасным, но обратимым.")
 	if austerity_debt_end - austerity_debt_start < 48.0:
 		failures.append("Сокращённое обслуживание долга не накапливает обязательства каждую неделю.")
+	if austerity_rate_end - austerity_rate_start < DEBT_UNDERPAY_RATE_INCREASE * 7.9:
+		failures.append("Сокращённое обслуживание долга не повышает процентную ставку каждую неделю.")
+	start_game("Сид: %d" % test_seed, test_seed)
+	state.budget_debt = 2
+	var priority_paid := 0.0
+	for closed_week in range(1, DEMO_WEEKS + 1):
+		priority_paid += budget_amount_by_key("budget_debt")
+		process_weekly_budget_consequences(closed_week)
+	var baseline_paid := 420.0 * DEBT_INITIAL_WEEKLY_RATE * float(DEMO_WEEKS)
+	if priority_paid >= baseline_paid or debt_weekly_interest_rate() > DEBT_MIN_WEEKLY_RATE + 0.00001 or float(state.get("debt", 0.0)) >= 300.0:
+		failures.append("Приоритетное обслуживание не окупается как долгосрочная стратегия за полную кампанию.")
 	start_game("Сид: %d" % test_seed, test_seed)
 	state.east_relation = 0
 	var eastern_response_cost := 0.0
@@ -2064,6 +2116,7 @@ func run_save_smoke_test() -> void:
 	start_game("Сид: 1991", 1991)
 	state.money = 77.25
 	state.support = 73
+	state.debt_weekly_interest_rate = 0.00525
 	selected_ministers.economy = "grad"
 	active_law = "Антикоррупционное бюро"
 	law_progress = 1
@@ -2078,6 +2131,7 @@ func run_save_smoke_test() -> void:
 		failures.append("Файл кампании не был создан.")
 	state.money = 1.0
 	state.support = 1
+	state.debt_weekly_interest_rate = 0.02
 	selected_ministers.economy = "radan"
 	active_law = ""
 	event_queue.clear()
@@ -2086,7 +2140,7 @@ func run_save_smoke_test() -> void:
 	if not load_campaign():
 		failures.append("Сохранённую кампанию не удалось загрузить.")
 	else:
-		if not is_equal_approx(float(state.get("money", 0.0)), 77.25) or int(state.get("support", 0)) != 73:
+		if not is_equal_approx(float(state.get("money", 0.0)), 77.25) or int(state.get("support", 0)) != 73 or not is_equal_approx(float(state.get("debt_weekly_interest_rate", 0.0)), 0.00525):
 			failures.append("Основные показатели восстановлены неверно.")
 		if str(selected_ministers.get("economy", "")) != "grad" or active_law != "Антикоррупционное бюро" or law_progress != 1:
 			failures.append("Министры или подготовка закона не восстановлены.")
@@ -3172,7 +3226,7 @@ func legacy_relation_value(side: String) -> int:
 
 
 func convert_legacy_foreign_effects(effects: Dictionary) -> Dictionary:
-	var converted := effects.duplicate(true)
+	var converted := convert_legacy_population_effects(effects)
 	var legacy_keys := ["east_pressure", "west_pressure", "east_commitment", "west_commitment", "neutrality"]
 	var has_legacy := false
 	for key in legacy_keys:
@@ -3224,6 +3278,29 @@ func convert_legacy_foreign_effects(effects: Dictionary) -> Dictionary:
 	return converted
 
 
+func convert_legacy_population_effects(effects: Dictionary) -> Dictionary:
+	var converted := effects.duplicate(true)
+	var legacy_keys := ["pop_children", "pop_employed", "pop_unemployed", "pop_pensioners", "pop_migrants"]
+	var has_legacy := false
+	for key in legacy_keys:
+		if converted.has(key):
+			has_legacy = true
+			break
+	if not has_legacy:
+		return converted
+	var total_delta := int(converted.get("army_personnel", 0))
+	for key in legacy_keys:
+		total_delta += int(converted.get(key, 0))
+	var workable_delta := int(converted.get("pop_employed", 0)) + int(converted.get("pop_unemployed", 0))
+	for key in legacy_keys:
+		converted.erase(key)
+	if total_delta != 0:
+		converted["population_total"] = int(converted.get("population_total", 0)) + total_delta
+	if workable_delta != 0:
+		converted["population_workable"] = int(converted.get("population_workable", 0)) + workable_delta
+	return converted
+
+
 func relation_shift_effect(side: String, direction: int) -> Dictionary:
 	if side not in ["east", "west"] or direction == 0:
 		return {}
@@ -3260,11 +3337,38 @@ func normalize_loaded_pending_relations() -> void:
 		pending_week_changes[index] = change
 
 
+func normalize_event_population_effects(event_data: Dictionary) -> Dictionary:
+	var normalized := event_data.duplicate(true)
+	for side in ["left", "right", "third"]:
+		var option_data = normalized.get(side, {})
+		if option_data is Dictionary and not (option_data as Dictionary).is_empty():
+			var updated_option := (option_data as Dictionary).duplicate(true)
+			updated_option["effects"] = convert_legacy_population_effects(updated_option.get("effects", {}))
+			normalized[side] = updated_option
+	return normalized
+
+
+func normalize_event_array_population(items: Array[Dictionary]) -> void:
+	for index in range(items.size()):
+		items[index] = normalize_event_population_effects(items[index])
+
+
 func normalize_loaded_state() -> void:
+	if not state.has("population_total"):
+		state.population_total = (
+			int(state.get("pop_children", 820000))
+			+ int(state.get("pop_employed", 2200000))
+			+ int(state.get("pop_unemployed", 240000))
+			+ int(state.get("pop_pensioners", 870000))
+			+ int(state.get("pop_migrants", 70000))
+			+ int(state.get("army_personnel", 50000))
+		)
+	if not state.has("population_workable"):
+		state.population_workable = int(state.get("pop_employed", 2200000)) + int(state.get("pop_unemployed", 240000)) + int(state.get("pop_migrants", 70000))
 	var integer_keys := [
 		"week", "campaign_seed", "support", "stability", "army", "war_support", "corruption_tier", "influence",
 		"creditor_obligations", "creditor_review_due_week", "creditor_priority_weeks", "clan_oligarchs", "clan_church",
-		"clan_workers", "clan_regions", "pop_children", "pop_employed", "pop_unemployed", "pop_pensioners", "pop_migrants",
+		"clan_workers", "clan_regions", "population_total", "population_workable",
 		"army_personnel", "army_equipment", "army_aircraft", "metal_to_equipment", "oil_to_army", "metal_price_weeks",
 		"oil_price_weeks", "budget_social", "budget_health", "budget_admin", "budget_defense", "budget_debt",
 		"budget_infrastructure", "east_relation", "west_relation", "east_pressure", "west_pressure", "east_commitment", "west_commitment", "neutrality",
@@ -3277,7 +3381,7 @@ func normalize_loaded_state() -> void:
 	for key in integer_keys:
 		if state.has(key):
 			state[key] = int(state[key])
-	for key in ["money", "debt", "metal_price_factor", "oil_price_factor"]:
+	for key in ["money", "debt", "debt_weekly_interest_rate", "metal_price_factor", "oil_price_factor"]:
 		if state.has(key):
 			state[key] = float(state[key])
 	var loaded_defaults := {
@@ -3300,11 +3404,17 @@ func normalize_loaded_state() -> void:
 		"active_unrest_reversal": "",
 		"election_nomination_shown": int(state.get("week", 1)) >= 10,
 		"election_rules_shown": int(state.get("week", 1)) >= 19,
-		"election_campaign": "", "election_rules": "undecided", "election_method": ""
+		"election_campaign": "", "election_rules": "undecided", "election_method": "",
+		"debt_weekly_interest_rate": DEBT_INITIAL_WEEKLY_RATE
 	}
 	for key in loaded_defaults:
 		if not state.has(key):
 			state[key] = loaded_defaults[key]
+	state.debt_weekly_interest_rate = maxf(DEBT_MIN_WEEKLY_RATE, float(state.get("debt_weekly_interest_rate", DEBT_INITIAL_WEEKLY_RATE)))
+	state.population_total = maxi(int(state.get("army_personnel", 0)), int(state.get("population_total", 4250000)))
+	state.population_workable = clampi(int(state.get("population_workable", 2510000)), 0, maxi(0, int(state.population_total) - int(state.get("army_personnel", 0))))
+	for legacy_population_key in ["pop_children", "pop_employed", "pop_unemployed", "pop_pensioners", "pop_migrants"]:
+		state.erase(legacy_population_key)
 	# Старые сохранения переводятся из накопительных очков в одну из четырёх
 	# видимых категорий. После миграции старые числа больше не участвуют в расчётах.
 	if not state.has("east_relation"):
@@ -3355,7 +3465,12 @@ func load_campaign() -> bool:
 	event_queue = dictionary_array_from_save(data.get("event_queue", []))
 	recurring_event_queue = dictionary_array_from_save(data.get("recurring_event_queue", []))
 	weekly_event_queue = dictionary_array_from_save(data.get("weekly_event_queue", []))
-	current_event = (data.get("current_event", {}) as Dictionary).duplicate(true)
+	normalize_event_array_population(events)
+	normalize_event_array_population(recurring_events)
+	normalize_event_array_population(event_queue)
+	normalize_event_array_population(recurring_event_queue)
+	normalize_event_array_population(weekly_event_queue)
+	current_event = normalize_event_population_effects((data.get("current_event", {}) as Dictionary).duplicate(true))
 	migrate_legacy_final_event(events)
 	migrate_legacy_final_event(event_queue)
 	migrate_legacy_final_event(weekly_event_queue)
@@ -3393,14 +3508,14 @@ func start_game(mode: String, seed_value: int) -> void:
 	state = {
 		"week": 1, "campaign_seed": seed_value, "money": 42.0, "support": 58, "stability": 42, "army": 52,
 		"war_support": 24, "corruption_tier": 3, "influence": 3, "debt": 420.0,
+		"debt_weekly_interest_rate": DEBT_INITIAL_WEEKLY_RATE,
 		"creditor_obligations": 0, "creditor_review_pending": false,
 		"creditor_review_due_week": 0, "creditor_review_shown": false, "creditor_priority_weeks": 0,
 		"creditor_demand_budget_key": "", "creditor_budget_lock_key": "",
 		"creditor_budget_lock_level": -1, "creditor_budget_lock_until_week": 0,
 		"clan_oligarchs": 58, "clan_church": 61, "clan_workers": 47,
 		"clan_regions": 50,
-		"pop_children": 820000, "pop_employed": 2200000, "pop_unemployed": 240000,
-		"pop_pensioners": 870000, "pop_migrants": 70000, "army_personnel": 50000,
+		"population_total": 4250000, "population_workable": 2510000, "army_personnel": 50000,
 		"recruitment_model": "mixed", "army_equipment": 300, "army_aircraft": 12,
 		"metal_to_equipment": 2, "oil_to_army": 8, "at_war": false,
 		"war_enemy": "", "war_started_week": 0, "war_weeks": 0, "war_casualties": 0,
@@ -3707,9 +3822,6 @@ func build_game_screen() -> void:
 	var army_button := small_button("АРМИЯ")
 	army_button.pressed.connect(show_army)
 	section_grid.add_child(army_button)
-	var population_button := small_button("НАСЕЛЕНИЕ")
-	population_button.pressed.connect(show_population)
-	section_grid.add_child(population_button)
 	var foreign_button := small_button("ВНЕШНЯЯ ПОЛИТИКА")
 	foreign_button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	foreign_button.pressed.connect(show_foreign_policy)
@@ -4284,7 +4396,7 @@ func build_story_followup_event(kind: String) -> Dictionary:
 			return event("Энергетическая комиссия", "official", "#c7a96b", "Долг теплосетей", heating_body,
 				option("Погасить долг из казны", "Тепло и порядок сохранятся • казна и долг пострадают • другие города потребуют того же", {"money": -12, "debt": 6, "support": 4, "stability": 4, "clan_regions": 5}, "Казначейство закрыло счета теплосетей. Поставки возобновились, а на следующий день ещё девять мэров прислали собственные ведомости долгов.", {"heating_debt_bailed_out": true}),
 				option("Передать долг муниципалитетам", "Центр сэкономит • губернаторы получат право вводить местные сборы • регионы усилятся и станут неравнее", {"support": -3, "stability": 1, "debt": 9, "clan_regions": 10}, "Города выпустили облигации и ввели разные коммунальные сборы. Богатые районы рассчитались сразу, бедные заложили доходы на несколько лет.", {"municipal_heating_bonds": true}),
-				option("Отключить убыточные промышленные линии", "Поставки населению сохранятся • экспорт и рабочие места пострадают • вероятна забастовка", {"money": 3, "support": -4, "stability": -4, "clan_workers": -10, "pop_employed": -8000, "pop_unemployed": 8000}, "Газ перенаправили с заводов в городские котельные. В квартирах стало теплее, но заводские проходные закрылись, и профсоюзы объявили общую смену протеста.", {"industry_heat_cut": true, "unrest": {"cause": "остановка промышленных линий ради отопления городов", "kind": "labor", "labor": true, "base_level": 2, "condition": "workers_low", "reversible": false}}))
+				option("Отключить убыточные промышленные линии", "Поставки населению сохранятся • экспорт и выпуск пострадают • вероятна забастовка", {"money": 3, "support": -4, "stability": -4, "clan_workers": -10}, "Газ перенаправили с заводов в городские котельные. В квартирах стало теплее, но заводские проходные закрылись, и профсоюзы объявили общую смену протеста.", {"industry_heat_cut": true, "unrest": {"cause": "остановка промышленных линий ради отопления городов", "kind": "labor", "labor": true, "base_level": 2, "condition": "workers_low", "reversible": false}}))
 		"constitutional_court":
 			return event("Председатель парламента", "official", "#8b6c4b", "Решение, которого нет", "Суд так и не собрал кворум, а государственные органы исполняют противоположные толкования одного закона. Банки требуют подписи судей, антикоррупционная служба — продолжения расследований, губернаторы ждут, кто первым уступит.",
 				option("Согласовать замену судей", "Потребуется сделка с фракциями • работа государства восстановится • олигархи получат влияние на часть назначений", {"money": -3, "stability": 6, "support": -2, "clan_oligarchs": 7}, "Коалиция назначила новых судей по квотам. Кворум появился, но у каждого нового кресла теперь есть парламентский покровитель.", {"court_compromise": true}),
@@ -4297,14 +4409,15 @@ func build_story_followup_event(kind: String) -> Dictionary:
 				option("Заморозить имущество обеих сторон", "Столкновения будут отложены • богослужения ограничат • верующие и церковь отвернутся от власти", {"stability": 4, "support": -4, "clan_church": -10, "authoritarian": 1}, "Полиция опечатала спорные здания до решения суда. Драки прекратились, но воскресные службы прошли на улицах перед закрытыми дверями.", {"faith_property_frozen": true}))
 		"volunteer_command":
 			var volunteer_body := "На учениях командир добровольческого батальона отказался подчиниться кадровому полковнику и предъявил прямое письмо губернатора. Военные требуют единого командования, добровольцы напоминают, что получили оружие, когда регулярная армия не могла закрыть границу."
+			var volunteers_were_integrated := bool(state.get("volunteers_integrated", false))
 			if bool(state.get("volunteers_disarmed", false)):
 				volunteer_body = "После разоружения часть добровольцев не сдала оружие и создала ветеранские союзы в трёх городах. Они требуют амнистии и права войти в резерв единым подразделением, а полиция предупреждает о тайных складах."
 			elif bool(state.get("volunteers_regional", false)):
 				volunteer_body = "Территориальные отряды подчиняются губернаторам и отказываются передавать технику армейскому штабу. На карте обороны появились хорошо вооружённые районы, которые президент не может быстро перебросить."
 			return event("Совет обороны", "military", "#536f82", "Чей приказ последний", volunteer_body,
-				option("Единое командование после проверки", "Потребуются деньги и время • армия получит управляемый резерв • часть добровольцев уйдёт", {"money": -6, "army": 6, "stability": 2, "army_personnel": 1800, "war_support": 3}, "Каждый доброволец прошёл проверку и подписал индивидуальный контракт. Батальон потерял собственное название, но появился в армейском расписании.", {"volunteers_vetted": true}),
+				option("Единое командование после проверки", "Потребуются деньги и время • батальон останется в составе армии под единым командованием", {"money": -6, "army": 6, "stability": 2, "war_support": 3}, "Каждый доброволец прошёл проверку и подписал индивидуальный контракт. Батальон потерял собственное название, но появился в армейском расписании.", {"volunteers_vetted": true}),
 				option("Сделать батальон президентской гвардией", "Президент получит личную силу • армия и порядок пострадают • авторитаризм усилится", {"support": -3, "stability": -4, "army": -7, "war_support": 5, "authoritarian": 1}, "Батальон присягнул лично президенту и занял базу у столицы. Добровольцы довольны статусом, а генеральный штаб больше не включает их в общие планы.", {"presidential_guard_battalion": true}),
-				option("Амнистия в обмен на роспуск", "Оружие вернётся на склады • поддержка войны и армия ослабнут • гражданский порядок укрепится", {"support": 3, "stability": 6, "army": -5, "war_support": -7, "army_personnel": -1200}, "Участники сдали тяжёлое оружие и получили амнистию. Большинство разошлось, но их командиры сразу зарегистрировали политическое движение ветеранов.", {"volunteer_party_formed": true}))
+				option("Амнистия в обмен на роспуск", "Оружие вернётся на склады • поддержка войны и армия ослабнут • гражданский порядок укрепится", {"support": 3, "stability": 6, "army": -5, "war_support": -7, "army_personnel": -3000, "population_workable": 3000} if volunteers_were_integrated else {"support": 3, "stability": 6, "army": -5, "war_support": -7}, "Участники сдали тяжёлое оружие и получили амнистию. Большинство разошлось, но их командиры сразу зарегистрировали политическое движение ветеранов.", {"volunteer_party_formed": true}))
 	return {}
 
 
@@ -4924,7 +5037,7 @@ func projected_pending_value(key: String) -> int:
 		value += int(effects.get(key, 0))
 		if key in ["support", "stability", "army", "war_support", "clan_oligarchs", "clan_church", "clan_workers", "clan_regions"]:
 			value = clampi(value, 0, 100)
-		elif key in ["pop_children", "pop_employed", "pop_unemployed", "pop_pensioners", "pop_migrants", "army_personnel", "army_equipment", "army_aircraft"]:
+		elif key in ["population_total", "population_workable", "army_personnel", "army_equipment", "army_aircraft"]:
 			value = maxi(0, value)
 		elif key == "corruption_tier":
 			value = clampi(value, 0, CORRUPTION_LABELS.size() - 1)
@@ -5005,10 +5118,18 @@ func projected_army_snapshot() -> Dictionary:
 
 
 func projected_total_population() -> int:
-	var total := 0
-	for key in ["pop_children", "pop_employed", "pop_unemployed", "pop_pensioners", "pop_migrants", "army_personnel"]:
-		total += projected_pending_value(key)
-	return total
+	return projected_pending_value("population_total")
+
+
+func projected_workable_population() -> int:
+	return mini(
+		projected_pending_value("population_workable"),
+		maxi(0, projected_total_population() - projected_pending_value("army_personnel"))
+	)
+
+
+func projected_dependent_population() -> int:
+	return maxi(0, projected_total_population() - projected_workable_population() - projected_pending_value("army_personnel"))
 
 
 func preview_deferred_effects(effects: Dictionary) -> Dictionary:
@@ -5024,7 +5145,7 @@ func preview_deferred_effects(effects: Dictionary) -> Dictionary:
 		var after := before + int(normalized[key_variant])
 		if key in ["support", "stability", "army", "war_support", "clan_oligarchs", "clan_church", "clan_workers", "clan_regions"]:
 			after = clampi(after, 0, 100)
-		elif key in ["pop_children", "pop_employed", "pop_unemployed", "pop_pensioners", "pop_migrants", "army_personnel", "army_equipment", "army_aircraft"]:
+		elif key in ["population_total", "population_workable", "army_personnel", "army_equipment", "army_aircraft"]:
 			after = maxi(0, after)
 		elif key == "corruption_tier":
 			after = clampi(after, 0, CORRUPTION_LABELS.size() - 1)
@@ -5147,9 +5268,11 @@ func apply_effects(effects: Dictionary) -> Dictionary:
 			state[key] = int(state.get(key, 0)) + int(normalized[key])
 	for key in ["support", "stability", "army", "war_support", "clan_oligarchs", "clan_church", "clan_workers", "clan_regions"]:
 		state[key] = clampi(int(state[key]), 0, 100)
-	for key in ["pop_children", "pop_employed", "pop_unemployed", "pop_pensioners", "pop_migrants", "army_personnel", "army_equipment", "army_aircraft"]:
+	for key in ["population_total", "population_workable", "army_personnel", "army_equipment", "army_aircraft"]:
 		if state.has(key):
 			state[key] = maxi(0, int(state[key]))
+	state.population_total = maxi(int(state.get("army_personnel", 0)), int(state.get("population_total", 0)))
+	state.population_workable = clampi(int(state.get("population_workable", 0)), 0, maxi(0, int(state.population_total) - int(state.get("army_personnel", 0))))
 	for key in ["east_relation", "west_relation"]:
 		if state.has(key):
 			state[key] = clampi(int(state[key]), 0, 3)
@@ -5188,12 +5311,12 @@ func clan_weekly_effect_description(key: String, value: int) -> String:
 			return "казна %+.2f млн каждую неделю" % actual
 		"clan_church":
 			if critical_high:
-				return "поддержка войны +%d каждую неделю; рождаемость +%d%%" % [church_war_support_effect(value), roundi(church_birth_rate_modifier(value) * 100.0)]
+				return "поддержка войны +%d каждую неделю; население +%s раз в месяц" % [church_war_support_effect(value), format_people(monthly_church_population_bonus(value))]
 			if high:
 				if bool(state.get("secular_education", false)):
-					return "поддержка войны +1 раз в две недели; рождаемость +%d%%" % roundi(church_birth_rate_modifier(value) * 100.0)
+					return "поддержка войны +1 раз в две недели; население +%s раз в месяц" % format_people(monthly_church_population_bonus(value))
 				var war_effect := church_war_support_effect(value)
-				return "поддержка войны +%d каждую неделю; рождаемость +%d%%" % [war_effect, roundi(church_birth_rate_modifier(value) * 100.0)]
+				return "поддержка войны +%d каждую неделю; население +%s раз в месяц" % [war_effect, format_people(monthly_church_population_bonus(value))]
 			if critical_low:
 				return "поддержка власти %d каждую неделю" % church_public_support_effect(value)
 			return "поддержка власти %d каждую неделю" % church_public_support_effect(value)
@@ -5273,9 +5396,8 @@ func effects_to_text(original_effects: Dictionary, applied_effects: Dictionary, 
 		"authoritarian": "Авторитарный курс",
 		"clan_oligarchs": "Олигархи", "clan_church": "Церковь Веры",
 		"clan_workers": "Рабочие и профсоюзы", "clan_regions": "Фермеры и регионы",
-		"debt": "Государственный долг", "creditor_obligations": "Обязательства перед кредиторами", "pop_children": "Дети",
-		"pop_employed": "Работающие", "pop_unemployed": "Безработные",
-		"pop_pensioners": "Пенсионеры", "pop_migrants": "Мигранты и беженцы",
+		"debt": "Государственный долг", "creditor_obligations": "Обязательства перед кредиторами",
+		"population_total": "Население", "population_workable": "Работоспособное население",
 		"army_personnel": "Военнослужащие", "army_equipment": "Наземная техника",
 		"army_aircraft": "Авиация", "east_relation": "Восточный Союз",
 		"west_relation": "Западная Федерация"
@@ -5316,7 +5438,7 @@ func effects_to_text(original_effects: Dictionary, applied_effects: Dictionary, 
 				if previous_relation != current_relation:
 					parts.append("%s: %s → %s" % [names[key], relation_labels[previous_relation], relation_labels[current_relation]])
 				continue
-			var population_keys := ["pop_children", "pop_employed", "pop_unemployed", "pop_pensioners", "pop_migrants", "army_personnel"]
+			var population_keys := ["population_total", "population_workable", "army_personnel"]
 			if key in population_keys:
 				parts.append("%s %s%s" % [names[key], "+" if value > 0 else "−" if value < 0 else "", format_people(absi(value))])
 			elif key == "debt":
@@ -5372,11 +5494,16 @@ func budget_breakdown_tooltip(item: Dictionary, corruption_tier: int) -> String:
 	var key := str(item.get("key", ""))
 	var raw_need := budget_base_amount(key)
 	var level := budget_level(key)
-	var level_multiplier := budget_level_multiplier(level)
+	var level_multiplier := budget_level_multiplier(key, level)
 	var planned := budget_amount_by_key(key)
 	var final_amount := absf(adjusted_money_transaction(-planned, corruption_tier))
-	return "%s\n%s\n%s\nБазовая потребность: %.2f млн\nУровень «%s»: ×%.2f = %.2f млн\nКоррупция «%s»: на расходы и цены не влияет\nИтого: %.2f млн в неделю" % [
-		str(item.get("title", "Расход")), str(item.get("impact", "")), budget_level_consequence_text(key, level), raw_need,
+	var base_calculation := "Базовая потребность: %.2f млн" % raw_need
+	if key == "budget_social":
+		base_calculation = "База: %s неработоспособных × %.2f млн за 1 млн = %.2f млн" % [format_people(dependent_population()), SOCIAL_DEPENDENT_COST_PER_MILLION, raw_need]
+	elif key == "budget_health":
+		base_calculation = "База: %s жителей × 0,35 млн за 1 млн = %.2f млн" % [format_people(total_population()), raw_need]
+	return "%s\n%s\n%s\n%s\nУровень «%s»: ×%.2f = %.2f млн\nКоррупция «%s»: на расходы и цены не влияет\nИтого: %.2f млн в неделю" % [
+		str(item.get("title", "Расход")), str(item.get("impact", "")), budget_level_consequence_text(key, level), base_calculation,
 		BUDGET_LEVEL_NAMES[level], level_multiplier, planned, corruption_level(corruption_tier),
 		final_amount
 	]
@@ -5384,24 +5511,39 @@ func budget_breakdown_tooltip(item: Dictionary, corruption_tier: int) -> String:
 
 func budget_level_consequence_text(key: String, level: int) -> String:
 	if key == "budget_social":
-		return ["Последствие: каждую неделю −2 к поддержке и −2 к профсоюзам.", "Последствие: покрывает текущую потребность без постоянного бонуса или штрафа.", "Последствие: раз в 2 недели +1 к поддержке и +3 к профсоюзам."][level]
+		return ["Последствие: раз в 2 недели −1 к поддержке и −2 к профсоюзам; при низкой поддержке сокращение может вызвать протест.", "Последствие: покрывает текущую потребность без постоянного бонуса или штрафа.", "Последствие: раз в 2 недели +1 к поддержке и +2 к профсоюзам."][level]
 	if key == "budget_health":
-		return ["Последствие: −2 к стабильности каждую неделю; раз в месяц мигранты −8 тыс.; людские потери на войне +25%.", "Последствие: покрывает текущую потребность без постоянного бонуса, миграционного сдвига или поправки к потерям.", "Последствие: раз в 2 недели +1 к стабильности; раз в месяц мигранты +8 тыс.; людские потери на войне −20%."][level]
+		return ["Последствие: раз в 2 недели −1 к стабильности; раз в месяц население −12 тыс., половина потери приходится на работоспособных; людские потери на войне +25%.", "Последствие: покрывает текущую потребность без постоянного демографического сдвига или поправки к потерям.", "Последствие: раз в 2 недели +1 к стабильности; раз в месяц население +12 тыс., половина прироста становится работоспособной; людские потери на войне −20%."][level]
 	if key == "budget_admin":
 		var base_points: int = [2, 3, 4][level]
 		var stability_note := " Высокая стабильность даёт ещё +1 очко." if high_stability_influence_bonus() > 0 else " Низкая стабильность отнимает 1 очко." if low_stability_influence_penalty() > 0 else " При стабильности 70 и выше добавится ещё +1 очко, при 30 и ниже будет отнято 1."
 		return "Последствие: %d очк. решений в начале недели.%s" % [base_points, stability_note]
 	if key == "budget_defense":
-		return ["Последствие: −1 к лояльности армии каждую неделю и ещё −1 по чётным неделям либо при угрозе.", "Последствие: покрывает текущую потребность без постоянного бонуса или штрафа.", "Последствие: раз в 2 недели +2 к лояльности армии."][level]
+		return ["Последствие: −1 к лояльности армии раз в 2 недели, а при военной угрозе — каждую неделю; выпуск техники работает вполовину.", "Последствие: покрывает текущую потребность без постоянного бонуса или штрафа.", "Последствие: раз в 2 недели +2 к лояльности армии; выпуск техники ускорен."][level]
 	if key == "budget_debt":
-		return ["Последствие: долг растёт на 8 млн каждую неделю; действующие условия международных кредиторов становятся жёстче.", "Последствие: обязательный платёж без изменения основного долга.", "Последствие: долг сокращается на 6 млн каждую неделю; каждая четвёртая неделя ослабляет условия международных кредиторов."][level]
+		var current_rate := debt_weekly_interest_rate()
+		if level == 0:
+			var increased_rate := current_rate + DEBT_UNDERPAY_RATE_INCREASE
+			return "Последствие: долг +8 млн, недельная ставка %.3f%% → %.3f%%. Следующие платежи постоянно дорожают; действующие условия кредиторов становятся жёстче." % [debt_weekly_interest_percent(current_rate), debt_weekly_interest_percent(increased_rate)]
+		if level == 1:
+			return "Последствие: основной долг и недельная ставка %.3f%% не меняются." % debt_weekly_interest_percent(current_rate)
+		var reduced_rate := maxf(DEBT_MIN_WEEKLY_RATE, current_rate - DEBT_PRIORITY_RATE_DECREASE)
+		return "Последствие: долг −6 млн, недельная ставка %.3f%% → %.3f%% (минимум %.2f%%). Первые выплаты дороже, но длительный приоритет уменьшает следующие платежи; каждая четвёртая неделя смягчает условия кредиторов." % [debt_weekly_interest_percent(current_rate), debt_weekly_interest_percent(reduced_rate), debt_weekly_interest_percent(DEBT_MIN_WEEKLY_RATE)]
 	if key == "budget_infrastructure":
-		return ["Последствие: каждую неделю −2 к регионам; по чётным неделям ещё −1 к стабильности.", "Последствие: покрывает текущую потребность без постоянного бонуса или штрафа.", "Последствие: раз в 2 недели +3 к регионам и +1 к стабильности."][level]
+		return ["Последствие: каждую неделю −1 к регионам; раз в 4 недели ещё −1 к стабильности.", "Последствие: покрывает текущую потребность без постоянного бонуса или штрафа.", "Последствие: раз в 2 недели +2 к регионам; раз в 4 недели +1 к стабильности."][level]
 	return ""
 
 
 func total_population() -> int:
-	return int(state.get("pop_children", 0)) + int(state.get("pop_employed", 0)) + int(state.get("pop_unemployed", 0)) + int(state.get("pop_pensioners", 0)) + int(state.get("pop_migrants", 0)) + int(state.get("army_personnel", 0))
+	return int(state.get("population_total", 0))
+
+
+func workable_population() -> int:
+	return int(state.get("population_workable", 0))
+
+
+func dependent_population() -> int:
+	return maxi(0, total_population() - workable_population() - int(state.get("army_personnel", 0)))
 
 
 func format_people(value: int) -> String:
@@ -5411,7 +5553,7 @@ func format_people(value: int) -> String:
 
 
 func recruitment_target() -> int:
-	var adult_citizens := int(state.get("pop_employed", 0)) + int(state.get("pop_unemployed", 0)) + int(state.get("army_personnel", 0))
+	var adult_citizens := workable_population() + int(state.get("army_personnel", 0))
 	var model := str(state.get("recruitment_model", "mixed"))
 	var share := 0.03
 	if model == "contract":
@@ -5477,9 +5619,9 @@ func health_war_loss_multiplier(level_override := -1) -> float:
 	return [1.25, 1.0, 0.80][level]
 
 
-func monthly_health_migration_balance(level_override := -1) -> int:
+func monthly_health_population_change(level_override := -1) -> int:
 	var level := budget_level("budget_health") if level_override < 0 else clampi(level_override, 0, 2)
-	return [-8000, 0, 8000][level]
+	return [-MONTHLY_HEALTH_POPULATION_CHANGE, 0, MONTHLY_HEALTH_POPULATION_CHANGE][level]
 
 
 func army_required_equipment() -> int:
@@ -5559,7 +5701,7 @@ func army_budget_breakdown_tooltip(corruption_tier: int) -> String:
 	var final_amount := absf(adjusted_money_transaction(-planned, corruption_tier))
 	return "Почему оборона стоит именно столько:\nПостоянные службы: 0.40 млн\nЛичный состав (%s): %.2f млн\nСодержание наземной техники: %.2f млн\nСодержание импортной авиации: %.2f млн\nЗаказ наземной техники: %.2f млн\nПотребность до уровня бюджета: %.2f млн\nУровень «%s»: ×%.2f = %.2f млн\nКоррупция «%s»: на расходы и цены не влияет\nИтого: %.2f млн" % [
 		str(model.get("title", "Смешанная")), personnel_cost, equipment_cost, aviation_cost,
-		orders_cost, raw_total, BUDGET_LEVEL_NAMES[level], budget_level_multiplier(level), planned,
+		orders_cost, raw_total, BUDGET_LEVEL_NAMES[level], budget_level_multiplier("budget_defense", level), planned,
 		corruption_level(corruption_tier), final_amount
 	]
 
@@ -5569,7 +5711,7 @@ func production_order_cost() -> float:
 
 
 func equipment_order_final_cost(corruption_tier: int) -> float:
-	var planned := production_order_cost() * budget_level_multiplier(budget_level("budget_defense"))
+	var planned := production_order_cost() * budget_level_multiplier("budget_defense", budget_level("budget_defense"))
 	return absf(adjusted_money_transaction(-planned, corruption_tier))
 
 
@@ -5660,37 +5802,52 @@ func social_budget_lock_weeks_left() -> int:
 	return int(state.get("social_budget_lock_until_week", 0)) - int(state.get("week", 1)) + 1
 
 
-func budget_level_multiplier(level: int) -> float:
-	return [0.70, 1.0, 1.40][clampi(level, 0, 2)]
+func budget_level_multiplier(key: String, level: int) -> float:
+	var multipliers: Array = BUDGET_LEVEL_MULTIPLIERS.get(key, [0.70, 1.0, 1.40])
+	return float(multipliers[clampi(level, 0, 2)])
 
 
-func budget_base_amount(key: String) -> float:
+func debt_weekly_interest_rate() -> float:
+	return maxf(DEBT_MIN_WEEKLY_RATE, float(state.get("debt_weekly_interest_rate", DEBT_INITIAL_WEEKLY_RATE)))
+
+
+func debt_weekly_interest_percent(rate_override := -1.0) -> float:
+	var rate := debt_weekly_interest_rate() if rate_override < 0.0 else rate_override
+	return rate * 100.0
+
+
+func debt_service_amount(debt_override := -1.0, rate_override := -1.0, level_override := -1) -> float:
+	var debt_value := float(state.get("debt", 0.0)) if debt_override < 0.0 else debt_override
+	var rate := debt_weekly_interest_rate() if rate_override < 0.0 else rate_override
+	var level := budget_level("budget_debt") if level_override < 0 else clampi(level_override, 0, 2)
+	var base_payment := maxf(0.5, snappedf(debt_value * rate, 0.01))
+	return snappedf(base_payment * budget_level_multiplier("budget_debt", level), 0.01)
+
+
+func budget_base_amount(key: String, total_override := -1, dependents_override := -1) -> float:
+	var population_value := total_population() if total_override < 0 else total_override
+	var dependents_value := dependent_population() if dependents_override < 0 else dependents_override
 	if key == "budget_social":
-		return (
-			float(state.get("pop_pensioners", 0)) / 1000000.0 * 1.20
-			+ float(state.get("pop_unemployed", 0)) / 1000000.0 * 0.90
-			+ float(state.get("pop_children", 0)) / 1000000.0 * 0.30
-			+ float(state.get("pop_migrants", 0)) / 1000000.0 * 0.50
-		)
+		return snappedf(float(dependents_value) / 1000000.0 * SOCIAL_DEPENDENT_COST_PER_MILLION, 0.01)
 	if key == "budget_health":
-		return float(total_population()) / 1000000.0 * 0.35
+		return float(population_value) / 1000000.0 * 0.35
 	if key == "budget_admin":
 		return 0.85
 	if key == "budget_defense":
 		return army_base_cost()
 	if key == "budget_debt":
-		return maxf(0.5, snappedf(float(state.get("debt", 0.0)) * 0.006, 0.01))
+		return maxf(0.5, snappedf(float(state.get("debt", 0.0)) * debt_weekly_interest_rate(), 0.01))
 	if key == "budget_infrastructure":
 		return 0.55
 	return 0.0
 
 
 func budget_amount_by_key(key: String) -> float:
-	return snappedf(budget_base_amount(key) * budget_level_multiplier(budget_level(key)), 0.01)
+	return snappedf(budget_base_amount(key) * budget_level_multiplier(key, budget_level(key)), 0.01)
 
 
 func budget_final_for_level(key: String, level: int, corruption_tier: int) -> float:
-	var planned := snappedf(budget_base_amount(key) * budget_level_multiplier(level), 0.01)
+	var planned := snappedf(budget_base_amount(key) * budget_level_multiplier(key, level), 0.01)
 	return absf(adjusted_money_transaction(-planned, corruption_tier))
 
 
@@ -5837,8 +5994,8 @@ func build_war_crisis_event() -> Dictionary:
 	var mobilization := option(
 		"Начать экстренную мобилизацию",
 		"25 тыс. человек перейдут из гражданской экономики в армию • поддержка, стабильность и поддержка войны снизятся • лояльность штаба вырастет",
-		{"pop_employed": -20000, "pop_unemployed": -5000, "army_personnel": 25000, "support": -6, "stability": -3, "war_support": -4, "army": 4},
-		"Правительство объявило экстренную мобилизацию. Военкоматы получили списки работающих и безработных, предприятия лишились части смен, а первые пополнения направились к линии фронта без полного цикла подготовки.",
+		{"population_workable": -25000, "army_personnel": 25000, "support": -6, "stability": -3, "war_support": -4, "army": 4},
+		"Правительство объявило экстренную мобилизацию. Военкоматы получили списки работоспособных граждан, предприятия лишились части смен, а первые пополнения направились к линии фронта без полного цикла подготовки.",
 		{"recruitment_model": "mobilization", "war_emergency_mobilization": true}
 	)
 	var procurement := option(
@@ -5874,12 +6031,12 @@ func build_war_pressure_event() -> Dictionary:
 		return event("СОВЕТ ОБОРОНЫ", "military", "#a9473f", "Тонкая линия", situation + "\n\nПротивник давит сразу на три приграничных города. Генштаб может удерживать каждый населённый пункт только ценой техники, сократить линию фронта либо раздать оружие территориальным батальонам.",
 			option("Удерживать все города", "Крупные расходы и потери техники • поддержка войны и приграничья укрепятся", {"money": -8, "army_equipment": -10, "war_support": 4, "clan_regions": 6, "army": 2}, "Резервы разошлись по трём дорогам. Города остались под флагом республики, но ремонтные роты уже разбирают последние исправные машины на запчасти."),
 			option("Сократить линию фронта", "Часть территории будет оставлена • фронту навсегда потребуется меньше людей • общество и регионы ответят резко", {"support": -7, "stability": -5, "war_support": -4, "clan_regions": -10, "army": 4}, "Армия отошла за реку и взорвала мосты. Новую линию удерживать проще, но жители оставленных районов увидели государственные флаги только на уходящих машинах.", {"war_frontline_retreat": true}),
-			option("Вооружить территориальные батальоны", "Армия получит 8 тыс. человек • единое командование ослабнет • начнутся протесты против призыва", {"pop_employed": -4000, "pop_unemployed": -4000, "army_personnel": 8000, "army": -5, "war_support": -3, "clan_regions": 8}, "Губернаторы получили оружие и списки добровольцев. На фронте стало больше людей, однако часть батальонов принимает приказы только от местных администраций.", {"unrest": {"cause": "вооружение территориальных батальонов", "kind": "antiwar", "base_level": 1, "reversible": false}}))
+			option("Вооружить территориальные батальоны", "Армия получит 8 тыс. человек • единое командование ослабнет • начнутся протесты против призыва", {"population_workable": -8000, "army_personnel": 8000, "army": -5, "war_support": -3, "clan_regions": 8}, "Губернаторы получили оружие и списки добровольцев. На фронте стало больше людей, однако часть батальонов принимает приказы только от местных администраций.", {"unrest": {"cause": "вооружение территориальных батальонов", "kind": "antiwar", "base_level": 1, "reversible": false}}))
 	if war_week <= 7:
 		return event("ГЕНЕРАЛЬНЫЙ ШТАБ", "military", "#a9473f", "Ротация, которой нет", situation + "\n\nПередовые бригады находятся в окопах без смены. Командиры требуют оплачиваемую ротацию, правительство может оставить части на позициях либо вызвать новую волну резервистов.",
 			option("Провести полную ротацию", "Большие расходы и дополнительный износ техники • лояльность армии и поддержка укрепятся", {"money": -9, "army_equipment": -4, "army": 6, "support": 2, "war_support": 2}, "Бригады вывели с позиций, выплатили задержанные надбавки и заменили свежими частями. Железные дороги встали под воинскими эшелонами, но солдаты впервые за месяцы увидели семьи."),
 			option("Отменить ротацию", "Казна и резерв сохранятся • армия и общественная готовность продолжать войну резко упадут", {"army": -8, "war_support": -5, "support": -3}, "Приказ о смене отменили за ночь. Части остались на позициях, а командиры начали скрывать число самовольных уходов, чтобы не получить обвинение в потере управления."),
-			option("Призвать десять тысяч резервистов", "Фронт получит людей • экономика, профсоюзы и поддержка войны пострадают • начнётся антивоенный протест", {"pop_employed": -5000, "pop_unemployed": -5000, "army_personnel": 10000, "support": -5, "war_support": -6, "clan_workers": -7, "stability": -2}, "Повестки отправили на заводы и биржи труда. Новые батальоны закрыли ротацию, но рабочие комитеты объявили, что правительство заменяет военную стратегию бесконечным набором людей.", {"unrest": {"cause": "новая волна призыва резервистов", "kind": "antiwar", "base_level": 2, "reversible": false}}))
+			option("Призвать десять тысяч резервистов", "Фронт получит людей • экономика, профсоюзы и поддержка войны пострадают • начнётся антивоенный протест", {"population_workable": -10000, "army_personnel": 10000, "support": -5, "war_support": -6, "clan_workers": -7, "stability": -2}, "Повестки отправили на заводы и в учебные центры. Новые батальоны закрыли ротацию, но рабочие комитеты объявили, что правительство заменяет военную стратегию бесконечным набором людей.", {"unrest": {"cause": "новая волна призыва резервистов", "kind": "antiwar", "base_level": 2, "reversible": false}}))
 	if war_week <= 11:
 		var foreign_supply_effects := {"money": -11, "army_equipment": 16, "army_aircraft": 2, "support": -3}
 		merge_numeric_effects(foreign_supply_effects, relation_shift_effect(other, 1))
@@ -5893,9 +6050,9 @@ func build_war_pressure_event() -> Dictionary:
 			option("Вернуть легкораненых в строй", "Армия немедленно получит 5 тыс. человек • лояльность, поддержка и порядок пострадают", {"army_personnel": 5000, "army": -7, "support": -4, "stability": -2, "war_support": -4}, "Медицинские комиссии переписали категории годности. Пять тысяч человек вернулись в части, многие — с незажившими ранами и публичными письмами к семьям."),
 			option("Засекретить списки потерь", "Поддержка власти резко упадёт • военные настроения временно укрепятся • авторитарный курс и протест усилятся", {"support": -8, "stability": 3, "war_support": 3, "authoritarian": 1}, "Больницы перестали сообщать фамилии, а похороны провели без прессы. На несколько дней сводки стали спокойнее, затем родственники собрали собственный список и вышли к министерству.", {"unrest": {"cause": "засекречивание списков военных потерь", "kind": "antiwar", "base_level": 2, "reversible": false}}))
 	return event("СТАВКА ВЕРХОВНОГО КОМАНДОВАНИЯ", "military", "#a9473f", "Последний резерв", situation + "\n\nОбычные резервы исчерпаны. Ставка предлагает общую мобилизацию, новый отход с оставлением ещё одного района либо снятие частей с охраны тыла и критической инфраструктуры.",
-		option("Объявить общую мобилизацию", "Армия получит 20 тыс. человек • экономика и все общественные показатели рухнут • начнутся крупные протесты", {"pop_employed": -15000, "pop_unemployed": -5000, "army_personnel": 20000, "support": -9, "stability": -5, "war_support": -8, "army": 5, "clan_workers": -8}, "Военкоматы получили право останавливать транспорт и проверять документы. Фронт пополнился, но заводы потеряли смены, а города заполнили семьи мобилизованных.", {"unrest": {"cause": "общая мобилизация после истощения резервов", "kind": "antiwar", "base_level": 3, "reversible": false}}),
+		option("Объявить общую мобилизацию", "Армия получит 20 тыс. человек • экономика и все общественные показатели рухнут • начнутся крупные протесты", {"population_workable": -20000, "army_personnel": 20000, "support": -9, "stability": -5, "war_support": -8, "army": 5, "clan_workers": -8}, "Военкоматы получили право останавливать транспорт и проверять документы. Фронт пополнился, но заводы потеряли смены, а города заполнили семьи мобилизованных.", {"unrest": {"cause": "общая мобилизация после истощения резервов", "kind": "antiwar", "base_level": 3, "reversible": false}}),
 		option("Оставить ещё один район", "Фронту навсегда потребуется на 8 тыс. меньше людей • поддержка, стабильность и регионы понесут катастрофический удар", {"support": -10, "stability": -7, "war_support": -6, "clan_regions": -14, "army": 5}, "Армия отошла на следующую естественную преграду. Карта фронта стала короче, а карта контролируемой республики — ещё меньше; колонны беженцев движутся к столице.", {"war_frontline_retreat": true}),
-		option("Снять гарнизоны с тыла", "Фронт получит 7 тыс. человек • лояльность штаба, порядок и регионы резко ослабнут", {"pop_employed": -7000, "army_personnel": 7000, "army": -10, "stability": -6, "clan_regions": -10, "war_support": -3}, "Охрану мостов, складов и электростанций отправили на передовую. Генштаб получил людей, а губернаторы начали создавать собственные караулы без разрешения центра."))
+		option("Снять гарнизоны с тыла", "Фронт получит 7 тыс. человек • лояльность штаба, порядок и регионы резко ослабнут", {"population_workable": -7000, "army_personnel": 7000, "army": -10, "stability": -6, "clan_regions": -10, "war_support": -3}, "Охрану мостов, складов и электростанций отправили на передовую. Генштаб получил людей, а губернаторы начали создавать собственные караулы без разрешения центра."))
 
 
 func start_invasion_if_needed() -> String:
@@ -5957,6 +6114,7 @@ func process_war_week() -> Dictionary:
 		aircraft_loss += 1
 	aircraft_loss = mini(aircraft_before, aircraft_loss)
 	state.army_personnel = personnel_before - personnel_loss
+	state.population_total = maxi(0, total_population() - personnel_loss)
 	state.army_equipment = equipment_before - equipment_loss
 	state.army_aircraft = aircraft_before - aircraft_loss
 	state.war_casualties = int(state.get("war_casualties", 0)) + personnel_loss
@@ -6130,7 +6288,7 @@ func current_metal_price() -> float:
 	return snappedf(METAL_PRICE * float(state.get("metal_price_factor", 1.0)), 0.01)
 
 
-func weekly_income_breakdown(strike_level_override := -1) -> Array[Dictionary]:
+func weekly_income_breakdown(strike_level_override := -1, workforce_override := -1) -> Array[Dictionary]:
 	var strike_level := strike_level_override
 	if strike_level < 0:
 		strike_level = int(state.get("active_unrest_level", 0)) if bool(state.get("active_unrest_labor", false)) else 0
@@ -6151,8 +6309,9 @@ func weekly_income_breakdown(strike_level_override := -1) -> Array[Dictionary]:
 	var strike_suffix := ""
 	if strike_level > 0:
 		strike_suffix = " После влияния состояния «%s»." % unrest_level_title(strike_level, true)
+	var workforce_value := workable_population() if workforce_override < 0 else workforce_override
 	var result: Array[Dictionary] = [
-		{"title": "Налоги работающих", "amount": snappedf(float(state.get("pop_employed", 0)) / 1000000.0 * 2.0 * labor_tax_multiplier, 0.01), "calculation": "%s работающих × 2.00 млн за 1 млн человек × %.0f%%%s" % [format_people(int(state.get("pop_employed", 0))), labor_tax_multiplier * 100.0, strike_suffix]},
+		{"title": "Налоги работоспособных", "amount": snappedf(float(workforce_value) / 1000000.0 * WORKFORCE_TAX_PER_MILLION * labor_tax_multiplier, 0.01), "calculation": "%s работоспособных × %.2f млн за 1 млн человек × %.0f%%%s" % [format_people(workforce_value), WORKFORCE_TAX_PER_MILLION, labor_tax_multiplier * 100.0, strike_suffix]},
 		{"title": "Налог на бизнес", "amount": 1.0, "calculation": "Текущая базовая ставка налога на бизнес"},
 		{"title": "Государственные предприятия", "amount": snappedf(0.5 * state_enterprise_multiplier, 0.01), "calculation": "Перечисляемая прибыль государственных предприятий × %.0f%%%s" % [state_enterprise_multiplier * 100.0, strike_suffix]},
 		{"title": "Пошлины", "amount": 0.4, "calculation": "Текущие импортные и экспортные пошлины"},
@@ -6201,11 +6360,19 @@ func weekly_balance_forecast() -> float:
 	# равно уходила в минус при закрытии недели.
 	var projected_tier := projected_corruption_tier()
 	var projected_income := 0.0
-	for item in weekly_income_breakdown():
+	for item in weekly_income_breakdown(-1, projected_workable_population()):
 		projected_income += adjusted_money_transaction(float(item.get("amount", 0.0)), projected_tier)
 	var projected_expenses := 0.0
 	for budget_item in WEEKLY_BUDGET_LINES:
-		projected_expenses += budget_amount_by_key(str(budget_item.get("key", "")))
+		var budget_key := str(budget_item.get("key", ""))
+		if budget_key == "budget_debt":
+			projected_expenses += debt_service_amount(projected_pending_float("debt"))
+		else:
+			projected_expenses += snappedf(
+				budget_base_amount(budget_key, projected_total_population(), projected_dependent_population())
+				* budget_level_multiplier(budget_key, budget_level(budget_key)),
+				0.01
+			)
 	for expense_item in weekly_nonbudget_expense_breakdown(true):
 		projected_expenses += absf(float(expense_item.get("amount", 0.0)))
 	var projected_clan_flow := weekly_clan_money_flow(projected_pending_value("clan_oligarchs"))
@@ -6322,10 +6489,10 @@ func church_public_support_effect(value_override := -1) -> int:
 	return roundi(float(base) * church_influence_scale())
 
 
-func church_birth_rate_modifier(value_override := -1) -> float:
+func monthly_church_population_bonus(value_override := -1) -> int:
 	var value := int(state.get("clan_church", 50)) if value_override < 0 else value_override
-	var base := 0.20 if value >= CLAN_CRITICAL_HIGH_SUPPORT else 0.10 if value >= CLAN_HIGH_SUPPORT else 0.0
-	return base * church_influence_scale()
+	var base := MONTHLY_CHURCH_POPULATION_BONUS * 2 if value >= CLAN_CRITICAL_HIGH_SUPPORT else MONTHLY_CHURCH_POPULATION_BONUS if value >= CLAN_HIGH_SUPPORT else 0
+	return roundi(float(base) * church_influence_scale())
 
 
 func weekly_clan_effects() -> Dictionary:
@@ -6354,13 +6521,13 @@ func weekly_clan_effect_notes() -> Array[String]:
 		notes.append("Олигархи задержали платежи и вывели капитал: казна −%.2f млн." % absf(oligarch_flow))
 	var church := int(state.get("clan_church", 50))
 	if church >= CLAN_CRITICAL_HIGH_SUPPORT:
-		notes.append("Церковь благословила государственный курс: поддержка войны +%d; её влияние повышает месячную рождаемость на %d%%." % [church_war_support_effect(church), roundi(church_birth_rate_modifier(church) * 100.0)])
+		notes.append("Церковь благословила государственный курс: поддержка войны +%d; семейные и приходские программы дают население +%s при месячном пересчёте." % [church_war_support_effect(church), format_people(monthly_church_population_bonus(church))])
 	elif church >= CLAN_HIGH_SUPPORT:
 		var war_effect := church_war_support_effect(church)
 		if war_effect > 0:
-			notes.append("Церковь поддержала государственный курс: поддержка войны +%d; её влияние повышает месячную рождаемость на %d%%." % [war_effect, roundi(church_birth_rate_modifier(church) * 100.0)])
+			notes.append("Церковь поддержала государственный курс: поддержка войны +%d; семейные и приходские программы дают население +%s при месячном пересчёте." % [war_effect, format_people(monthly_church_population_bonus(church))])
 		else:
-			notes.append("Церковь поддержала семьи прихожан: месячная рождаемость +%d%%; после светского образования бонус поддержки войны приходит раз в две недели." % roundi(church_birth_rate_modifier(church) * 100.0))
+			notes.append("Церковь поддержала семьи прихожан: население +%s при месячном пересчёте; после светского образования бонус поддержки войны приходит раз в две недели." % format_people(monthly_church_population_bonus(church)))
 	elif church <= CLAN_CRITICAL_LOW_SUPPORT:
 		notes.append("Церковь объявила власть враждебной Вере: поддержка власти %d." % church_public_support_effect(church))
 	elif church <= CLAN_LOW_SUPPORT:
@@ -6432,13 +6599,6 @@ func army_group_effect_description(value: int) -> String:
 	return "%s; %s" % [weekly_effect, parliament_effect]
 
 
-func transfer_population(from_key: String, to_key: String, requested: int) -> int:
-	var moved := mini(maxi(requested, 0), maxi(int(state.get(from_key, 0)), 0))
-	state[from_key] = int(state.get(from_key, 0)) - moved
-	state[to_key] = int(state.get(to_key, 0)) + moved
-	return moved
-
-
 func process_army_recruitment() -> Dictionary:
 	var current := int(state.get("army_personnel", 0))
 	var target := recruitment_target()
@@ -6451,20 +6611,16 @@ func process_army_recruitment() -> Dictionary:
 	var demobilized := 0
 	var evaders := 0
 	if difference > 0:
-		var requested := mini(difference, speed)
+		var requested := mini(mini(difference, speed), workable_population())
 		if speed_multiplier < 1.0:
 			evaders = maxi(0, mini(difference, base_speed) - requested)
-		var from_unemployed := transfer_population("pop_unemployed", "army_personnel", requested)
-		var remaining := requested - from_unemployed
-		if remaining > 0:
-			transfer_population("pop_employed", "army_personnel", remaining)
-		recruited = int(state.get("army_personnel", 0)) - current
+		state.population_workable = workable_population() - requested
+		state.army_personnel = current + requested
+		recruited = requested
 	elif difference < 0:
 		demobilized = mini(-difference, speed)
 		state.army_personnel = current - demobilized
-		var to_work := roundi(float(demobilized) * 0.8)
-		state.pop_employed = int(state.get("pop_employed", 0)) + to_work
-		state.pop_unemployed = int(state.get("pop_unemployed", 0)) + demobilized - to_work
+		state.population_workable = workable_population() + demobilized
 	var deserters := 0
 	var desertion_rate := wartime_desertion_rate()
 	if bool(state.get("at_war", false)) and desertion_rate > 0.0:
@@ -6472,14 +6628,14 @@ func process_army_recruitment() -> Dictionary:
 		var duration_multiplier := 1.0 + float(mini(int(state.get("war_weeks", 0)), 12)) * 0.05
 		deserters = mini(int(state.get("army_personnel", 0)), maxi(100, roundi(float(state.get("army_personnel", 0)) * desertion_rate * mobilization_multiplier * duration_multiplier)))
 		state.army_personnel = int(state.get("army_personnel", 0)) - deserters
-		state.pop_unemployed = int(state.get("pop_unemployed", 0)) + deserters
+		state.population_workable = workable_population() + deserters
 	var notes: Array[String] = []
 	if speed_multiplier > 1.0 and recruited > 0:
 		notes.append("Высокая поддержка войны ускорила набор до %d%% обычного темпа." % roundi(speed_multiplier * 100.0))
 	if evaders > 0:
 		notes.append("Из-за низкой поддержки войны от призыва уклонились %s потенциальных новобранцев." % format_people(evaders))
 	if deserters > 0:
-		notes.append("Из частей дезертировали %s военнослужащих; они вернулись в группу безработных." % format_people(deserters))
+		notes.append("Из частей дезертировали %s военнослужащих; они вернулись в работоспособное население." % format_people(deserters))
 	return {
 		"change": int(state.get("army_personnel", 0)) - current,
 		"recruited": recruited,
@@ -6510,45 +6666,49 @@ func process_weekly_budget_consequences(closed_week: int) -> Array[String]:
 	if int(state.get("support", 0)) >= 70:
 		effects["stability"] = int(effects.get("stability", 0)) + 1
 		notes.append("Поддержка власти не ниже 70%: общественное спокойствие укрепило стабильность на 1.")
-	if budget_level("budget_social") == 0:
-		effects["support"] = int(effects.get("support", 0)) - 2
+	if budget_level("budget_social") == 0 and closed_week % 2 == 0:
+		effects["support"] = int(effects.get("support", 0)) - 1
 		effects["clan_workers"] = int(effects.get("clan_workers", 0)) - 2
-		notes.append("Сокращение социальной помощи: поддержка власти −2.")
+		notes.append("Задержки части социальных выплат: поддержка власти −1.")
 		notes.append("Профсоюзы выступили против сокращения социальной помощи: отношение −2.")
 	elif budget_level("budget_social") == 2 and closed_week % 2 == 0:
 		effects["support"] = int(effects.get("support", 0)) + 1
-		effects["clan_workers"] = int(effects.get("clan_workers", 0)) + 3
+		effects["clan_workers"] = int(effects.get("clan_workers", 0)) + 2
 		notes.append("Приоритетная социальная помощь: поддержка власти +1.")
-		notes.append("Профсоюзы поддержали расширение социальной помощи: отношение +3.")
-	if budget_level("budget_health") == 0:
-		effects["stability"] = int(effects.get("stability", 0)) - 2
-		notes.append("Недофинансирование школ и больниц: стабильность −2.")
+		notes.append("Профсоюзы поддержали расширение социальной помощи: отношение +2.")
+	if budget_level("budget_health") == 0 and closed_week % 2 == 0:
+		effects["stability"] = int(effects.get("stability", 0)) - 1
+		notes.append("Накопившиеся перебои в школах и больницах: стабильность −1.")
 	elif budget_level("budget_health") == 2 and closed_week % 2 == 0:
 		effects["stability"] = int(effects.get("stability", 0)) + 1
 		notes.append("Приоритет школ и больниц: стабильность +1.")
 	if budget_level("budget_defense") == 0:
-		var defense_loss := 1 + (1 if bool(state.get("military_threat", false)) or closed_week % 2 == 0 else 0)
-		effects["army"] = int(effects.get("army", 0)) - defense_loss
-		notes.append("Сокращённое финансирование армии: лояльность командования −%d." % defense_loss)
+		var defense_loss := 1 if bool(state.get("military_threat", false)) or closed_week % 2 == 0 else 0
+		if defense_loss > 0:
+			effects["army"] = int(effects.get("army", 0)) - defense_loss
+			notes.append("Сокращённое финансирование армии: лояльность командования −%d." % defense_loss)
 	elif budget_level("budget_defense") == 2 and closed_week % 2 == 0:
 		effects["army"] = int(effects.get("army", 0)) + 2
 		notes.append("Приоритетное финансирование армии: лояльность штаба +2.")
 	if budget_level("budget_infrastructure") == 0:
-		effects["clan_regions"] = int(effects.get("clan_regions", 0)) - 2
-		if closed_week % 2 == 0:
+		effects["clan_regions"] = int(effects.get("clan_regions", 0)) - 1
+		if closed_week % 4 == 0:
 			effects["stability"] = int(effects.get("stability", 0)) - 1
-		notes.append("Регионы недовольны отложенными ремонтами: отношение −2.")
-		if closed_week % 2 == 0:
+		notes.append("Регионы недовольны отложенными ремонтами: отношение −1.")
+		if closed_week % 4 == 0:
 			notes.append("Накопившиеся проблемы с инфраструктурой: стабильность −1.")
 	elif budget_level("budget_infrastructure") == 2 and closed_week % 2 == 0:
-		effects["clan_regions"] = int(effects.get("clan_regions", 0)) + 3
-		effects["stability"] = int(effects.get("stability", 0)) + 1
-		notes.append("Регионы поддержали программу приоритетных ремонтов: отношение +3.")
-		notes.append("Приоритетные ремонты повысили устойчивость инфраструктуры: стабильность +1.")
+		effects["clan_regions"] = int(effects.get("clan_regions", 0)) + 2
+		notes.append("Регионы поддержали программу приоритетных ремонтов: отношение +2.")
+		if closed_week % 4 == 0:
+			effects["stability"] = int(effects.get("stability", 0)) + 1
+			notes.append("Приоритетные ремонты повысили устойчивость инфраструктуры: стабильность +1.")
 	if budget_level("budget_debt") == 0:
 		state.creditor_priority_weeks = 0
 		state.debt = snappedf(float(state.get("debt", 0.0)) + 8.0, 0.01)
-		notes.append("Недоплата кредиторам прибавила 8 млн к долгу.")
+		var previous_rate := debt_weekly_interest_rate()
+		state.debt_weekly_interest_rate = snappedf(previous_rate + DEBT_UNDERPAY_RATE_INCREASE, 0.00001)
+		notes.append("Недоплата кредиторам прибавила 8 млн к долгу и повысила недельную ставку с %.3f%% до %.3f%%." % [debt_weekly_interest_percent(previous_rate), debt_weekly_interest_percent()])
 		if int(state.get("creditor_obligations", 0)) > 0:
 			var previous_obligations := int(state.get("creditor_obligations", 0))
 			state.creditor_obligations = mini(CREDITOR_OBLIGATION_LABELS.size() - 1, previous_obligations + 1)
@@ -6556,7 +6716,12 @@ func process_weekly_budget_consequences(closed_week: int) -> Array[String]:
 				notes.append("Нарушение условий займа ужесточило режим международных кредиторов до категории «%s»." % creditor_obligation_level(int(state.get("creditor_obligations", 0))))
 	elif budget_level("budget_debt") == 2:
 		state.debt = maxf(0.0, snappedf(float(state.get("debt", 0.0)) - 6.0, 0.01))
-		notes.append("Приоритетное обслуживание сократило долг на 6 млн.")
+		var previous_rate := debt_weekly_interest_rate()
+		state.debt_weekly_interest_rate = snappedf(maxf(DEBT_MIN_WEEKLY_RATE, previous_rate - DEBT_PRIORITY_RATE_DECREASE), 0.00001)
+		if is_equal_approx(previous_rate, debt_weekly_interest_rate()):
+			notes.append("Приоритетное обслуживание сократило долг на 6 млн; недельная ставка уже находится на минимуме %.2f%%." % debt_weekly_interest_percent())
+		else:
+			notes.append("Приоритетное обслуживание сократило долг на 6 млн и снизило недельную ставку с %.3f%% до %.3f%%." % [debt_weekly_interest_percent(previous_rate), debt_weekly_interest_percent()])
 		if int(state.get("creditor_obligations", 0)) > 0:
 			state.creditor_priority_weeks = int(state.get("creditor_priority_weeks", 0)) + 1
 			if int(state.get("creditor_priority_weeks", 0)) >= 4:
@@ -6585,42 +6750,20 @@ func process_weekly_budget_consequences(closed_week: int) -> Array[String]:
 
 func process_population_month() -> void:
 	var population_before := total_population()
-	var birth_modifier := church_birth_rate_modifier()
-	var births := maxi(0, roundi(float(population_before) * 0.00065 * (1.0 + birth_modifier)))
-	var mature := mini(int(state.get("pop_children", 0)), roundi(float(state.get("pop_children", 0)) / 216.0))
-	var adult_civilians := int(state.get("pop_employed", 0)) + int(state.get("pop_unemployed", 0))
-	var unemployment_share := float(state.get("pop_unemployed", 0)) / maxf(float(adult_civilians), 1.0)
-	var mature_unemployed := roundi(float(mature) * unemployment_share)
-	state.pop_children = int(state.get("pop_children", 0)) - mature + births
-	state.pop_employed = int(state.get("pop_employed", 0)) + mature - mature_unemployed
-	state.pop_unemployed = int(state.get("pop_unemployed", 0)) + mature_unemployed
-	adult_civilians = int(state.get("pop_employed", 0)) + int(state.get("pop_unemployed", 0))
-	var retirement := mini(adult_civilians, roundi(float(adult_civilians) * 0.00175))
-	var retired_from_work := mini(int(state.get("pop_employed", 0)), roundi(float(retirement) * float(state.get("pop_employed", 0)) / maxf(float(adult_civilians), 1.0)))
-	var retired_from_unemployed := mini(int(state.get("pop_unemployed", 0)), retirement - retired_from_work)
-	state.pop_employed = int(state.get("pop_employed", 0)) - retired_from_work
-	state.pop_unemployed = int(state.get("pop_unemployed", 0)) - retired_from_unemployed
-	state.pop_pensioners = int(state.get("pop_pensioners", 0)) + retired_from_work + retired_from_unemployed
-	var employed_deaths := mini(int(state.get("pop_employed", 0)), roundi(float(state.get("pop_employed", 0)) * 0.00015))
-	var unemployed_deaths := mini(int(state.get("pop_unemployed", 0)), roundi(float(state.get("pop_unemployed", 0)) * 0.00015))
-	var pensioner_deaths := mini(int(state.get("pop_pensioners", 0)), roundi(float(state.get("pop_pensioners", 0)) * 0.0055))
-	state.pop_employed = int(state.get("pop_employed", 0)) - employed_deaths
-	state.pop_unemployed = int(state.get("pop_unemployed", 0)) - unemployed_deaths
-	state.pop_pensioners = int(state.get("pop_pensioners", 0)) - pensioner_deaths
-	var migration_balance := monthly_health_migration_balance()
-	if migration_balance < 0:
-		migration_balance = -mini(int(state.get("pop_migrants", 0)), absi(migration_balance))
-	state.pop_migrants = int(state.get("pop_migrants", 0)) + migration_balance
-	for key in ["pop_children", "pop_employed", "pop_unemployed", "pop_pensioners", "pop_migrants", "army_personnel"]:
-		state[key] = maxi(0, int(state.get(key, 0)))
+	var workable_before := workable_population()
+	var church_change := monthly_church_population_bonus()
+	var health_change := monthly_health_population_change()
+	var total_change := church_change + health_change
+	var workable_change := roundi(float(total_change) * NEW_POPULATION_WORKABLE_SHARE)
+	state.population_total = maxi(int(state.get("army_personnel", 0)), population_before + total_change)
+	state.population_workable = clampi(workable_before + workable_change, 0, maxi(0, total_population() - int(state.get("army_personnel", 0))))
 	var population_after := total_population()
-	var church_birth_note := ""
-	if birth_modifier > 0.0:
-		church_birth_note = " (влияние Церкви +%d%%)" % roundi(birth_modifier * 100.0)
-	state.last_population_report = "Месяц: родилось %s%s • достигли взрослого возраста %s • вышли на пенсию %s • естественная убыль %s • миграционный баланс %s%s • итог %s" % [
-		format_people(births), church_birth_note, format_people(mature), format_people(retirement), format_people(employed_deaths + unemployed_deaths + pensioner_deaths),
-		"+" if migration_balance >= 0 else "−", format_people(absi(migration_balance)),
-		("+" if population_after - population_before >= 0 else "−") + format_people(absi(population_after - population_before))
+	var workable_after := workable_population()
+	state.last_population_report = "Месячный пересчёт: Церковь %s%s • образование и медицина %s%s • население %s%s • работоспособные %s%s" % [
+		"+" if church_change >= 0 else "−", format_people(absi(church_change)),
+		"+" if health_change >= 0 else "−", format_people(absi(health_change)),
+		"+" if population_after - population_before >= 0 else "−", format_people(absi(population_after - population_before)),
+		"+" if workable_after - workable_before >= 0 else "−", format_people(absi(workable_after - workable_before))
 	]
 
 
@@ -6800,14 +6943,14 @@ func weekly_report_sections(report: Dictionary) -> Dictionary:
 func weekly_report_snapshot() -> Dictionary:
 	var snapshot: Dictionary = {}
 	for key in [
-		"money", "debt", "support", "stability", "war_support",
+		"money", "debt", "debt_weekly_interest_rate", "support", "stability", "war_support",
 		"clan_oligarchs", "clan_church", "clan_workers", "clan_regions",
 		"army", "army_personnel", "army_equipment", "army_aircraft",
-		"pop_children", "pop_employed", "pop_unemployed", "pop_pensioners", "pop_migrants",
+		"population_total", "population_workable",
 		"east_relation", "west_relation", "corruption_tier", "creditor_obligations"
 	]:
 		snapshot[key] = state.get(key, 0)
-	snapshot["total_population"] = total_population()
+	snapshot["population_dependents"] = dependent_population()
 	return snapshot
 
 
@@ -6816,10 +6959,13 @@ func weekly_report_total_lines(opening: Dictionary) -> Array[String]:
 	var finance_parts: Array[String] = []
 	var money_delta := snappedf(float(state.get("money", 0.0)) - float(opening.get("money", 0.0)), 0.01)
 	var debt_delta := snappedf(float(state.get("debt", 0.0)) - float(opening.get("debt", 0.0)), 0.01)
+	var interest_rate_delta := float(state.get("debt_weekly_interest_rate", DEBT_INITIAL_WEEKLY_RATE)) - float(opening.get("debt_weekly_interest_rate", DEBT_INITIAL_WEEKLY_RATE))
 	if not is_zero_approx(money_delta):
 		finance_parts.append("казна %+.2f млн" % money_delta)
 	if not is_zero_approx(debt_delta):
 		finance_parts.append("долг %+.2f млн" % debt_delta)
+	if not is_zero_approx(interest_rate_delta):
+		finance_parts.append("недельная ставка %+.3f п.п." % (interest_rate_delta * 100.0))
 	if not finance_parts.is_empty():
 		lines.append("Финансы: " + " • ".join(finance_parts))
 	var country_parts: Array[String] = []
@@ -6847,19 +6993,15 @@ func weekly_report_total_lines(opening: Dictionary) -> Array[String]:
 	if not group_parts.is_empty():
 		lines.append("Группы: " + " • ".join(group_parts))
 	var population_parts: Array[String] = []
-	var population_delta := total_population() - int(opening.get("total_population", total_population()))
+	var population_delta := total_population() - int(opening.get("population_total", total_population()))
 	if population_delta != 0:
 		population_parts.append("всего %s%s" % ["+" if population_delta > 0 else "−", format_people(absi(population_delta))])
-	for entry in [
-		["pop_employed", "занятые"],
-		["pop_unemployed", "безработные"],
-		["pop_pensioners", "пенсионеры"],
-		["pop_children", "дети"],
-		["pop_migrants", "мигранты"]
-	]:
-		var delta := int(state.get(str(entry[0]), 0)) - int(opening.get(str(entry[0]), 0))
-		if delta != 0:
-			population_parts.append("%s %s%s" % [str(entry[1]), "+" if delta > 0 else "−", format_people(absi(delta))])
+	var workable_delta := workable_population() - int(opening.get("population_workable", workable_population()))
+	if workable_delta != 0:
+		population_parts.append("работоспособные %s%s" % ["+" if workable_delta > 0 else "−", format_people(absi(workable_delta))])
+	var dependents_delta := dependent_population() - int(opening.get("population_dependents", dependent_population()))
+	if dependents_delta != 0:
+		population_parts.append("неработоспособные %s%s" % ["+" if dependents_delta > 0 else "−", format_people(absi(dependents_delta))])
 	if not population_parts.is_empty():
 		lines.append("Население: " + " • ".join(population_parts))
 	var army_parts: Array[String] = []
@@ -7631,6 +7773,9 @@ func show_economy(scroll_position := 0) -> void:
 	summary_box.add_theme_constant_override("separation", 5)
 	summary.add_child(summary_box)
 	summary_box.add_child(label("КАЗНА: %.2f млн • ГОСДОЛГ: %.2f млн" % [float(state.get("money", 0.0)), float(state.get("debt", 0.0))], 23, INK))
+	var debt_rate_info := label("СТАВКА ПО ДОЛГУ: %.3f%% В НЕДЕЛЮ  ⓘ" % debt_weekly_interest_percent(), 16, Color("#5f594d"))
+	debt_rate_info.tooltip_text = "Базовый недельный платёж равен долгу × ставку, но не меньше 0,5 млн. Сокращённое обслуживание оплачивает 70%% расчётной суммы, затем повышает ставку на %.3f п.п. Приоритетное оплачивает 140%%, уменьшает долг и снижает ставку на %.3f п.п. до минимума %.2f%%." % [DEBT_UNDERPAY_RATE_INCREASE * 100.0, DEBT_PRIORITY_RATE_DECREASE * 100.0, DEBT_MIN_WEEKLY_RATE * 100.0]
+	summary_box.add_child(debt_rate_info)
 	var projected_money := projected_pending_float("money")
 	var projected_debt := projected_pending_float("debt")
 	var projected_tier := projected_corruption_tier()
@@ -7651,7 +7796,7 @@ func show_economy(scroll_position := 0) -> void:
 	summary_box.add_child(corruption_info)
 	var creditor_level := int(state.get("creditor_obligations", 0))
 	var creditor_info := label("Международные кредиторы: %s ⓘ" % creditor_obligation_level(creditor_level), 16, Color("#5f594d"))
-	var creditor_detail := "Текущие комиссии и надзор: %.2f млн в неделю. Сокращённое обслуживание долга ужесточает условия на одну категорию. Четыре недели подряд приоритетных выплат смягчают их на одну категорию." % creditor_oversight_cost()
+	var creditor_detail := "Текущие комиссии и надзор: %.2f млн в неделю. Сокращённое обслуживание долга еженедельно повышает ставку и ужесточает действующие условия на одну категорию. Приоритетные выплаты снижают ставку; четыре недели подряд также смягчают условия на одну категорию." % creditor_oversight_cost()
 	if bool(state.get("creditor_review_pending", false)):
 		creditor_detail += "\nПроверка условий кредитной линии назначена на %d-ю неделю." % int(state.get("creditor_review_due_week", 0))
 	if creditor_budget_lock_active():
@@ -7674,6 +7819,7 @@ func show_economy(scroll_position := 0) -> void:
 		var budget_change := label(str(state.last_budget_change) + "  ⓘ", 14, BLUE)
 		budget_change.tooltip_text = str(state.get("last_budget_change_detail", ""))
 		summary_box.add_child(budget_change)
+	add_economy_population_panel(content, tier)
 	content.add_child(label("НЕДЕЛЬНЫЕ ДОХОДЫ", 15, Color("#6f3e37")))
 	var income_grid := GridContainer.new()
 	income_grid.columns = 2
@@ -7726,6 +7872,49 @@ func show_economy(scroll_position := 0) -> void:
 	content.add_child(close)
 	show_overlay(scroll, PAPER, true, 1040)
 	restore_overlay_scroll_position(scroll, scroll_position)
+
+
+func add_economy_population_panel(parent: VBoxContainer, corruption_tier: int) -> void:
+	var current_total := total_population()
+	var current_workable := workable_population()
+	var current_dependents := dependent_population()
+	var current_army := int(state.get("army_personnel", 0))
+	var future_total := projected_total_population()
+	var future_workable := projected_workable_population()
+	var future_dependents := projected_dependent_population()
+	var future_army := projected_pending_value("army_personnel")
+	var pending := current_total != future_total or current_workable != future_workable or current_army != future_army
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", style(Color("#d8cdb5"), 14, Color("#92846c"), 1))
+	parent.add_child(panel)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 5)
+	panel.add_child(box)
+	box.add_child(label("НАСЕЛЕНИЕ И РАБОЧАЯ СИЛА", 16, Color("#6f3e37")))
+	box.add_child(label("НАСЕЛЕНИЕ: %s • РАБОТОСПОСОБНЫЕ: %s" % [format_people(current_total), format_people(current_workable)], 19, INK))
+	box.add_child(label("НЕРАБОТОСПОСОБНЫЕ: %s • ВОЕННОСЛУЖАЩИЕ: %s" % [format_people(current_dependents), format_people(current_army)], 15, Color("#5f594d")))
+	if pending:
+		var future_line := label("ПОСЛЕ РЕШЕНИЙ: население %s • работоспособные %s • неработоспособные %s • армия %s  ⓘ" % [format_people(future_total), format_people(future_workable), format_people(future_dependents), format_people(future_army)], 14, PENDING_BLUE)
+		future_line.tooltip_text = "Голубые значения уже определены решениями этой недели, но применятся при переходе к следующей."
+		box.add_child(future_line)
+	var tax_gross := snappedf(float(current_workable) / 1000000.0 * WORKFORCE_TAX_PER_MILLION, 0.01)
+	var tax_final := adjusted_money_transaction(tax_gross, corruption_tier)
+	var social_final := budget_final_for_level("budget_social", budget_level("budget_social"), corruption_tier)
+	var finance_line := label("НАЛОГИ РАБОТОСПОСОБНЫХ: +%.2f млн/нед. • СОЦИАЛЬНЫЕ РАСХОДЫ: −%.2f млн/нед.  ⓘ" % [tax_final, social_final], 14, Color("#5f594d"))
+	finance_line.tooltip_text = "%s\n\n%s\n\nНеработоспособные — все жители вне рабочей силы и действующей армии: дети, пенсионеры, люди с инвалидностью и другие получатели поддержки. Социальная статья рассчитывается от их общего числа." % [
+		transaction_tooltip("Налоги работоспособных", tax_gross, corruption_tier, "%s работоспособных × %.2f млн за 1 млн человек" % [format_people(current_workable), WORKFORCE_TAX_PER_MILLION]),
+		budget_breakdown_tooltip(budget_item_by_key("budget_social"), corruption_tier)
+	]
+	box.add_child(finance_line)
+	var report_line := label(str(state.get("last_population_report", "Месячного демографического отчёта ещё не было.")) + "  ⓘ", 14, BLUE)
+	var weeks_to_report := 4 - (int(state.get("week", 1)) % 4)
+	if weeks_to_report == 0:
+		weeks_to_report = 4
+	report_line.tooltip_text = "Следующий пересчёт через %d нед. Образование и медицина меняют всё население; половина прироста или убыли отражается на работоспособном населении. Церковь добавляет население при высокой поддержке, но закон о светском образовании вдвое ослабляет этот эффект." % weeks_to_report
+	box.add_child(report_line)
+	var recruitment_line := label("Призыв доступен только из работоспособного населения.  ⓘ", 14, Color("#5f594d"))
+	recruitment_line.tooltip_text = "Призыв переводит людей из работоспособного населения в армию, не меняя общее население. Демобилизация и дезертирство возвращают выживших в работоспособное население. Боевые потери уменьшают армию и общее население."
+	box.add_child(recruitment_line)
 
 
 func add_income_card(parent: Container, item: Dictionary, corruption_tier: int) -> void:
@@ -8125,17 +8314,17 @@ func budget_reaction_for_change(key: String, delta: int) -> Dictionary:
 	var reaction: Dictionary = {}
 	var steps := absi(delta)
 	if key == "budget_social":
-		add_effect_delta(reaction, "support", steps * (2 if delta > 0 else -3))
-		add_effect_delta(reaction, "clan_workers", steps * (5 if delta > 0 else -6))
+		add_effect_delta(reaction, "support", steps * (1 if delta > 0 else -2))
+		add_effect_delta(reaction, "clan_workers", steps * (4 if delta > 0 else -4))
 	elif key == "budget_health":
-		add_effect_delta(reaction, "support", steps * (2 if delta > 0 else -2))
-		add_effect_delta(reaction, "stability", steps * (1 if delta > 0 else -2))
+		add_effect_delta(reaction, "support", steps * (1 if delta > 0 else -1))
+		add_effect_delta(reaction, "stability", steps * (1 if delta > 0 else -1))
 	elif key == "budget_defense":
-		add_effect_delta(reaction, "army", steps * (4 if delta > 0 else -5))
-		add_effect_delta(reaction, "war_support", steps * (1 if delta > 0 else -2))
+		add_effect_delta(reaction, "army", steps * (3 if delta > 0 else -3))
+		add_effect_delta(reaction, "war_support", steps * (1 if delta > 0 else -1))
 	elif key == "budget_infrastructure":
-		add_effect_delta(reaction, "clan_regions", steps * (5 if delta > 0 else -6))
-		add_effect_delta(reaction, "stability", steps * (1 if delta > 0 else -2))
+		add_effect_delta(reaction, "clan_regions", steps * (4 if delta > 0 else -4))
+		add_effect_delta(reaction, "stability", steps if delta > 0 else -steps)
 	elif key == "budget_admin":
 		add_effect_delta(reaction, "stability", steps if delta > 0 else -steps)
 	return reaction
@@ -8227,7 +8416,7 @@ func show_army(scroll_position := 0) -> void:
 	scroll.add_child(content)
 	content.add_child(label("АРМИЯ", 30, INK, HORIZONTAL_ALIGNMENT_CENTER))
 	var army_hint := label("Численность связана с населением; подробности показателей доступны при наведении. ⓘ", 15, Color("#4c4941"), HORIZONTAL_ALIGNMENT_CENTER)
-	army_hint.tooltip_text = "Новобранцы сначала переходят из безработных, затем из работающих. Демобилизованные и дезертиры возвращаются в гражданскую экономику. Поддержка войны 30% и ниже замедляет набор, 65% и выше ускоряет его. Боеспособность складывается из подготовки, наземной техники, авиации, снабжения и морали."
+	army_hint.tooltip_text = "Новобранцы переходят только из работоспособного населения. Демобилизованные и дезертиры возвращаются в эту же группу. Поддержка войны 30% и ниже замедляет набор, 65% и выше ускоряет его. Боеспособность складывается из подготовки, наземной техники, авиации, снабжения и морали."
 	content.add_child(army_hint)
 	if state.has("last_army_change"):
 		var army_change := label(str(state.get("last_army_change", "")) + "  ⓘ", 14, BLUE, HORIZONTAL_ALIGNMENT_CENTER)
@@ -8410,97 +8599,6 @@ func add_army_metric(parent: Container, caption: String, value: String, explanat
 	add_hover_detail(caption_text, detail)
 	box.add_child(caption_text)
 	var value_text := label(value + "  ⓘ", 20, PENDING_BLUE if pending else INK)
-	add_hover_detail(value_text, detail)
-	box.add_child(value_text)
-
-
-func show_population() -> void:
-	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(980, 650)
-	var content := VBoxContainer.new()
-	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	content.add_theme_constant_override("separation", 14)
-	scroll.add_child(content)
-	content.add_child(label("НАСЕЛЕНИЕ", 30, INK, HORIZONTAL_ALIGNMENT_CENTER))
-	var civilian_adults := int(state.get("pop_employed", 0)) + int(state.get("pop_unemployed", 0))
-	var unemployment := float(state.get("pop_unemployed", 0)) / maxf(float(civilian_adults), 1.0) * 100.0
-	var voters := civilian_adults + int(state.get("pop_pensioners", 0)) + int(state.get("army_personnel", 0))
-	var projected_employed := projected_pending_value("pop_employed")
-	var projected_unemployed := projected_pending_value("pop_unemployed")
-	var projected_pensioners := projected_pending_value("pop_pensioners")
-	var projected_personnel := projected_pending_value("army_personnel")
-	var projected_civilian_adults := projected_employed + projected_unemployed
-	var projected_voters := projected_civilian_adults + projected_pensioners + projected_personnel
-	var population_pending := projected_total_population() != total_population() or projected_voters != voters or projected_unemployed != int(state.get("pop_unemployed", 0))
-	var summary := PanelContainer.new()
-	summary.add_theme_stylebox_override("panel", style(Color("#d8cdb5"), 14, Color("#92846c"), 1))
-	content.add_child(summary)
-	var summary_box := VBoxContainer.new()
-	summary_box.add_theme_constant_override("separation", 4)
-	summary.add_child(summary_box)
-	summary_box.add_child(label("ВСЕГО: %s • потенциальных избирателей: %s" % [format_people(total_population()), format_people(voters)], 22, INK))
-	if population_pending:
-		var projected_unemployment := float(projected_unemployed) / maxf(float(projected_civilian_adults), 1.0) * 100.0
-		var population_projection := label("ПОСЛЕ ПРИНЯТЫХ РЕШЕНИЙ: всего %s • избирателей %s • безработица %.1f%%  ⓘ" % [format_people(projected_total_population()), format_people(projected_voters), projected_unemployment], 16, PENDING_BLUE)
-		population_projection.tooltip_text = "Голубые числа ещё не применены и вступят в силу при переходе к следующей неделе."
-		summary_box.add_child(population_projection)
-	summary_box.add_child(label("Безработица среди гражданских взрослых: %.1f%% • доступный резерв труда и призыва: %s" % [unemployment, format_people(civilian_adults)], 16, Color("#5f594d")))
-	summary_box.add_child(label(str(state.get("last_population_report", "Месячного отчёта ещё не было.")), 15, BLUE))
-	var weeks_to_report := 4 - (int(state.get("week", 1)) % 4)
-	if weeks_to_report == 0:
-		weeks_to_report = 4
-	summary_box.add_child(label("Следующий автоматический демографический пересчёт через %d нед." % weeks_to_report, 14, Color("#5f594d")))
-	var grid := GridContainer.new()
-	grid.columns = 3
-	grid.add_theme_constant_override("h_separation", 10)
-	grid.add_theme_constant_override("v_separation", 10)
-	content.add_child(grid)
-	add_population_card(grid, "ДЕТИ", int(state.get("pop_children", 0)), projected_pending_value("pop_children"), "Требуют школ, медицины и пособий; постепенно входят в рабочий возраст.", GOLD)
-	add_population_card(grid, "РАБОТАЮЩИЕ ВЗРОСЛЫЕ", int(state.get("pop_employed", 0)), projected_employed, "Главный источник налогов, избирателей и пополнения армии.", GREEN)
-	add_population_card(grid, "БЕЗРАБОТНЫЕ", int(state.get("pop_unemployed", 0)), projected_unemployed, "Получают помощь; первыми попадают под призыв и программы занятости.", RED)
-	add_population_card(grid, "ПЕНСИОНЕРЫ", int(state.get("pop_pensioners", 0)), projected_pensioners, "Голосуют и получают обязательные выплаты; число меняется со старением.", BLUE)
-	add_population_card(grid, "МИГРАНТЫ И БЕЖЕНЦЫ", int(state.get("pop_migrants", 0)), projected_pending_value("pop_migrants"), "Требуют первичной помощи; не голосуют и не призываются без интеграции. Раз в четыре недели минимальное финансирование образования и медицины даёт отток 8 тыс., приоритетное — приток 8 тыс.", RED)
-	add_population_card(grid, "ВОЕННОСЛУЖАЩИЕ", int(state.get("army_personnel", 0)), projected_personnel, "Изъяты из гражданской рабочей силы; возвращаются после демобилизации.", BLUE)
-	content.add_child(label("СВЯЗЬ С БЮДЖЕТОМ", 15, Color("#6f3e37")))
-	var tier := int(state.get("corruption_tier", 0))
-	var tax_gross := snappedf(float(state.get("pop_employed", 0)) / 1000000.0 * 2.0, 0.01)
-	var tax_final := adjusted_money_transaction(tax_gross, tier)
-	var social_final := absf(adjusted_money_transaction(-budget_amount_by_key("budget_social"), tier))
-	var health_final := absf(adjusted_money_transaction(-budget_amount_by_key("budget_health"), tier))
-	var population_budget := label("ЗА НЕДЕЛЮ: налоги работающих +%.2f млн • социальные расходы −%.2f млн • образование и медицина −%.2f млн ⓘ" % [tax_final, social_final, health_final], 16, Color("#5f594d"))
-	population_budget.tooltip_text = "%s\n\n%s\n\n%s" % [
-		transaction_tooltip("Налоги работающих", tax_gross, tier, "%s работающих × 2.00 млн за 1 млн человек" % format_people(int(state.get("pop_employed", 0)))),
-		budget_breakdown_tooltip(WEEKLY_BUDGET_LINES[0], tier),
-		budget_breakdown_tooltip(WEEKLY_BUDGET_LINES[1], tier)
-	]
-	content.add_child(population_budget)
-	var draft_hint := label("Призыв перемещает людей между гражданскими группами и армией. ⓘ", 15, Color("#5f594d"))
-	draft_hint.tooltip_text = "Армия сначала забирает безработных, затем работающих. Массовый призыв одновременно уменьшает налоговую базу и увеличивает оборонные расходы; демобилизация возвращает людей в экономику."
-	content.add_child(draft_hint)
-	var close := menu_button("ВЕРНУТЬСЯ К ДОКЛАДУ")
-	close.pressed.connect(close_overlay)
-	content.add_child(close)
-	show_overlay(scroll, PAPER, true, 1040)
-
-
-func add_population_card(parent: Container, caption: String, count: int, projected_count: int, explanation: String, accent: Color) -> void:
-	var pending := projected_count != count
-	var detail := explanation
-	if pending:
-		detail = pending_value_tooltip(caption.capitalize(), format_people(count), format_people(projected_count)) + "\n\n" + explanation
-	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(300, 92)
-	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	panel.add_theme_stylebox_override("panel", style(Color("#d8cdb5"), 12, Color(accent, 0.75), 2))
-	add_hover_detail(panel, detail)
-	parent.add_child(panel)
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 4)
-	panel.add_child(box)
-	var caption_text := label(caption, 13, accent)
-	add_hover_detail(caption_text, detail)
-	box.add_child(caption_text)
-	var value_text := label(format_people(projected_count) + "  ⓘ", 21, PENDING_BLUE if pending else INK)
 	add_hover_detail(value_text, detail)
 	box.add_child(value_text)
 
@@ -8970,7 +9068,7 @@ func show_ending(forced_title := "", forced_text := "") -> void:
 	summary.add_child(label("ИТОГИ ПРАВЛЕНИЯ", 16, RED, HORIZONTAL_ALIGNMENT_CENTER))
 	var recruitment: Dictionary = RECRUITMENT_MODELS.get(str(state.get("recruitment_model", "mixed")), RECRUITMENT_MODELS["mixed"])
 	var war_outcome := "мир" if not bool(state.get("at_war", false)) else "война с %s • потери %s" % [neighbor_title(str(state.get("war_enemy", "east"))), format_people(int(state.get("war_casualties", 0)))]
-	var metrics := "Казна: %.2f млн • долг: %.2f млн\nМеждународные кредиторы: %s\nВосточный Союз: %s • Западная Федерация: %s\nВнешнее положение: %s\nПоддержка власти: %d%% • стабильность: %d%% • поддержка войны: %d%%\nНаселение: %s • военнослужащие: %s\nАрмия: лояльность %d%% • боеспособность %d%% • %s\nНаземная техника: %d • авиация: %d\nКоррупция: %s • потери доходов: %d%%" % [float(state.money), float(state.get("debt", 0.0)), creditor_obligation_level(int(state.get("creditor_obligations", 0))), neighbor_relation_band("east"), neighbor_relation_band("west"), war_outcome, state.support, state.stability, state.war_support, format_people(total_population()), format_people(int(state.get("army_personnel", 0))), state.army, army_effectiveness(), str(recruitment.get("title", "смешанная")), int(state.get("army_equipment", 0)), int(state.get("army_aircraft", 0)), corruption_level(int(state.corruption_tier)), corruption_transaction_rate(int(state.corruption_tier))]
+	var metrics := "Казна: %.2f млн • долг: %.2f млн • недельная ставка: %.3f%%\nМеждународные кредиторы: %s\nВосточный Союз: %s • Западная Федерация: %s\nВнешнее положение: %s\nПоддержка власти: %d%% • стабильность: %d%% • поддержка войны: %d%%\nНаселение: %s • работоспособные: %s • военнослужащие: %s\nАрмия: лояльность %d%% • боеспособность %d%% • %s\nНаземная техника: %d • авиация: %d\nКоррупция: %s • потери доходов: %d%%" % [float(state.money), float(state.get("debt", 0.0)), debt_weekly_interest_percent(), creditor_obligation_level(int(state.get("creditor_obligations", 0))), neighbor_relation_band("east"), neighbor_relation_band("west"), war_outcome, state.support, state.stability, state.war_support, format_people(total_population()), format_people(workable_population()), format_people(int(state.get("army_personnel", 0))), state.army, army_effectiveness(), str(recruitment.get("title", "смешанная")), int(state.get("army_equipment", 0)), int(state.get("army_aircraft", 0)), corruption_level(int(state.corruption_tier)), corruption_transaction_rate(int(state.corruption_tier))]
 	summary.add_child(label(metrics, 20, Color("#423e36"), HORIZONTAL_ALIGNMENT_CENTER))
 	column.add_child(label("Игра не оценивает этот итог. Победа это или поражение — решаете вы.", 16, Color("#cfc3aa"), HORIZONTAL_ALIGNMENT_CENTER))
 	var again := menu_button("НАЧАТЬ НОВУЮ КАМПАНИЮ")
@@ -9016,7 +9114,7 @@ func build_event_database() -> void:
 	)
 	social_protest_event = event(
 		"Министерство внутренних дел", "official", "#a9473f", "Пустые конверты",
-		"После сокращения пенсий и пособий колонны пенсионеров, безработных и бюджетников перекрыли центр столицы. При низкой поддержке власти обещания переждать кризис никого не убедили: протестующие требуют вернуть выплаты, а профсоюзы готовят общую забастовку.",
+		"После сокращения пенсий и пособий колонны пенсионеров, семей с детьми и бюджетников перекрыли центр столицы. При низкой поддержке власти обещания переждать кризис никого не убедили: протестующие требуют вернуть выплаты, а профсоюзы готовят общую забастовку.",
 		option("Вернуть выплаты", "Социальные расходы вернутся к базовым • новое сокращение будет запрещено на месяц • протесты прекратятся", {"support": 3, "stability": 5, "clan_workers": 8}, "Правительство восстановило базовые выплаты. Колонны разошлись, но соглашение с организаторами запрещает снова сокращать пенсии и пособия в течение четырёх недель.", {"social_budget_concession": true}),
 		option("Задержать организаторов", "Новых расходов не будет • порядок частично восстановится • поддержка и профсоюзы отвернутся", {"support": -3, "stability": 3, "army": 1, "clan_workers": -8, "authoritarian": 1}, "Полиция задержала координаторов до рассвета и заблокировала профсоюзные кассы. Часть колонн рассыпалась без командования, но оставшиеся участники назвали протест политическим и потребовали освобождения арестованных.", {"social_protest_organizers_detained": true}),
 		option("Разогнать колонны", "Порядок восстановится быстро • поддержка и профсоюзы резко отвернутся • армия одобрит силу", {"support": -7, "stability": 4, "army": 3, "war_support": -2, "clan_workers": -12, "authoritarian": 1}, "Полиция очистила центр до рассвета. Выплаты не восстановили, движение транспорта возобновилось, но кадры задержаний объединили разрозненных противников власти.", {"social_protest_suppressed": true})
@@ -9071,22 +9169,22 @@ func build_event_database() -> void:
 			option("Закрыть консульские пункты", "Поддержка вырастет • порядок в приграничье ухудшится • Восток предъявит ответное требование", {"support": 5, "stability": -6, "east_pressure": 4, "war_support": 4, "clan_regions": -9}, "Полиция опечатала временные пункты, но выдача продолжилась через мобильные автобусы за границей. Восток объявил закрытие дискриминацией.", {"passport_policy_pending": true, "east_consulates_closed": true}),
 			option("Допустить независимый учёт", "Расходы • доверие регионов укрепится • отношения с соседями не изменятся • спор не будет решён", {"money": -5, "stability": 2, "neutrality": 2, "clan_regions": 4}, "Наблюдатели начали опрашивать жителей и проверять случаи давления. Консульство сохранило работу, но больше не могло скрывать темпы выдачи документов. Оба соседа публично выразили недовольство, однако дипломатические отношения остались на прежнем уровне.", {"passport_policy_pending": true, "passport_observers_invited": true})),
 		event("Бюро переписи", "official", "#668269", "Люди без адресов", "Перепись обнаружила тридцать тысяч мигрантов и беженцев, которые давно работают без постоянной регистрации. Статистики предлагают признать их обычными работающими гражданами, но оформление потребует денег.",
-			option("Оформить документы", "Расходы • работников и налогоплательщиков станет больше", {"money": -4, "pop_migrants": -30000, "pop_employed": 30000, "support": 2, "clan_workers": 4, "clan_regions": -3}, "Тридцать тысяч человек получили постоянные документы и вошли в официальный рынок труда. Муниципалитеты потребовали дополнительное финансирование."),
+			option("Оформить документы", "Расходы • официальная рабочая сила и налоговая база вырастут", {"money": -4, "population_workable": 30000, "support": 2, "clan_workers": 4, "clan_regions": -3}, "Тридцать тысяч человек получили постоянные документы и вошли в официальный рынок труда. Муниципалитеты потребовали дополнительное финансирование."),
 			option("Оставить временный статус", "Казна получит немного денег • положение людей останется нестабильным", {"money": 3, "support": -2, "stability": -3, "clan_oligarchs": 6}, "Крупные подрядчики сохранили дешёвую рабочую силу и перечислили налоговый аванс. Правозащитники опубликовали фотографии бараков.", {"migrant_gray_status": true}),
-			option("Дать регистрацию через муниципалитеты", "Центр потратит меньше • регионы сами определят квоты • губернаторы и местные различия усилятся", {"money": -2, "pop_migrants": -18000, "pop_employed": 18000, "support": 1, "stability": -1, "clan_regions": 8}, "Губернаторы получили квоты и собственные критерии. В одном городе документы выдавали по трудовому договору, в соседнем — только семьям с детьми; люди начали переезжать между очередями.", {"municipal_migrant_quotas": true})),
+			option("Дать регистрацию через муниципалитеты", "Центр потратит меньше • часть людей войдёт в рабочую силу • регионы и местные различия усилятся", {"money": -2, "population_workable": 18000, "support": 1, "stability": -1, "clan_regions": 8}, "Губернаторы получили квоты и собственные критерии. В одном городе документы выдавали по трудовому договору, в соседнем — только семьям с детьми; люди начали переезжать между очередями.", {"municipal_migrant_quotas": true})),
 		event("Пограничная служба", "official", "#536f82", "Автобусы у перевала", "На восточной границе остановилась колонна с сорока тысячами людей, бегущих от подавленных беспорядков в Восточном Союзе. Союз называет их преступниками и требует закрыть пропускные пункты.",
-			option("Открыть границу", "Большие расходы • церковь поможет • Восток ответит резко", {"money": -9, "pop_migrants": 40000, "support": 1, "stability": -2, "clan_church": 8, "east_pressure": 3, "west_commitment": 1}, "Людей разместили в школах и церковных приютах. Восточный посол потребовал выдать организаторов исхода."),
+			option("Открыть границу", "Население и рабочая сила заметно вырастут • большие расходы • церковь поможет • Восток ответит резко", {"money": -9, "population_total": 40000, "population_workable": 20000, "support": 1, "stability": -2, "clan_church": 8, "east_pressure": 3, "west_commitment": 1}, "Людей разместили в школах и церковных приютах. Восточный посол потребовал выдать организаторов исхода."),
 			option("Развернуть колонну", "Порядок сохранится • церковь и часть общества будут возмущены", {"stability": 2, "support": -3, "clan_church": -10, "east_commitment": 1, "war_support": 2}, "Шлагбаумы остались закрыты. Восточный Союз поблагодарил правительство, а ночью церковные колокола звонили в память о погибших у перевала.", {"refugees_turned_back": true}),
-			option("Открыть временный лагерь у границы", "Расходы будут умеренными • решение отложится • регионы и оба соседа начнут давить на лагерь", {"money": -5, "pop_migrants": 15000, "support": -1, "stability": -3, "clan_regions": -4, "neutrality": 2, "east_pressure": 2}, "Пятнадцать тысяч человек впустили в палаточный лагерь под международным наблюдением, остальные остались у перевала. Восток требует списки, Запад — свободный проход, губернатор — дату закрытия.", {"border_refugee_camp": true})),
-		event("Министерство экономики", "official", "#c7a96b", "Пустующие цеха", "Три оборонных завода стоят без заказов, пока в промышленных городах растёт безработица. Можно запустить государственный заказ или передать цеха частному объединению за налоговые льготы.",
-			option("Дать госзаказ", "Крупные расходы • занятость и выпуск техники вырастут", {"money": -10, "pop_unemployed": -18000, "pop_employed": 18000, "army_equipment": 12, "clan_workers": 10, "clan_oligarchs": -6}, "Заводы вновь включили ночные смены. Первые машины переданы армии, но казначейство требует объяснить источник следующих выплат.", {"state_factory_order": true}),
-			option("Отдать частникам", "Меньше расходов • рабочих мест станет больше • коррупция усилится", {"money": -5, "pop_unemployed": -24000, "pop_employed": 24000, "corruption_tier": 1, "clan_oligarchs": 10, "clan_workers": 4}, "Промышленное объединение быстро наняло рабочих. В приложении к договору обнаружились льготы, которых депутаты не помнят на голосовании.", {"private_factory_concession": true})),
+			option("Открыть временный лагерь у границы", "Население и рабочая сила немного вырастут • расходы будут умеренными • регионы и оба соседа начнут давить на лагерь", {"money": -5, "population_total": 15000, "population_workable": 7500, "support": -1, "stability": -3, "clan_regions": -4, "neutrality": 2, "east_pressure": 2}, "Пятнадцать тысяч человек впустили в палаточный лагерь под международным наблюдением, остальные остались у перевала. Восток требует списки, Запад — свободный проход, губернатор — дату закрытия.", {"border_refugee_camp": true})),
+		event("Министерство экономики", "official", "#c7a96b", "Пустующие цеха", "Три оборонных завода стоят без заказов, оборудование ветшает, а рабочие смены распущены. Можно запустить государственный заказ или передать цеха частному объединению за налоговые льготы.",
+			option("Дать госзаказ", "Крупные расходы • выпуск техники и профсоюзы укрепятся", {"money": -10, "army_equipment": 12, "clan_workers": 10, "clan_oligarchs": -6}, "Заводы вновь включили ночные смены. Первые машины переданы армии, но казначейство требует объяснить источник следующих выплат.", {"state_factory_order": true}),
+			option("Отдать частникам", "Меньше расходов • производство оживёт • коррупция усилится", {"money": -5, "corruption_tier": 1, "clan_oligarchs": 10, "clan_workers": 4}, "Промышленное объединение быстро восстановило смены. В приложении к договору обнаружились льготы, которых депутаты не помнят на голосовании.", {"private_factory_concession": true})),
 		event("Бюджетный комитет", "official", "#8b6c4b", "Квартальная поправка", "Наступил срок квартальной корректировки. Денег хватит либо на досрочную выплату кредиторам, либо на обещанную прибавку пенсионерам. Провести оба решения без нового займа невозможно.",
 			option("Снизить долг", "Очень большие расходы • долг и финансовый риск заметно снизятся • поддержка пострадает", {"money": -14, "debt": -35, "support": -4, "stability": 4}, "Казначейство досрочно погасило крупную часть обязательств. Кредиторы смягчили условия, а союзы пенсионеров объявили, что правительство оплатило доверие банков их обещанной прибавкой.", {"quarter_debt_paid": true}),
 			option("Доплатить пенсионерам", "Большие расходы • поддержка вырастет • долг и бюджетный риск усилятся", {"money": -9, "debt": 14, "support": 6, "stability": -2}, "Пенсионеры получили разовую доплату. Правительство перенесло квартальный платёж и взяло краткосрочный заём, поэтому следующая бюджетная поправка станет тяжелее.", {"pension_supplement_paid": true})),
 		event("Министерство обороны", "military", "#a9473f", "Некомплект гарнизонов", "Штаб сообщает, что приграничным гарнизонам не хватает восьми тысяч человек. Министр обороны предлагает провести срочный шестимесячный набор либо ограничиться дорогими выплатами контрактникам.",
-			option("Провести срочный набор", "Армия быстро вырастет • экономика и поддержка войны пострадают • при низкой поддержке войны начнутся протесты", {"pop_unemployed": -6000, "pop_employed": -2000, "army_personnel": 8000, "army": 4, "support": -4, "war_support": -6, "stability": -2}, "Повестки закрыли нехватку людей. Заводы пожаловались на уход специалистов, а в университетах появились группы помощи уклонистам.", {"emergency_six_month_draft": true, "unrest": {"cause": "срочный шестимесячный призыв", "kind": "antiwar", "base_level": 1, "reversible": false, "condition": "low_war_support"}}),
-			option("Поднять выплаты", "Большие расходы • прирост будет меньше, но армия поддержит решение", {"money": -9, "pop_unemployed": -2000, "army_personnel": 2000, "army": 7, "support": 1, "war_support": 2}, "Контракт продлили опытные сержанты, и набор пошёл без облав. Штаб признаёт, что часть вакансий всё равно осталась открытой.", {"military_retention_bonus": true})),
+			option("Провести срочный набор", "Армия быстро вырастет • работоспособное население и поддержка войны сократятся • при низкой поддержке войны начнутся протесты", {"population_workable": -8000, "army_personnel": 8000, "army": 4, "support": -4, "war_support": -6, "stability": -2}, "Повестки закрыли нехватку людей. Заводы пожаловались на уход специалистов, а в университетах появились группы помощи уклонистам.", {"emergency_six_month_draft": true, "unrest": {"cause": "срочный шестимесячный призыв", "kind": "antiwar", "base_level": 1, "reversible": false, "condition": "low_war_support"}}),
+			option("Поднять выплаты", "Большие расходы • прирост будет меньше, но армия поддержит решение", {"money": -9, "population_workable": -2000, "army_personnel": 2000, "army": 7, "support": 1, "war_support": 2}, "Контракт продлили опытные сержанты, и набор пошёл без облав. Штаб признаёт, что часть вакансий всё равно осталась открытой.", {"military_retention_bonus": true})),
 		event("Военная приёмка", "military", "#536f82", "Коробки передач", "На новых бронемашинах лопаются коробки передач. Завод принадлежит союзнику правящей партии. Инспекторы требуют полного аудита, владелец обещает всё исправить без публичного скандала.",
 			liberal_option("Провести аудит", "Очень большие расходы • коррупция снизится • брат и владельцы завода ответят", {"money": -11, "army_equipment": 16, "corruption_tier": -1, "army": -2, "clan_oligarchs": -8}, "Партию машин отозвали и заменили. Аудиторы нашли завышенные сметы, а брат использовал публикацию сведений о технике, чтобы настроить командование против правительства.", "Очень большие расходы • коррупция снизится • владельцы завода ответят", "Партию машин отозвали и заменили. Аудиторы нашли завышенные сметы; новый министр обороны не позволил превратить проверку подрядчика в конфликт армии с правительством.", {"military_factory_audit": true}),
 			option("Принять тихий ремонт", "Умеренные расходы • армия быстрее получит технику • коррупция усилится", {"money": -6, "army_equipment": 10, "corruption_tier": 1, "army": 4, "clan_oligarchs": 8}, "Завод заменил часть узлов за закрытыми воротами. Машины вернулись в части, а контракт владельца продлили без конкурса.", {"military_repair_coverup": true})),
@@ -9106,9 +9204,9 @@ func build_event_database() -> void:
 			option("Сделать курс выборным", "Открытого проигравшего не будет • школы и регионы получат разные программы • печать комплектов потребует денег", {"money": -4, "support": 1, "stability": -2, "clan_church": 5, "clan_workers": 4, "clan_regions": 4}, "Родителям разрешили выбирать между гражданским и церковным курсом. В крупных школах появились две группы, в малых один учитель теперь ведёт несовместимые учебники по очереди.", {"elective_faith_curriculum": true})),
 		event("Министерство экономики", "official", "#a9473f", "Красные каски", "Шахтёры заняли административное здание металлического комбината. Они требуют погасить задержки по зарплате и уволить директора, связанного с крупным олигархом.",
 			option("Выполнить требования", "Большие расходы • рабочие поддержат власть • олигархи ответят", {"money": -9, "stability": 4, "clan_workers": 12, "clan_oligarchs": -10}, "Задолженность погасили, директора сняли. Шахтёры вернулись в смены, а владельцы комбината остановили пожертвования правящей партии.", {"miners_demands_met": true}),
-			option("Нанять замену", "Казна сэкономит • часть людей потеряет работу • нарушение трудовых прав вызовет более широкую забастовку", {"money": 3, "pop_employed": -5000, "pop_unemployed": 5000, "stability": -6, "corruption_tier": 1, "clan_workers": -15, "clan_oligarchs": 8}, "Полиция освободила проходную, а подрядчик привёз сменных рабочих. Пять тысяч участников забастовки уволены, оборудование несколько раз останавливалось из-за саботажа.", {"miners_strike_broken": true, "unrest": {"cause": "увольнение бастующих шахтёров и найм штрейкбрехеров", "kind": "labor", "labor": true, "base_level": 2, "reversible": false}})),
+			option("Нанять замену", "Казна сэкономит • нарушение трудовых прав вызовет более широкую забастовку", {"money": 3, "stability": -6, "corruption_tier": 1, "clan_workers": -15, "clan_oligarchs": 8}, "Полиция освободила проходную, а подрядчик привёз сменных рабочих. Пять тысяч участников забастовки уволены, оборудование несколько раз останавливалось из-за саботажа.", {"miners_strike_broken": true, "unrest": {"cause": "увольнение бастующих шахтёров и найм штрейкбрехеров", "kind": "labor", "labor": true, "base_level": 2, "reversible": false}})),
 		event("Военная разведка", "military", "#536f82", "Добровольцы без шевронов", "Правительство далёкой страны просит не мешать набору добровольцев для её гражданской войны. Западная Федерация поддерживает эту сторону, Восточный Союз вооружает её противников.",
-			option("Помочь тайному набору", "Люди покинут страну • армия получит опыт • Восток обвинит республику", {"money": -6, "pop_employed": -2500, "pop_unemployed": -1500, "war_support": 6, "army": 3, "west_commitment": 1, "east_pressure": 3}, "Четыре тысячи добровольцев выехали через туристические фирмы. Официально государство не участвовало, но фотографии инструкторов уже появились в сети.", {"covert_volunteers_sent": true}),
+			option("Помочь тайному набору", "Часть работоспособных покинет страну • армия получит опыт • Восток обвинит республику", {"money": -6, "population_total": -4000, "population_workable": -4000, "war_support": 6, "army": 3, "west_commitment": 1, "east_pressure": 3}, "Четыре тысячи добровольцев выехали через туристические фирмы. Официально государство не участвовало, но фотографии инструкторов уже появились в сети.", {"covert_volunteers_sent": true}),
 			option("Послать только помощь", "Расходы • поддержка и нейтралитет вырастут • военного опыта не будет", {"money": -7, "support": 4, "war_support": -2, "neutrality": 2}, "Вместо людей республика отправила врачей, палатки и лекарства. Обе стороны конфликта пропустили конвой, хотя ни одна не поблагодарила публично.", {"humanitarian_convoy_sent": true}),
 			option("Запретить вербовку обеих сторон", "Люди останутся в стране • оба соседа окажут давление • полиция получит новые полномочия", {"money": -3, "stability": 3, "war_support": -4, "east_pressure": 2, "west_pressure": 2, "authoritarian": 1}, "Вербовочные офисы закрыли, счета посредников заморозили. Часть людей отказалась от поездки, остальные пересекли границу как туристы, а оба посольства обвинили республику в помощи противнику.", {"foreign_recruitment_banned": true})),
 		event("Следственная комиссия", "military", "#a9473f", "Пропавший свидетель", "Офицер снабжения, готовый рассказать о происхождении оружия из дела о покушении, исчез вместе с семьёй. Следователи просят публичных гарантий защиты, а старший брат требует передать поиск военной разведке.",
@@ -9132,8 +9230,8 @@ func build_event_database() -> void:
 		option("Выдать заём общественному фонду", "Крупные расходы • поддержка и независимость редакции укрепятся • олигархи потеряют актив", {"money": -8, "support": 4, "stability": -1, "clan_oligarchs": -6, "clan_workers": 3, "neutrality": 2}, "Журналисты и зрители создали общественный фонд и получили государственный заём. Канал сохранил независимость, но теперь должен казне и требует постоянного контроля расходов.", {"public_media_trust": true}),
 		option("Ограничить иностранную долю", "Умеренные расходы и временная неопределённость • Восток усилит давление • правила станут прозрачнее", {"money": -3, "support": 2, "stability": -2, "east_pressure": 3, "neutrality": 2}, "Комиссия разрешила иностранцам владеть только четвертью канала и обязала раскрывать все платежи. Покупатель отступил, а редакция начала искать нескольких мелких инвесторов.", {"foreign_media_cap": true}))
 	var mobility_event := event("Министерство труда", "diplomat", "#536f82", "Визовые окна", "Западная Федерация предлагает безвизовый режим и свободный доступ к сезонной работе. Переводы семей поддержат экономику, но больницы, стройки и армейский резерв могут потерять молодых специалистов.",
-		option("Открыть свободный выезд", "Поддержка и переводы вырастут • часть людей уедет • отношения с Западом улучшатся, с Востоком ухудшатся", {"money": 5, "support": 4, "pop_employed": -18000, "pop_unemployed": -12000, "west_commitment": 1, "east_pressure": 2, "clan_workers": 3}, "Очереди выстроились у визовых центров. Безработица снизилась, семьи получили первые переводы, а предприятия начали предлагать более высокие зарплаты оставшимся специалистам.", {"west_labor_mobility": true}),
-		option("Согласовать отраслевые квоты", "Расходы на управление • безработица немного снизится • утечка работников будет ограничена", {"money": -3, "support": 2, "pop_unemployed": -8000, "west_commitment": 1, "neutrality": 1, "clan_oligarchs": -3}, "Правительство выдало ограниченные разрешения безработным и сезонным рабочим. Запад согласился на квоты, а работодатели потребовали ещё больше исключений.", {"limited_west_mobility": true}),
+		option("Открыть свободный выезд", "Население и рабочая сила заметно сократятся • поддержка и переводы вырастут • Запад станет ближе, Восток — дальше", {"money": 5, "support": 4, "population_total": -30000, "population_workable": -30000, "west_commitment": 1, "east_pressure": 2, "clan_workers": 3}, "Очереди выстроились у визовых центров. Семьи получили первые переводы, а предприятия начали предлагать более высокие зарплаты оставшимся специалистам.", {"west_labor_mobility": true}),
+		option("Согласовать отраслевые квоты", "Расходы на управление • население и рабочая сила немного сократятся • отток специалистов будет ограничен", {"money": -3, "support": 2, "population_total": -8000, "population_workable": -8000, "west_commitment": 1, "neutrality": 1, "clan_oligarchs": -3}, "Правительство выдало ограниченные разрешения сезонным рабочим. Запад согласился на квоты, а работодатели потребовали ещё больше исключений.", {"limited_west_mobility": true}),
 		option("Отказаться от режима", "Работники останутся в стране • поддержка снизится • нейтральность и отношения с Востоком укрепятся", {"support": -3, "neutrality": 3, "west_pressure": 3, "east_commitment": 1, "clan_workers": -2}, "Переговоры закрыли. Восток приветствовал решение, а молодые специалисты обвинили правительство в лишении их возможности заработать.", {"west_mobility_refused": true}))
 	var committee_event := event("Председатель парламента", "official", "#8b6c4b", "Комитет двенадцати", "Двенадцать депутатов лояльного большинства потребовали открытых слушаний по военным закупкам и расходам фонда имени вашего отца. Они ещё не стали оппозицией, но без их голосов следующая бюджетная поправка не пройдёт.",
 		liberal_option("Открыть слушания", "Поддержка вырастет и коррупция снизится • брат настроит армию против парламентского расследования", {"support": 5, "stability": -4, "army": -2, "corruption_tier": -1, "clan_oligarchs": -9}, "Заседание показали в прямом эфире. Аудиторы нашли двойные счета, брат назвал слушания атакой на армию, а правящая фракция впервые голосовала не по команде.", "Поддержка вырастет и коррупция снизится • парламентский скандал ударит по порядку и дисциплине партии", "Заседание показали в прямом эфире. Аудиторы нашли двойные счета, а правящая фракция впервые голосовала не по команде; новый министр обороны не позволил втянуть всю армию в скандал.", {"committee_hearings_open": true}),
@@ -9160,7 +9258,7 @@ func build_event_database() -> void:
 		option("Обратиться в арбитраж", "Потребуются расходы • защита границы укрепит поддержку • до решения суда порядок ухудшится, Восток ответит", {"money": -7, "support": 3, "stability": -3, "war_support": 3, "clan_regions": 4, "west_commitment": 1, "east_pressure": 4}, "Западные геодезисты установили камеры и начали измерения. Жители дежурят у кладбища, а Восточный Союз перекрыл ближайшую дорогу до решения суда."),
 		option("Заморозить линию совместным патрулём", "Нейтральность укрепится • спор не будет решён • армия сочтёт совместный пост уступкой", {"money": -5, "stability": 1, "army": -4, "clan_regions": 2, "neutrality": 3, "east_pressure": 1}, "Обе стороны поставили временный пост между двумя вариантами границы. Насос работает, кладбище открыто, но патрули каждое утро сверяют разные карты одной и той же земли."))
 	var returnees_event := event("Служба безопасности", "military", "#536f82", "Люди с чужой войны", "Три тысячи граждан вернулись из далёкой гражданской войны с боевым опытом и незарегистрированным оружием. Большинство служило в бригаде, поддержанной Западной Федерацией. Армия хочет принять их единым подразделением, министерство труда — разоружить и вернуть к мирной жизни, а олигархи предлагают работу в частной охране.",
-		option("Принять в армию после проверки", "Армия получит людей и опыт • порядок ухудшится • Восток назовёт подразделение западным легионом", {"money": -6, "pop_employed": -1000, "pop_unemployed": -2000, "army_personnel": 3000, "army": 5, "war_support": 5, "stability": -4, "west_commitment": 1, "east_pressure": 3}, "После краткой проверки ветераны вошли в отдельный батальон. Штаб доволен их опытом, но полиция уже расследует драку между новобранцами и пограничниками."),
+		option("Принять в армию после проверки", "Армия получит людей и опыт • работоспособное население сократится • Восток назовёт подразделение западным легионом", {"money": -6, "population_workable": -3000, "army_personnel": 3000, "army": 5, "war_support": 5, "stability": -4, "west_commitment": 1, "east_pressure": 3}, "После краткой проверки ветераны вошли в отдельный батальон. Штаб доволен их опытом, но полиция уже расследует драку между новобранцами и пограничниками."),
 		option("Провести разоружение и реинтеграцию", "Потребуются крупные расходы • порядок и поддержка укрепятся • армия потеряет подготовленных бойцов", {"money": -9, "support": 3, "stability": 4, "army": -3, "war_support": -4, "clan_workers": 5}, "Оружие приняли за компенсацию, ветеранам оплатили лечение и рабочие курсы. Большинство разъехалось по домам, а генералы назвали программу растратой боевого опыта."),
 		option("Разрешить частные охранные отряды", "Казна получит деньги • олигархи усилятся • вооружённые группы ослабят государственный порядок", {"money": 6, "support": -3, "stability": -5, "army": -2, "war_support": 2, "corruption_tier": 1, "clan_oligarchs": 8}, "Охранные фирмы оплатили лицензии и разобрали ветеранов по портам, шахтам и складам. Через неделю два отряда отказались пропустить государственную инспекцию без разрешения владельца."))
 	var tape_event := event("Редакция «Республиканского утра»", "official", "#a9473f", "Плёнка из приёмной", "Редактор получил запись разговора из приёмной покойного президента. На ней человек с голосом начальника охраны обсуждает слежку за журналистом, расследовавшим оружейные контракты. Оригинала нет, а посредник просит государственную защиту.",
@@ -9184,7 +9282,7 @@ func build_event_database() -> void:
 		option("Сохранить связь с восточным центром", "Церковная иерархия сохранит единство • Восток смягчится • сторонники независимости уйдут в отдельные общины", {"support": -3, "stability": 3, "clan_church": 7, "east_commitment": 1, "east_pressure": -2}, "Правительство признало прежнюю иерархию. Старшие священнослужители остались в своих кабинетах, а сторонники независимости начали служить в домах культуры.", {"faith_east_link": true}),
 		option("Объявить государство нейтральным", "Власть не выберет церковь • нейтралитет укрепится • спор об имуществе останется без арбитра", {"support": -2, "stability": -3, "clan_church": -5, "neutrality": 3}, "Канцелярия назвала раскол внутренним делом общин. Обе стороны поблагодарили президента за невмешательство и одновременно потребовали у полиции ключи от одних и тех же храмов.", {"faith_neutrality": true}))
 	var battalion_event := event("Пограничный губернатор", "military", "#536f82", "Батальон у заставы", "После серии диверсий губернатор собрал три тысячи добровольцев. У них свои командиры, пожертвованная олигархами техника и высокий авторитет в приграничье. Штаб предлагает включить батальон в армию, МВД — разоружить, губернаторы — узаконить такие отряды в каждом регионе.",
-		option("Включить батальон в армию", "Людей на границе станет больше • единое командование возникнет не сразу • позже придётся решить конфликт приказов", {"money": -5, "army_personnel": 3000, "army": 4, "war_support": 5, "stability": -3}, "Добровольцам выдали армейские номера, но оставили прежнего командира на переходный период. В штабе уже лежат два несовместимых плана их применения.", {"volunteers_integrated": true}),
+		option("Включить батальон в армию", "Часть работоспособных перейдёт в армию • единое командование возникнет не сразу • позже придётся решить конфликт приказов", {"money": -5, "population_workable": -3000, "army_personnel": 3000, "army": 4, "war_support": 5, "stability": -3}, "Добровольцам выдали армейские номера, но оставили прежнего командира на переходный период. В штабе уже лежат два несовместимых плана их применения.", {"volunteers_integrated": true}),
 		option("Разоружить и распустить", "Порядок и контроль государства укрепятся • армия и приграничье потеряют резерв • часть оружия исчезнет", {"money": -3, "support": -3, "stability": 4, "army": -5, "war_support": -6, "clan_regions": -6}, "На площадку сдали бронемашины и половину автоматов. Остальные добровольцы разъехались раньше проверки, а полиция получила карту возможных тайников.", {"volunteers_disarmed": true}),
 		option("Передать отряды губернаторам", "Регионы получат собственную оборону • центр сэкономит • армия потеряет монополию на вооружённую силу", {"money": 3, "stability": -3, "army": -4, "war_support": 4, "clan_regions": 10}, "Парламент узаконил территориальные отряды при губернаторах. На границе стало больше людей, но каждый район заказал собственную форму и написал собственный устав.", {"volunteers_regional": true}))
 	var dinner_event := event("Супруга президента", "family", "#8b6c4b", "Ужин остывает", "— Я уже третий раз разогреваю ужин, — говорит жена, закрывая папку с вашей новой речью. — Страна переживёт один вечер без президента. Вопрос только в том, переживёшь ли ты вечер без страны.",
@@ -9540,7 +9638,7 @@ func event(source: String, role: String, accent: String, title: String, body: St
 
 
 func option(option_label: String, hint: String, effects: Dictionary, result: String, flags: Dictionary = {}) -> Dictionary:
-	return {"label": option_label, "hint": hint, "effects": effects, "result": result, "set": flags}
+	return {"label": option_label, "hint": hint, "effects": convert_legacy_population_effects(effects), "result": result, "set": flags}
 
 
 func liberal_option(option_label: String, hint: String, effects: Dictionary, result: String, hint_without_brother: String, result_without_brother: String, flags: Dictionary = {}) -> Dictionary:
