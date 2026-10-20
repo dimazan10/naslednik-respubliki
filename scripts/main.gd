@@ -79,13 +79,13 @@ const MINISTER_OFFICES := {
 const MINISTER_CANDIDATES := {
 	"economy": [
 		{"id": "radan", "name": "Анна Радан", "ideology": "рыночный реформатор", "loyalty": "осторожная", "patron": "городской бизнес и международные кредиторы", "trait": "Доверие кредиторов", "known": "Открывает кредиты и приватизацию; сокращение социальных расходов сильнее злит профсоюзы.", "effects": {}},
-		{"id": "grad", "name": "Виктор Град", "ideology": "государственник", "loyalty": "высокая к курсу отца", "patron": "директора государственных предприятий", "trait": "Чрезвычайный сбор", "known": "Открывает национализацию и сырьевой сбор; конфликтует с олигархами.", "effects": {"clan_workers": 4, "clan_oligarchs": -6}},
-		{"id": "sorec", "name": "Мила Сорец", "ideology": "социальный компромисс", "loyalty": "условная", "patron": "профсоюзы", "trait": "Трёхстороннее соглашение", "known": "Улучшает переговорные варианты в трудовых конфликтах. Открывает закон о коллективных договорах, который смягчает экономический ущерб забастовок; кредиторы предлагают более жёсткие условия.", "effects": {"clan_workers": 8, "clan_oligarchs": -8}}
+		{"id": "grad", "name": "Виктор Град", "ideology": "государственник", "loyalty": "высокая к курсу отца", "patron": "директора государственных предприятий", "trait": "Чрезвычайный сбор", "known": "На старте или при первом назначении укрепляет профсоюзы и раздражает олигархов. Открывает национализацию и сырьевой сбор.", "effects": {"clan_workers": 4, "clan_oligarchs": -6}},
+		{"id": "sorec", "name": "Мила Сорец", "ideology": "социальный компромисс", "loyalty": "условная", "patron": "профсоюзы", "trait": "Трёхстороннее соглашение", "known": "На старте или при первом назначении заметно укрепляет профсоюзы ценой отношений с олигархами. Улучшает переговоры в трудовых конфликтах и открывает закон о коллективных договорах; кредиторы предлагают более жёсткие условия.", "effects": {"clan_workers": 8, "clan_oligarchs": -8}}
 	],
 	"interior": [
 		{"id": "volsky", "name": "Марек Вольский", "ideology": "крепкая рука", "loyalty": "высокая", "patron": "силовики", "trait": "Быстрый разгон", "known": "Предлагает точечные задержания организаторов протестов. Открывает закон «Ограничение СМИ»: пропаганда смягчает потери поддержки, но вызывает протест и усиливает авторитарный курс.", "effects": {}},
-		{"id": "kovach", "name": "Ирина Ковач", "ideology": "гражданская реформа", "loyalty": "надёжная", "patron": "юристы и городские активисты", "trait": "Посредники", "known": "Легализует переговоры с протестующими. Открывает закон об общественном посредничестве: новые гражданские протесты начинаются слабее, но забастовки он не смягчает. Армия возмущается только при брате во главе обороны.", "effects": {"support": 2}},
-		{"id": "sava", "name": "Антон Сава", "ideology": "административный нейтрал", "loyalty": "неизвестная", "patron": "губернаторы", "trait": "Тихая сеть", "known": "Раскалывает протест через губернаторов. Открывает закон о региональных комиссиях: гражданские выступления слабее бьют по стабильности, а передача переговоров губернаторам больше не перегружает аппарат президента.", "effects": {"clan_regions": 6}}
+		{"id": "kovach", "name": "Ирина Ковач", "ideology": "гражданская реформа", "loyalty": "надёжная", "patron": "юристы и городские активисты", "trait": "Посредники", "known": "На старте или при первом назначении повышает поддержку власти; армия возмущается, пока обороной руководит брат. Легализует переговоры и открывает закон об общественном посредничестве: гражданские протесты начинаются слабее, но забастовки он не смягчает.", "effects": {"support": 2}},
+		{"id": "sava", "name": "Антон Сава", "ideology": "административный нейтрал", "loyalty": "неизвестная", "patron": "губернаторы", "trait": "Тихая сеть", "known": "На старте или при первом назначении укрепляет губернаторов. Раскалывает протест через регионы и открывает закон о региональных комиссиях: гражданские выступления слабее бьют по стабильности, а передача переговоров больше не перегружает аппарат президента.", "effects": {"clan_regions": 6}}
 	],
 	"defense": [
 		{"id": "brother", "name": "Старший брат", "ideology": "авторитарный государственник", "loyalty": "семье и наследию отца", "patron": "армейское командование", "trait": "Война на истощение", "known": "Сильный оборонительный командир. Обычным кадровым решением снять его нельзя.", "locked": true, "locked_reason": "Защищён положением в армии и сюжетом.", "effects": {}},
@@ -94,8 +94,8 @@ const MINISTER_CANDIDATES := {
 	],
 	"foreign": [
 		{"id": "narin", "name": "Лея Нарин", "ideology": "нейтралист", "loyalty": "надёжная", "patron": "профессиональная дипломатия", "trait": "Красные линии", "known": "Снижает цену дипломатической миссии с 3 до 2 млн. Один раз может открыть кризисный канал, который отложит подготовленное вторжение на две недели.", "effects": {}},
-		{"id": "varek", "name": "Элиан Варек", "ideology": "прозападный либерал", "loyalty": "идее западного курса", "patron": "экспортёры и западные фонды", "trait": "Открытые двери", "known": "При назначении улучшает отношения с Западной Федерацией. Только при нём можно подписать западный протокол инвестиционного арбитража.", "effects": {"west_commitment": 1}},
-		{"id": "kres", "name": "Дарья Крес", "ideology": "сторонница сделки с Востоком", "loyalty": "прагматичная", "patron": "энергетические компании", "trait": "Старая линия", "known": "При назначении улучшает отношения с Восточным Союзом. Только при ней можно передать Восточному Союзу приграничное нефтяное месторождение.", "effects": {"east_commitment": 1}}
+		{"id": "varek", "name": "Элиан Варек", "ideology": "прозападный либерал", "loyalty": "идее западного курса", "patron": "экспортёры и западные фонды", "trait": "Открытые двери", "known": "На старте или при первом назначении сближает республику с Западной Федерацией и отдаляет от Восточного Союза. Только при нём можно подписать западный протокол инвестиционного арбитража.", "effects": {"west_commitment": 1}},
+		{"id": "kres", "name": "Дарья Крес", "ideology": "сторонница сделки с Востоком", "loyalty": "прагматичная", "patron": "энергетические компании", "trait": "Старая линия", "known": "На старте или при первом назначении сближает республику с Восточным Союзом и отдаляет от Западной Федерации. Только при ней можно передать Восточному Союзу приграничное нефтяное месторождение.", "effects": {"east_commitment": 1}}
 	]
 }
 const RECRUITMENT_MODELS := {
@@ -317,6 +317,7 @@ var events_required_this_week := EVENTS_PER_WEEK
 var save_path_override := ""
 var fullscreen_enabled := false
 var audio_enabled := true
+var event_choice_hints_enabled := true
 var audio_streams: Dictionary = {}
 var audio_players: Dictionary = {}
 
@@ -553,6 +554,22 @@ func run_logic_smoke_test() -> void:
 			break
 	if cabinet_variants.size() < 4:
 		failures.append("Новые сиды не создают достаточно разных стартовых кабинетов.")
+	var aligned_foreign_seeds := {"kres": 0, "varek": 0}
+	for alignment_seed in range(1, 257):
+		var foreign_id := str(randomized_starting_ministers(alignment_seed).get("foreign", ""))
+		if aligned_foreign_seeds.has(foreign_id) and int(aligned_foreign_seeds[foreign_id]) == 0:
+			aligned_foreign_seeds[foreign_id] = alignment_seed
+		if int(aligned_foreign_seeds["kres"]) != 0 and int(aligned_foreign_seeds["varek"]) != 0:
+			break
+	if int(aligned_foreign_seeds["kres"]) == 0 or int(aligned_foreign_seeds["varek"]) == 0:
+		failures.append("Тестовые сиды не охватывают обоих внешнеполитических министров.")
+	else:
+		start_game("Сид: %d" % int(aligned_foreign_seeds["kres"]), int(aligned_foreign_seeds["kres"]))
+		if str(selected_ministers.get("foreign", "")) != "kres" or int(state.get("east_relation", 0)) != 3 or int(state.get("west_relation", 0)) != 1:
+			failures.append("Дарья Крес на старте должна давать партнёрские отношения с Востоком и натянутые с Западом.")
+		start_game("Сид: %d" % int(aligned_foreign_seeds["varek"]), int(aligned_foreign_seeds["varek"]))
+		if str(selected_ministers.get("foreign", "")) != "varek" or int(state.get("west_relation", 0)) != 3 or int(state.get("east_relation", 0)) != 1:
+			failures.append("Элиан Варек на старте должен давать партнёрские отношения с Западом и натянутые с Востоком.")
 	start_game("Сид: 1991", 1991)
 	if starting_cabinet_signature(1991) != "%s|%s|%s|%s" % [str(selected_ministers.get("economy", "")), str(selected_ministers.get("interior", "")), str(selected_ministers.get("defense", "")), str(selected_ministers.get("foreign", ""))]:
 		failures.append("Новая кампания не назначила министров из кабинетного сида.")
@@ -624,8 +641,8 @@ func run_logic_smoke_test() -> void:
 			failures.append("Для концовки «%s» не создано достижение." % required_ending)
 	if week_count_text(1) != "1 неделю" or week_count_text(2) != "2 недели" or week_count_text(11) != "11 недель":
 		failures.append("Финальный экран неверно склоняет количество прожитых недель.")
-	if story_event_pool.size() != 47:
-		failures.append("Авторский сюжетный пул должен содержать 47 событий.")
+	if story_event_pool.size() != 52:
+		failures.append("Авторский сюжетный пул должен содержать 52 события.")
 	var pool_story_ids := {}
 	var pool_mandatory_count := 0
 	var pool_bucket_counts := {"economy": 0, "army": 0, "society": 0, "world": 0}
@@ -640,8 +657,11 @@ func run_logic_smoke_test() -> void:
 		else:
 			var pool_bucket := str(pool_event.get("_bucket", ""))
 			pool_bucket_counts[pool_bucket] = int(pool_bucket_counts.get(pool_bucket, 0)) + 1
-	if pool_mandatory_count != 12 or pool_bucket_counts != {"economy": 8, "army": 5, "society": 16, "world": 6}:
-		failures.append("Сюжетный пул должен состоять из 12 обязательных и 35 квотируемых событий (8/5/16/6).")
+	if pool_mandatory_count != 12 or pool_bucket_counts != {"economy": 9, "army": 6, "society": 19, "world": 6}:
+		failures.append("Сюжетный пул должен состоять из 12 обязательных и 40 квотируемых событий (9/6/19/6).")
+	for new_political_title in ["Один эфир на всех", "Губернатор на ковре", "Повестка в телефоне", "Самолёт из эмиграции", "Пакеты на пленарном заседании"]:
+		if not pool_story_ids.has(new_political_title):
+			failures.append("В случайном пуле отсутствует новое политическое событие «%s»." % new_political_title)
 	var church_scandal_template: Dictionary = {}
 	for pool_event in story_event_pool:
 		if str(pool_event.get("title", "")) == "Скандал с церковью":
@@ -695,7 +715,7 @@ func run_logic_smoke_test() -> void:
 		failures.append("Требования международных кредиторов не настроены как отдельный доклад с тремя решениями.")
 	if social_protest_event.is_empty() or not social_protest_event.has("third"):
 		failures.append("Социальные протесты не настроены как отдельный условный доклад с тремя решениями.")
-	for branch_kind in ["reception_tape", "election_protocols", "heating_debt", "constitutional_court", "faith_schism", "volunteer_command"]:
+	for branch_kind in ["reception_tape", "election_protocols", "heating_debt", "constitutional_court", "faith_schism", "volunteer_command", "opposition_return"]:
 		var branch_event := build_story_followup_event(branch_kind)
 		if branch_event.is_empty() or not branch_event.has("third"):
 			failures.append("Сюжетное продолжение %s не настроено как доклад с тремя решениями." % branch_kind)
@@ -974,8 +994,16 @@ func run_foreign_smoke_test() -> void:
 	var west_concession := foreign_concession_data("west")
 	if str(east_concession.get("title", "")) == "" or str(west_concession.get("title", "")) == "" or str(east_concession.get("title", "")) == str(west_concession.get("title", "")):
 		failures.append("Уступки соседям не описаны как две разные конкретные сделки.")
-	if neighbor_relation_band("east") != "средние" or neighbor_relation_band("west") != "средние":
-		failures.append("Оба соседа должны начинать кампанию со средними отношениями.")
+	var starting_foreign_minister := str(selected_ministers.get("foreign", "narin"))
+	var expected_starting_relations: Vector2i = {
+		"narin": Vector2i(2, 2),
+		"varek": Vector2i(1, 3),
+		"kres": Vector2i(3, 1)
+	}.get(starting_foreign_minister, Vector2i(2, 2))
+	if int(state.get("east_relation", 0)) != expected_starting_relations.x or int(state.get("west_relation", 0)) != expected_starting_relations.y:
+		failures.append("Стартовые отношения не отражают курс выпавшего министра иностранных дел.")
+	state.east_relation = 2
+	state.west_relation = 2
 	state.east_relation = 1
 	if neighbor_relation_band("east") != "натянутые":
 		failures.append("Прямая категория отношений не показывает натянутое состояние.")
@@ -983,6 +1011,7 @@ func run_foreign_smoke_test() -> void:
 	if neighbor_relation_band("east") != "партнёрские":
 		failures.append("Прямая категория отношений не показывает партнёрское состояние.")
 	state.east_relation = 0
+	state.west_relation = 2
 	if neighbor_relation_band("east") != "враждебные":
 		failures.append("Прямая категория отношений не показывает враждебное состояние.")
 	var invasion_note := start_invasion_if_needed()
@@ -1541,8 +1570,10 @@ func run_consequence_smoke_test() -> void:
 		failures.append("Ограничение СМИ не смягчает потерю поддержки на треть.")
 	start_game("Сид: 1991", 1991)
 	state.budget_social = 0
+	var support_before_social_cut := int(state.get("support", 0))
+	var workers_before_social_cut := int(state.get("clan_workers", 0))
 	process_weekly_budget_consequences(2)
-	if int(state.get("support", 0)) != 57 or int(state.get("clan_workers", 0)) != 45:
+	if int(state.get("support", 0)) != support_before_social_cut - 1 or int(state.get("clan_workers", 0)) != workers_before_social_cut - 2:
 		failures.append("Сокращение социальной помощи не проявилось при первом двухнедельном расчёте.")
 	start_game("Сид: 1991", 1991)
 	state.support = 20
@@ -1876,8 +1907,8 @@ func run_difficulty_smoke_test() -> void:
 			test_seed = str(argument).trim_prefix("--test-seed=").to_int()
 	start_game("Сид: %d" % test_seed, test_seed)
 	var starting_delta := weekly_actual_income() - weekly_actual_expenses()
-	if starting_delta > -0.80 or starting_delta < -2.20:
-		failures.append("Стартовый недельный баланс должен быть умеренным дефицитом, а не профицитом или немедленной катастрофой.")
+	if starting_delta > -0.50 or starting_delta < -3.00:
+		failures.append("Стартовый недельный баланс с учётом выпавшего кабинета должен оставаться умеренным дефицитом, а не профицитом или немедленной катастрофой.")
 	for budget_key in ["budget_social", "budget_health", "budget_admin", "budget_defense", "budget_infrastructure"]:
 		var base_amount := budget_final_for_level(budget_key, 1, int(state.get("corruption_tier", 0)))
 		var reduced_amount := budget_final_for_level(budget_key, 0, int(state.get("corruption_tier", 0)))
@@ -1986,13 +2017,19 @@ func configure_adaptive_test_budget() -> void:
 
 
 func run_adaptive_smoke_test() -> void:
-	# Сид 1 фиксирует кампанию, в которой осмотрительный маршрут остаётся
+	# Сид 6 фиксирует кампанию, в которой осмотрительный маршрут остаётся
 	# проходимым без повторного доступа к экстренной эмиссии или кредиту.
-	var test_seed := 1
+	var test_seed := 6
 	for argument in OS.get_cmdline_user_args():
 		if str(argument).begins_with("--test-seed="):
 			test_seed = str(argument).trim_prefix("--test-seed=").to_int()
 	start_game("Сид: %d" % test_seed, test_seed)
+	# Осмотрительный нейтральный маршрут сразу снимает стартовый перекос
+	# профильного дипломата: разовая миссия дешевле 26 недель пограничных издержек.
+	if int(state.get("east_relation", 2)) == 1 and int(state.get("west_relation", 2)) == 3:
+		perform_foreign_action("east", "mission")
+	elif int(state.get("west_relation", 2)) == 1 and int(state.get("east_relation", 2)) == 3:
+		perform_foreign_action("west", "mission")
 	var resolved_events := 0
 	var configured_week := 0
 	var safety_counter := 0
@@ -2381,8 +2418,16 @@ func run_settings_smoke_test() -> void:
 	if fullscreen_enabled == original_value:
 		failures.append("Настройка полноэкранного режима не переключилась.")
 	set_fullscreen_enabled(original_value, false)
+	var original_hint_setting := event_choice_hints_enabled
+	event_choice_hints_enabled = false
+	if event_choice_hints_status_text() != "Последствия решений заранее скрыты." or event_choice_hints_toggle_button_text() != "ПОКАЗЫВАТЬ ПОДСКАЗКИ РЕШЕНИЙ":
+		failures.append("Отключённые подсказки решений неверно отражены в настройках.")
+	event_choice_hints_enabled = true
+	if event_choice_hints_status_text() != "Подсказки под решениями показываются." or event_choice_hints_toggle_button_text() != "СКРЫТЬ ПОДСКАЗКИ РЕШЕНИЙ":
+		failures.append("Включённые подсказки решений неверно отражены в настройках.")
+	event_choice_hints_enabled = original_hint_setting
 	if failures.is_empty():
-		print("SETTINGS_SMOKE_TEST: OK | audio=7 | hover=yes | click=yes | menu_toggle=yes | F4=yes | F11=yes | Esc=closes_tabs | Alt+F4=reserved")
+		print("SETTINGS_SMOKE_TEST: OK | audio=7 | event_hints=optional_default_on | hover=yes | click=yes | menu_toggle=yes | F4=yes | F11=yes | Esc=closes_tabs | Alt+F4=reserved")
 		get_tree().quit(0)
 	else:
 		for failure in failures:
@@ -3012,6 +3057,14 @@ func audio_toggle_button_text() -> String:
 	return "ВЫКЛЮЧИТЬ ЗВУКИ" if audio_enabled else "ВКЛЮЧИТЬ ЗВУКИ"
 
 
+func event_choice_hints_status_text() -> String:
+	return "Подсказки под решениями показываются." if event_choice_hints_enabled else "Последствия решений заранее скрыты."
+
+
+func event_choice_hints_toggle_button_text() -> String:
+	return "СКРЫТЬ ПОДСКАЗКИ РЕШЕНИЙ" if event_choice_hints_enabled else "ПОКАЗЫВАТЬ ПОДСКАЗКИ РЕШЕНИЙ"
+
+
 func show_settings() -> void:
 	var content := VBoxContainer.new()
 	content.custom_minimum_size = Vector2(690, 0)
@@ -3032,6 +3085,14 @@ func show_settings() -> void:
 	audio_button.pressed.connect(toggle_audio_from_settings.bind(audio_button, audio_status_label))
 	content.add_child(audio_button)
 	content.add_child(label("Наведение, нажатия, доклады, решения, предупреждения и новая неделя имеют разные сигналы.", 15, Color("#6d6455"), HORIZONTAL_ALIGNMENT_CENTER))
+	content.add_child(HSeparator.new())
+	content.add_child(label("СОБЫТИЯ", 15, Color("#8b6c4b"), HORIZONTAL_ALIGNMENT_CENTER))
+	var hints_status_label := label(event_choice_hints_status_text(), 21, Color("#4c4941"), HORIZONTAL_ALIGNMENT_CENTER)
+	content.add_child(hints_status_label)
+	var hints_button := menu_button(event_choice_hints_toggle_button_text())
+	hints_button.pressed.connect(toggle_event_choice_hints_from_settings.bind(hints_button, hints_status_label))
+	content.add_child(hints_button)
+	content.add_child(label("Настройка скрывает или показывает только краткие описания последствий под вариантами в докладах. Точные числа по-прежнему появляются после выбора.", 15, Color("#6d6455"), HORIZONTAL_ALIGNMENT_CENTER))
 	var close := menu_button("ГОТОВО")
 	close.pressed.connect(close_overlay)
 	content.add_child(close)
@@ -3051,6 +3112,14 @@ func toggle_audio_from_settings(toggle_button: Button, status_label: Label) -> v
 	status_label.text = audio_status_text()
 	if audio_enabled:
 		play_game_sound("decision")
+
+
+func toggle_event_choice_hints_from_settings(toggle_button: Button, status_label: Label) -> void:
+	event_choice_hints_enabled = not event_choice_hints_enabled
+	save_display_settings()
+	toggle_button.text = event_choice_hints_toggle_button_text()
+	status_label.text = event_choice_hints_status_text()
+	update_event_choice_hint_visibility()
 
 
 func setup_audio() -> void:
@@ -3258,6 +3327,7 @@ func show_achievements() -> void:
 func load_display_settings() -> void:
 	fullscreen_enabled = false
 	audio_enabled = true
+	event_choice_hints_enabled = true
 	if not persistence_allowed() or not FileAccess.file_exists(SETTINGS_PATH):
 		apply_fullscreen_mode()
 		return
@@ -3269,6 +3339,7 @@ func load_display_settings() -> void:
 	if parsed is Dictionary:
 		fullscreen_enabled = bool((parsed as Dictionary).get("fullscreen", false))
 		audio_enabled = bool((parsed as Dictionary).get("audio_enabled", true))
+		event_choice_hints_enabled = bool((parsed as Dictionary).get("event_choice_hints_enabled", true))
 	apply_fullscreen_mode()
 
 
@@ -3278,7 +3349,7 @@ func save_display_settings() -> void:
 	var file := FileAccess.open(SETTINGS_PATH, FileAccess.WRITE)
 	if file == null:
 		return
-	file.store_string(JSON.stringify({"fullscreen": fullscreen_enabled, "audio_enabled": audio_enabled}, "\t"))
+	file.store_string(JSON.stringify({"fullscreen": fullscreen_enabled, "audio_enabled": audio_enabled, "event_choice_hints_enabled": event_choice_hints_enabled}, "\t"))
 	file.flush()
 
 
@@ -3744,11 +3815,25 @@ func starting_cabinet_signature(seed_value: int) -> String:
 	]
 
 
+func apply_starting_minister_effects() -> Dictionary:
+	var applied_by_office: Dictionary = {}
+	for slot in ["economy", "interior", "defense", "foreign"]:
+		var candidate_id := str(selected_ministers.get(slot, ""))
+		var candidate := minister_data(slot, candidate_id)
+		if candidate.is_empty():
+			continue
+		var effects := minister_initial_effects(slot, candidate_id, candidate)
+		effects = apply_media_support_filter(effects)
+		applied_by_office[slot] = apply_effects(effects) if not effects.is_empty() else {}
+	return applied_by_office
+
+
 func start_game(mode: String, seed_value: int) -> void:
 	game_mode = mode
 	story_rng.seed = seed_value ^ STORY_SEED_SALT
 	routine_rng.seed = seed_value ^ ROUTINE_SEED_SALT
 	selected_ministers = randomized_starting_ministers(seed_value)
+	pending_week_changes.clear()
 	state = {
 		"week": 1, "campaign_seed": seed_value, "money": 42.0, "support": 58, "stability": 42, "army": 52,
 		"war_support": 24, "corruption_tier": 3, "influence": 3, "debt": 420.0,
@@ -3806,13 +3891,16 @@ func start_game(mode: String, seed_value: int) -> void:
 		},
 		"last_weekly_report": {}, "enacted_laws": []
 	}
+	# Случайный стартовый кабинет уже находится у власти к первой сцене, поэтому
+	# его разовые политические эффекты входят непосредственно в стартовые значения.
+	# Они не занимают очки решений и не ждут завершения первой недели.
+	apply_starting_minister_effects()
 	active_law = ""
 	law_progress = 0
 	law_target = 0
 	law_weekly_cost = 1
 	law_worked_this_week = false
 	recruitment_changed_this_week = false
-	pending_week_changes.clear()
 	event_resolved = false
 	events_resolved_this_week = 0
 	events_required_this_week = EVENTS_PER_WEEK
@@ -4025,9 +4113,11 @@ func build_game_screen() -> void:
 	choice_grid.add_child(third_button)
 	left_hint = label("Примерный эффект", 13, Color("#cfc3aa"), HORIZONTAL_ALIGNMENT_CENTER)
 	left_hint.custom_minimum_size = Vector2(0, 36)
+	left_hint.visible = event_choice_hints_enabled
 	choice_grid.add_child(left_hint)
 	right_hint = label("Примерный эффект", 13, Color("#cfc3aa"), HORIZONTAL_ALIGNMENT_CENTER)
 	right_hint.custom_minimum_size = Vector2(0, 36)
+	right_hint.visible = event_choice_hints_enabled
 	choice_grid.add_child(right_hint)
 	third_hint = label("Примерный эффект", 13, Color("#cfc3aa"), HORIZONTAL_ALIGNMENT_CENTER)
 	third_hint.custom_minimum_size = Vector2(0, 36)
@@ -4686,6 +4776,21 @@ func build_story_followup_event(kind: String) -> Dictionary:
 				option("Единое командование после проверки", "Потребуются деньги и время • батальон останется в составе армии под единым командованием", {"money": -6, "army": 6, "stability": 2, "war_support": 3}, "Каждый доброволец прошёл проверку и подписал индивидуальный контракт. Батальон потерял собственное название, но появился в армейском расписании.", {"volunteers_vetted": true}),
 				option("Сделать батальон президентской гвардией", "Президент получит личную силу • армия и порядок пострадают • авторитаризм усилится", {"support": -3, "stability": -4, "army": -7, "war_support": 5, "authoritarian": 1}, "Батальон присягнул лично президенту и занял базу у столицы. Добровольцы довольны статусом, а генеральный штаб больше не включает их в общие планы.", {"presidential_guard_battalion": true}),
 				option("Амнистия в обмен на роспуск", "Оружие вернётся на склады • поддержка войны и армия ослабнут • гражданский порядок укрепится", {"support": 3, "stability": 6, "army": -5, "war_support": -7, "army_personnel": -3000, "population_workable": 3000} if volunteers_were_integrated else {"support": 3, "stability": 6, "army": -5, "war_support": -7}, "Участники сдали тяжёлое оружие и получили амнистию. Большинство разошлось, но их командиры сразу зарегистрировали политическое движение ветеранов.", {"volunteer_party_formed": true}))
+		"opposition_return":
+			if bool(state.get("opposition_returned_free", false)):
+				return event("Столичная мэрия", "official", "#668269", "Марш без сцены", "Вернувшийся политик созвал сторонников на центральной площади. Мэрия согласна выдать разрешение только для набережной, организаторы требуют пройти мимо парламента, а полиция предупреждает: отмена шествия соберёт людей без маршрута и ответственных.",
+					option("Разрешить маршрут у парламента", "Оппозиция получит сцену • поддержка открытой политики вырастет • стабильность окажется под угрозой", {"support": 5, "stability": -6, "clan_workers": 4}, "Марш прошёл перед парламентом под камерами. Столкновений не произошло, но оппозиция впервые показала, что способна заполнить центр без разрешения президентской администрации.", {"opposition_march_permitted": true}),
+					option("Согласовать набережную", "Потребуются переговоры и охрана • порядок сохранится • обе стороны сочтут компромисс уступкой", {"money": -4, "support": 2, "stability": 3, "clan_oligarchs": -3}, "Организаторы приняли запасной маршрут и получили прямой эфир на общественном канале. Полиция не перекрывала центр, но самые непримиримые сторонники обвинили лидера в сделке с властью.", {"opposition_march_compromise": true}),
+					option("Закрыть центр на ремонт", "Шествие потеряет маршрут • стабильность временно вырастет • поддержка упадёт и возможен протест", {"support": -6, "stability": 5, "authoritarian": 1}, "Ночью вокруг площади появились ограждения и свежие таблички о ремонте. Колонна распалась на несколько улиц, а фотография рабочих, укладывающих одну плитку перед телекамерами, стала символом запрета.", {"opposition_march_blocked": true, "unrest": {"cause": "запрет оппозиционного марша под видом ремонта", "kind": "civic", "base_level": 1, "condition": "low_support", "reversible": false}}))
+			elif bool(state.get("opposition_returned_detained", false)):
+				return event("Следственный суд", "official", "#a9473f", "Окна изолятора", "Срок первичного задержания истекает ночью. Прокуратура просит закрыть слушание из-за секретных материалов, адвокаты требуют прямой трансляции, а западные посольства предупреждают о персональных ограничениях для чиновников, подписавших новый арест.",
+					liberal_option("Открыть судебное заседание", "Общество увидит доказательства • поддержка вырастет • слабое дело может рассыпаться и ухудшить порядок", {"support": 5, "stability": -5, "west_commitment": 1, "army": -3}, "Суд пустил камеры и зачитал материалы обвинения. Часть эпизодов выдержала проверку, часть оказалась газетными вырезками; политик остался под подпиской о невыезде и сразу выступил на ступенях суда.", "Общество увидит доказательства • поддержка вырастет • исход дела останется непредсказуемым", "Суд пустил камеры и зачитал материалы обвинения. Часть эпизодов выдержала проверку, часть оказалась газетными вырезками; политик остался под подпиской о невыезде и сразу выступил на ступенях суда.", {"opposition_open_trial": true}),
+					option("Предложить выезд из страны", "Уличный конфликт ослабнет • Запад сочтёт это политической высылкой • поддержка снизится", {"support": -3, "stability": 4, "west_pressure": 4}, "Задержанному предложили свободу в обмен на билет без обратной даты. Он согласился, но опубликовал документ ещё до взлёта; сторонники называют отъезд изгнанием.", {"opposition_exiled": true}),
+					option("Продлить закрытый арест", "Порядок укрепится сейчас • поддержка и отношения с Западом резко ухудшатся • протест возможен", {"support": -7, "stability": 6, "west_pressure": 6, "authoritarian": 1}, "Судья продлил арест без прессы. У изолятора погасили фонари, однако люди включили телефоны и остались до утра.", {"opposition_detention_extended": true, "unrest": {"cause": "продление закрытого ареста оппозиционного политика", "kind": "civic", "base_level": 2, "condition": "low_support", "reversible": false}}))
+			return event("Общественное телевидение", "official", "#536f82", "Эфир без паузы", "Запись обещанных дебатов длится почти три часа. Оппозиционный политик предъявил документы о закупках администрации, президент — сведения о зарубежном финансировании его штаба. Каналы ждут приказа: показать всё, собрать короткую версию или отменить передачу, пока обе стороны не проверят обвинения.",
+				option("Показать запись полностью", "Поддержка открытой политики вырастет • скандалы обеих сторон ударят по стабильности и олигархам", {"support": 4, "stability": -5, "clan_oligarchs": -7}, "Страна увидела все три часа без монтажа. Ни одна сторона не получила чистой победы, зато прокуратура открыла дела по документам, которые ещё утром считались реквизитом студии.", {"opposition_debate_raw": true}),
+				option("Собрать короткую версию", "Повестка останется управляемой • монтаж потребует денег • разоблачение купюр ударит по поддержке", {"money": -3, "support": -3, "stability": 4}, "В эфир вышли сорок спокойных минут. Уже ночью участник съёмочной группы передал независимому каналу вырезанные фрагменты, и спор о монтаже заменил спор о программах.", {"opposition_debate_edited": true}),
+				option("Отложить эфир до проверки", "Немедленный скандал будет отложен • обе стороны обвинят власть в страхе • порядок и поддержка снизятся", {"support": -4, "stability": -3, "clan_workers": -3}, "Каналы поставили повтор концерта, а штабы одновременно выложили собственные фрагменты. Вместо одного эфира страна получила две несовместимые версии дебатов.", {"opposition_debate_delayed": true}))
 	return {}
 
 
@@ -4806,14 +4911,26 @@ func display_current_event() -> void:
 	var has_third := current_event.has("third") and not (current_event["third"] as Dictionary).is_empty()
 	choice_grid.columns = 3 if has_third else 2
 	third_button.visible = has_third
-	third_hint.visible = has_third
 	if has_third:
 		third_button.text = str(current_event["third"]["label"]).to_upper()
 		third_hint.text = str(current_event["third"]["hint"])
+	update_event_choice_hint_visibility(has_third)
 	portrait.setup(str(current_event["role"]), Color(str(current_event["accent"])))
 	left_button.disabled = event_resolved or bool(current_event["left"].get("unavailable", false))
 	right_button.disabled = event_resolved or bool(current_event["right"].get("unavailable", false))
 	third_button.disabled = event_resolved or not has_third or (has_third and bool(current_event["third"].get("unavailable", false)))
+
+
+func update_event_choice_hint_visibility(has_third_option := false) -> void:
+	if is_instance_valid(left_hint):
+		left_hint.visible = event_choice_hints_enabled
+	if is_instance_valid(right_hint):
+		right_hint.visible = event_choice_hints_enabled
+	if is_instance_valid(third_hint):
+		var third_exists := has_third_option
+		if not third_exists and not current_event.is_empty():
+			third_exists = current_event.has("third") and not (current_event["third"] as Dictionary).is_empty()
+		third_hint.visible = event_choice_hints_enabled and third_exists
 
 
 func should_trigger_financial_crisis() -> bool:
@@ -5284,6 +5401,8 @@ func apply_state_flags(option_flags: Dictionary) -> void:
 		schedule_story_followup("faith_schism", 3)
 	if bool(option_flags.get("volunteers_integrated", false)) or bool(option_flags.get("volunteers_disarmed", false)) or bool(option_flags.get("volunteers_regional", false)):
 		schedule_story_followup("volunteer_command", 2)
+	if bool(option_flags.get("opposition_returned_free", false)) or bool(option_flags.get("opposition_returned_detained", false)) or bool(option_flags.get("opposition_returned_debate", false)):
+		schedule_story_followup("opposition_return", 2)
 	var east_system_link := bool(state.get("east_energy_promise", false)) or bool(state.get("eastern_pipeline_share", false)) or bool(state.get("joint_eastern_customs", false))
 	var west_system_link := bool(state.get("western_package", false)) or bool(state.get("western_grid_standard", false))
 	if east_system_link and west_system_link and not bool(state.get("standards_conflict_scheduled", false)):
@@ -9905,6 +10024,26 @@ func build_event_database() -> void:
 		option("Извиниться и сократить кортеж", "Поддержка вырастет • безопасность семьи и порядок протокола ухудшатся", {"support": 4, "stability": -4}, "Жена записала короткое извинение у школьных ворот, а две машины сняли с маршрута. Горожане оценили жест, служба охраны — нет: теперь каждый выезд требует импровизации."),
 		option("Сослаться на протокол", "Охрана сохранит прежний порядок • общественная поддержка снизится", {"support": -3, "stability": 3}, "Канцелярия опубликовала сухую справку о правилах безопасности. Улица открылась, но фотография пустого перекрёстка ещё неделю сопровождала статьи о привилегиях власти."),
 		option("Опубликовать маршруты заранее", "Прозрачность укрепит поддержку • новая схема потребует денег • предсказуемость маршрутов ухудшит безопасность", {"money": -2, "support": 3, "stability": -2}, "Резиденция стала заранее сообщать о перекрытиях и оплатила отдельные объезды для экстренных служб. Жалоб стало меньше, зато охрана теперь меняет планы в последний момент и требует больше людей."))
+	var unified_broadcast_event := event("Национальный совет вещания", "official", "#536f82", "Один эфир на всех", "После недели тревожных сообщений четыре крупнейших канала предлагают объединить вечерние новости. Государство будет выдавать общий сигнал, владельцы каналов — по очереди формировать редакцию. Журналисты опасаются единой повестки, штаб говорит о панике из-за противоречивых сообщений, а олигархи не хотят оплачивать чужой эфир.",
+		option("Создать единый государственный эфир", "Порядок и военные настроения укрепятся • поддержка и владельцы каналов пострадают • власть получит рычаг над новостями", {"money": -3, "support": -5, "stability": 6, "war_support": 5, "clan_oligarchs": -7, "authoritarian": 1}, "Все каналы показали одну студию и одну карту страны. Противоречивых сообщений стало меньше, но независимые редакции начали вести ночные выпуски в сети.", {"unified_state_broadcast": true, "unrest": {"cause": "создание единого государственного новостного эфира", "kind": "civic", "base_level": 1, "condition": "low_support", "reversible": false}}),
+		option("Оставить каналы независимыми", "Свободный эфир укрепит поддержку • разноголосица ударит по стабильности • владельцы каналов усилятся", {"support": 4, "stability": -5, "war_support": -3, "clan_oligarchs": 6}, "Каналы сохранили собственные выпуски. Уже вечером один сообщил о закрытой границе, другой — о свободном проезде; правительство потратило ночь на опровержения.", {"independent_crisis_broadcasts": true}),
+		option("Учредить общественную редакцию", "Потребуются деньги и спорное соглашение • влияние государства и владельцев ограничат • порядок улучшится умеренно", {"money": -7, "support": 2, "stability": 2, "clan_oligarchs": -3, "clan_workers": 3}, "Редакционный совет разделили между каналами, университетами и общественными организациями. Выпуски выходят медленнее, зато к каждому спорному сообщению теперь прикладывают источник.", {"public_broadcast_consortium": true}))
+	var governor_vertical_event := event("Счётная палата", "official", "#8b6c4b", "Губернатор на ковре", "Губернатор Южного края отказался перечислять в центр доходы нового терминала, заявив, что столица годами не ремонтировала областные дороги. Проверка нашла закупки у фирмы его зятя, но региональный совет утверждает: расследование началось только после отказа делиться деньгами.",
+		option("Снять губернатора указом", "Центр вернёт контроль и часть доходов • регионы резко отвернутся • поддержка снизится", {"money": 6, "support": -4, "stability": 5, "clan_regions": -12, "authoritarian": 1}, "Губернатора вывели из администрации, а временного управляющего прислали из столицы. Деньги терминала вернулись в бюджет, но четыре областных совета потребовали проверить законность указа.", {"governor_removed_by_decree": true}),
+		option("Открыть публичный аудит", "Проверка обойдётся дорого и раскачает аппарат • поддержка и контроль над олигархами укрепятся", {"money": -5, "support": 5, "stability": -4, "clan_regions": 4, "clan_oligarchs": -6}, "Заседания аудиторов показали в прямом эфире. Фирма зятя потеряла контракт, однако проверяющие нашли похожие схемы уже у столичных ведомств.", {"governor_public_audit": true}),
+		option("Оставить доходы региону", "Конфликт утихнет и регионы укрепятся • казна потеряет поступления • губернатор сохранит свою сеть", {"money": -7, "support": -2, "stability": 3, "clan_regions": 11, "clan_oligarchs": 4}, "Южный край получил право оставить сборы на два года. Дороги начали ремонтировать, а остальные губернаторы прислали собственные списки доходов, которые тоже хотели бы не перечислять центру.", {"regional_terminal_revenue": true}))
+	var digital_draft_event := event("Мобилизационное управление", "military", "#536f82", "Повестка в телефоне", "Военное ведомство подготовило единый электронный реестр военнообязанных. Система найдёт резервистов быстрее бумажных списков, но в тестовой базе обнаружились умершие, эмигранты и сотрудники критических предприятий. Штаб хочет признать сообщение в приложении вручённой повесткой уже на этой неделе.",
+		option("Запустить обязательные повестки", "Армия получит быстрый резерв • расходы, протестные настроения и недоверие регионов вырастут", {"money": -6, "army": 6, "war_support": -7, "stability": -3, "clan_regions": -6}, "Приложение разослало первые уведомления ночью. У военкоматов появились очереди исправлять ошибки, а штаб впервые получил общую карту доступного резерва.", {"digital_draft_registry": true, "unrest": {"cause": "обязательные электронные повестки", "kind": "civic", "base_level": 1, "condition": "low_war_support", "reversible": false}}),
+		option("Открыть добровольную сверку", "Реестр станет точнее и власть сохранит доверие • армия получит меньше людей и не сразу", {"money": -4, "support": 3, "army": 2, "war_support": -2, "clan_regions": 3}, "Гражданам предложили проверить данные без автоматического призыва. За неделю исправили тысячи записей, но командиры получили лишь небольшой список добровольцев.", {"voluntary_draft_registry": true}),
+		option("Вернуться к бумажным спискам", "Расходов почти не будет • поддержка войны сохранится • штаб и боеспособность пострадают", {"support": 2, "stability": -2, "army": -6, "clan_regions": 2}, "Реестр отправили на доработку, а военкоматы снова открыли картотеки. Ошибок стало привычно меньше видно, но розыск каждого резервиста снова занял дни.", {"digital_draft_postponed": true}))
+	var opposition_plane_event := event("Пограничная служба", "official", "#a9473f", "Самолёт из эмиграции", "Регулярным рейсом возвращается бывший руководитель крупнейшего оппозиционного движения. Прокуратура заранее выписала ордер по делу о зарубежном финансировании, адвокаты называют обвинение политическим, а несколько тысяч сторонников едут в аэропорт. Самолёт уже вошёл в воздушное пространство республики.",
+		liberal_option("Пропустить без задержания", "Поддержка открытой политики вырастет • улица и аппарат станут менее предсказуемыми • брат сочтёт это слабостью", {"support": 6, "stability": -6, "clan_workers": 4, "army": -3}, "Политик прошёл паспортный контроль и сразу поднялся на крышу автомобиля перед толпой. Он поблагодарил президента за соблюдение закона и назначил марш через две недели.", "Поддержка открытой политики вырастет • улица и аппарат станут менее предсказуемыми", "Политик прошёл паспортный контроль и сразу поднялся на крышу автомобиля перед толпой. Он поблагодарил президента за соблюдение закона и назначил марш через две недели.", {"opposition_returned_free": true}),
+		option("Задержать в аэропорту", "Порядок укрепится немедленно • поддержка и отношения с Западом пострадают • история продолжится в суде", {"support": -6, "stability": 5, "west_pressure": 5, "authoritarian": 1}, "Пограничники задержали пассажира у трапа и вывезли через грузовой терминал. Толпа осталась у закрытого выхода, а суд получил ночь на решение о новом сроке ареста.", {"opposition_returned_detained": true}),
+		option("Предложить публичные дебаты", "Казна оплатит эфир и охрану • обе стороны рискуют рейтингом • немедленное столкновение будет отложено", {"money": -5, "support": 2, "stability": -2, "clan_oligarchs": -3}, "Ордер приостановили до прямого эфира. Политик принял вызов, но потребовал три часа без монтажа и право принести собственные документы.", {"opposition_returned_debate": true}))
+	var parliamentary_cash_event := event("Антикоррупционная служба", "official", "#c7a96b", "Пакеты на пленарном заседании", "Перед голосованием по государственным закупкам депутат правящей коалиции уронил в зале пакет с крупной суммой наличных. Он называет деньги пожертвованием на региональную больницу, маркировка банка ведёт к холдингу, участвующему в тендере, а без его фракции бюджетное большинство может распасться.",
+		option("Разрешить обыск фракции", "Расследование ударит по большинству и стабильности • поддержка вырастет • олигархи потеряют влияние", {"support": 6, "stability": -6, "clan_oligarchs": -11}, "Следователи вынесли из кабинетов ещё три пакета и списки голосований. Коалиция потеряла несколько депутатов, зато дело невозможно закрыть одной запиской президента.", {"parliament_cash_raid": true}),
+		option("Ограничиться партийным взысканием", "Большинство и порядок сохранятся • поддержка упадёт • олигархи укрепят договорённости", {"support": -6, "stability": 5, "clan_oligarchs": 9, "authoritarian": 1}, "Депутат вышел из комитета и сохранил мандат. Пакет объявили частным нарушением, а закон о закупках прошёл теми же голосами через два дня.", {"parliament_cash_disciplined": true}),
+		option("Провести открытое переголосование", "Решение потребует времени и денег • общество увидит голоса • регионы получат больше самостоятельности", {"money": -3, "support": 3, "stability": -2, "clan_regions": 5, "clan_oligarchs": -4}, "Каждый депутат голосовал с трибуны, объясняя позицию. Спорную поправку отклонили, но региональные фракции потребовали такого же порядка для всего бюджета.", {"parliament_open_revote": true}))
 
 	insert_story_event_after("Слишком большой портрет", dinner_event)
 	insert_story_event_after("Ужин остывает", wine_event)
@@ -9928,6 +10067,11 @@ func build_event_database() -> void:
 	insert_story_event_after("Пустующие цеха", heating_event)
 	insert_story_event_after("Самолёты с чужими кодами", turbine_event)
 	insert_story_event_after("Пропавший свидетель", returnees_event)
+	insert_story_event_after("Канал на продажу", unified_broadcast_event)
+	insert_story_event_after("Машина у школы", governor_vertical_event)
+	insert_story_event_after("Батальон у заставы", digital_draft_event)
+	insert_story_event_after("Плёнка из приёмной", opposition_plane_event)
+	insert_story_event_after("Квартальная поправка", parliamentary_cash_event)
 
 	var mandatory_titles := {
 		"День после похорон": true, "Генерал с чемоданом": true, "Мороз без топлива": true,
@@ -9943,6 +10087,8 @@ func build_event_database() -> void:
 		"Комитет двенадцати": "society", "Снимок из клиники": "society", "Частота 91,3": "society", "Канал на продажу": "society",
 		"Плёнка из приёмной": "society", "Протокол с мокрой печатью": "society", "Суд без кворума": "society",
 		"Ужин остывает": "society", "Бутылка из погреба": "society", "Комната отца": "society", "Машина у школы": "society", "Скандал с церковью": "society",
+		"Один эфир на всех": "society", "Губернатор на ковре": "society", "Самолёт из эмиграции": "society",
+		"Пакеты на пленарном заседании": "economy", "Повестка в телефоне": "army",
 		"Автобусы у перевала": "world", "Добровольцы без шевронов": "world", "Столб номер 217": "world", "Люди с чужой войны": "world", "Визовые окна": "world", "Собор без благословения": "world"
 	}
 	story_event_pool.clear()
