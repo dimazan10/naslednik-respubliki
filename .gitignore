@@ -4,3 +4,9 @@
 /build/
 /release/
 /realise/
+__pycache__/
+/audio/licensed/
+/audio/previews/
+/audio/variants/*
+!/audio/variants/music_03_documents.wav
+/tools/prepare_budget_icons.gd.uid

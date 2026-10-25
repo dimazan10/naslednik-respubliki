@@ -24,10 +24,36 @@ const WAR_SUPPORT_LOW := 30
 const WAR_SUPPORT_HIGH := 65
 const WAR_SUPPORT_CRITICAL_HIGH := 80
 const WAR_PRESSURE_INTERVAL := 2
+const WAR_DEFENSIVE_RALLY_SUPPORT := 4
 const WAR_SHORTENED_FRONT_REDUCTION := 8000
 const FINANCIAL_CRISIS_RESERVE := 2.0
 const DEMO_WEEKS := 26
 const EVENTS_PER_WEEK := 3
+const PROLOGUE_MANDATE_TEXT := "Незадолго до смерти отец провёл ваше назначение вице-президентом через спорное голосование. Теперь вы временно исполняете обязанности главы государства. Через 26 недель должны состояться досрочные выборы."
+const TUTORIAL_CARDS := {
+	"pending": {"title": "ПОСЛЕ ПЕРВОГО РЕШЕНИЯ", "body": "Голубые числа слева — ожидаемые изменения. Решение вступит в силу только при переходе к новой неделе."},
+	"budget": {"title": "КАЗНА И РАСХОДЫ", "body": "Здесь видны доходы, расходы и прогноз следующей недели. Уровни бюджета меняются через карточки ниже; поправку должен одобрить парламент."},
+	"week": {"title": "ЗАВЕРШЕНИЕ НЕДЕЛИ", "body": "Все доклады рассмотрены. Проверьте прогноз казны, затем нажмите выделенную кнопку «Новая неделя». Только тогда пройдут выплаты и проявятся последствия."},
+	"report": {"title": "НЕДЕЛЬНАЯ СВОДКА", "body": "Вверху — общие итоги, ниже — решения, финансы, общество, группы, армия и внешняя политика. Здесь удобно выяснить причину изменений."},
+	"government": {"title": "ПАРЛАМЕНТ И МИНИСТРЫ", "body": "Большинство решает судьбу бюджетных поправок и назначений. Министры не принимают решения за вас, но меняют доступные события и возможности."},
+	"law": {"title": "ПОДГОТОВКА ЗАКОНА", "body": "Можно вести один законопроект. После начала его подготовка продвигается автоматически каждую неделю при наличии очков решений; до принятия проект можно отменить."},
+	"foreign": {"title": "СОСЕДИ", "body": "Смотрите на уровень отношений с каждым соседом. Сближение с одним отдаляет другого; враждебность приводит к войне при завершении недели."},
+	"war": {"title": "ВОЙНА", "body": "Фронту нужны люди, снабжение и боеспособная техника. Каждая военная неделя приносит потери; призыв берёт людей из работоспособного населения."}
+}
+const TUTORIAL_WEEK_BRIEFINGS := {
+	1: {"title": "ПЕРВОЕ РЕШЕНИЕ", "body": "Теперь открылось состояние страны слева. Голубым показано, что изменится после завершения недели. Наведите курсор на показатель, чтобы увидеть подробности. Пока просто рассмотрите остальные доклады — курс страны вы выбираете сами."},
+	2: {"title": "НЕДЕЛЯ 2  •  ЭКОНОМИКА", "body": "Открылись экономика и недельная сводка. В экономике сравните доходы, расходы и прогноз казны. Если денег не хватит на обязательные выплаты, правление закончится дефолтом. Изменить статью бюджета можно через её карточку, но поправку ещё должен одобрить парламент."},
+	3: {"title": "НЕДЕЛЯ 3  •  ПРАВИТЕЛЬСТВО", "body": "Теперь доступен состав правительства. Министров выбираете вы, а парламент голосует за назначение и бюджетные поправки. Министр не решает за президента: от него зависят некоторые доклады, варианты ответа и специальные возможности."},
+	4: {"title": "НЕДЕЛЯ 4  •  ЗАКОНЫ", "body": "Открылась подготовка законов. Одновременно можно вести только один проект. После запуска работа над ним продвигается при переходе к новой неделе, если хватает очков решений. Незавершённый проект можно отменить, но потраченные очки не вернутся."},
+	5: {"title": "НЕДЕЛЯ 5  •  СОСЕДИ", "body": "Открылась внешняя политика. Лея Нарин позволяет отправлять миссии для улучшения отношений с соседом, но второй сосед при этом отдаляется. Если отношения станут враждебными, следующая неделя может начаться с вторжения. Во время войны дипломатия с противником недоступна."},
+	6: {"title": "НЕДЕЛЯ 6  •  ВНУТРЕННИЕ ГРУППЫ", "body": "Открылись кланы и общественные группы. Их поддержка даёт не только прибавки к цифрам: она меняет парламент, доходы, протесты и другие последствия. Низкая поддержка власти особенно опасна после непопулярных решений."},
+	7: {"title": "НЕДЕЛЯ 7  •  АРМИЯ", "body": "Открыто управление армией. Здесь выбирают способ комплектования, снабжение и производство наземной техники. Призыв забирает работоспособных людей из экономики. Авиацию нельзя произвести внутри страны — её можно купить или получить."},
+	8: {"title": "НЕДЕЛЯ 8  •  ПОДДЕРЖКА И ПОРЯДОК", "body": "Низкая поддержка власти помогает непопулярному решению вызвать протест. Стабильность определяет масштаб нового протеста: при 30% и ниже он усиливается, при 70% и выше ослабевает. Высокая поддержка власти также добавляет 1 стабильность в неделю. Наведите курсор на показатели слева, чтобы увидеть все пороги."},
+	9: {"title": "НЕДЕЛЯ 9  •  ДОСРОЧНЫЕ ВЫБОРЫ", "body": "Через 26 недель временный мандат должен закончиться выборами. В разделе правительства можно посмотреть прогноз: на него влияют поддержка власти, стабильность и группы. По ходу кампании появятся решения о кандидатуре и правилах голосования."},
+	10: {"title": "НЕДЕЛЯ 10  •  НАСЕЛЕНИЕ", "body": "В экономике показаны всё население и его работоспособная часть. Работающие создают доход и могут быть призваны в армию; остальные нуждаются в социальной помощи. Образование и медицина, как и отношения с Церковью, меняют демографию. Война забирает людей из обеих сторон расчёта."},
+	11: {"title": "НЕДЕЛЯ 11  •  ДОЛГ И КОРРУПЦИЯ", "body": "Приоритетное обслуживание долга дороже сейчас, но постепенно снижает ставку и сумму долга. Недостаточные выплаты дешевле сегодня, зато ставка растёт. Коррупция уменьшает доходы по своей категории; наведите курсор на итоговую сумму, чтобы увидеть расчёт."},
+	12: {"title": "НЕДЕЛЯ 12  •  СВЯЗАННЫЕ КРИЗИСЫ", "body": "Теперь все основные разделы открыты. Решения могут запускать цепочки событий: протесты, забастовки, требования соседей или ответ кредиторов. Проверяйте недельную сводку, когда последствия неожиданны, и сверяйте прогноз перед переходом к новой неделе."}
+}
 const STORY_SEED_SALT := 0x53544F52
 const ROUTINE_SEED_SALT := 0x524F5554
 const CABINET_SEED_SALT := 0x43414249
@@ -70,6 +96,14 @@ const WEEKLY_BUDGET_LINES := [
 	{"key": "budget_debt", "title": "Обслуживание долга", "impact": "Обязательные выплаты по государственному долгу."},
 	{"key": "budget_infrastructure", "title": "Инфраструктура", "impact": "Ремонт сетей, дорог и региональной инфраструктуры."}
 ]
+const CUSTOM_BUDGET_ICON_PATHS := {
+	"budget_social": "res://assets/budget_icons/budget_social.png",
+	"budget_health": "res://assets/budget_icons/budget_health.png",
+	"budget_admin": "res://assets/budget_icons/budget_admin.png",
+	"budget_defense": "res://assets/budget_icons/budget_defense.png",
+	"budget_debt": "res://assets/budget_icons/budget_debt.png",
+	"budget_infrastructure": "res://assets/budget_icons/budget_infrastructure.png"
+}
 const MINISTER_OFFICES := {
 	"economy": "МИНИСТР ЭКОНОМИКИ",
 	"interior": "МИНИСТР ВНУТРЕННИХ ДЕЛ",
@@ -110,13 +144,16 @@ const PRIVATIZED_OIL_OUTPUT_LOSS := 2
 const PRIVATIZED_METAL_OUTPUT_LOSS := 2
 const OIL_PRICE := 0.22
 const METAL_PRICE := 0.30
-const NATIONALIZATION_COMPENSATION_COST := 14.0
+const NATIONALIZATION_COMPENSATION_COST := 11.0
 const NATIONALIZED_STATE_ENTERPRISE_INCOME_BONUS := 1.0
 const NATIONALIZED_EQUIPMENT_OUTPUT_MULTIPLIER := 1.25
 const SAVE_VERSION := 1
 const SAVE_PATH := "user://campaign_save.json"
 const SETTINGS_PATH := "user://display_settings.json"
 const ACHIEVEMENTS_PATH := "user://ending_achievements.json"
+# The music file itself is normalized to the same peak range as the effects.
+# Keeping the player at unity gain makes the slider predictable and audible.
+const MUSIC_BASE_VOLUME_DB := -2.0
 const ENDING_ACHIEVEMENTS := [
 	{"ending": "КАПИТУЛЯЦИЯ", "title": "Белый флаг", "description": "Завершить правление капитуляцией после распада фронта или исчезновения воли к сопротивлению."},
 	{"ending": "ДЕФОЛТ", "title": "Казна сказала «нет»", "description": "Допустить государственный дефолт и остановку обязательных выплат."},
@@ -160,10 +197,12 @@ class PortraitArt:
 	extends Control
 	var role := "official"
 	var accent := BLUE
+	var custom_texture: Texture2D
 
-	func setup(new_role: String, new_accent: Color) -> void:
+	func setup(new_role: String, new_accent: Color, new_texture: Texture2D = null) -> void:
 		role = new_role
 		accent = new_accent
+		custom_texture = new_texture
 		queue_redraw()
 
 	func _ready() -> void:
@@ -171,6 +210,15 @@ class PortraitArt:
 
 	func _draw() -> void:
 		var s := size
+		if custom_texture != null:
+			var texture_size := custom_texture.get_size()
+			var source := Rect2(Vector2(0, texture_size.y * 0.05), Vector2(texture_size.x, texture_size.y * 0.47))
+			var target_size := Vector2(s.y * source.size.x / source.size.y, s.y)
+			if target_size.x > s.x:
+				target_size *= s.x / target_size.x
+			var target := Rect2((s - target_size) * 0.5, target_size)
+			draw_texture_rect_region(custom_texture, target, source)
+			return
 		var center := Vector2(s.x * 0.5, s.y * 0.48)
 		var glow := accent
 		glow.a = 0.13
@@ -206,10 +254,12 @@ class BudgetIconArt:
 	extends Control
 	var budget_key := ""
 	var accent := GOLD
+	var custom_texture: Texture2D
 
-	func setup(new_key: String, new_accent: Color) -> void:
+	func setup(new_key: String, new_accent: Color, new_texture: Texture2D = null) -> void:
 		budget_key = new_key
 		accent = new_accent
+		custom_texture = new_texture
 		queue_redraw()
 
 	func _ready() -> void:
@@ -221,6 +271,11 @@ class BudgetIconArt:
 		var dark := Color("#24272b")
 		draw_rect(Rect2(Vector2(2, 2), s - Vector2(4, 4)), Color(accent, 0.13), true)
 		draw_rect(Rect2(Vector2(2, 2), s - Vector2(4, 4)), accent, false, 2.0)
+		if custom_texture != null:
+			var icon_size := maxf(1.0, minf(s.x, s.y) - 10.0)
+			var icon_position := (s - Vector2(icon_size, icon_size)) * 0.5
+			draw_texture_rect(custom_texture, Rect2(icon_position, Vector2(icon_size, icon_size)), false)
+			return
 		match budget_key:
 			"budget_social":
 				for offset in [-18.0, 0.0, 18.0]:
@@ -308,18 +363,43 @@ var influence_label: Label
 var stat_labels: Dictionary = {}
 var stat_caption_labels: Dictionary = {}
 var sidebar_summary_labels: Dictionary = {}
+var sidebar_number_values: Dictionary = {}
+var sidebar_number_targets: Dictionary = {}
+var sidebar_number_tween: Tween
+var sidebar_number_flush_pending := false
+var sidebar_refresh_pending := false
 var overlay: Control
 var overlay_can_cancel := false
 var active_overlay_scroll: ScrollContainer
+var debug_cheat_panel: Control
+var debug_cheat_fields: Dictionary = {}
 var event_resolved := false
 var events_resolved_this_week := 0
 var events_required_this_week := EVENTS_PER_WEEK
 var save_path_override := ""
 var fullscreen_enabled := false
 var audio_enabled := true
+var music_enabled := true
+var audio_volume_percent := 100.0
+var music_volume_percent := 100.0
 var event_choice_hints_enabled := true
+var tutorial_enabled := true
+var tutorial_seen: Array[String] = []
+var tutorial_card: PanelContainer
+var tutorial_dialog: Control
+var tutorial_left_panel: PanelContainer
+var tutorial_right_panel: PanelContainer
+var tutorial_left_mask: PanelContainer
+var tutorial_right_mask: PanelContainer
+var tutorial_focus_layer: Control
+var tutorial_minister_section: VBoxContainer
+var tutorial_sections_header: HBoxContainer
+var tutorial_section_grid: GridContainer
+var tutorial_section_buttons: Dictionary = {}
 var audio_streams: Dictionary = {}
 var audio_players: Dictionary = {}
+var music_player: AudioStreamPlayer
+var music_watchdog_elapsed := 0.0
 
 
 func _ready() -> void:
@@ -331,10 +411,47 @@ func _ready() -> void:
 	call_deferred("capture_preview_if_requested")
 
 
+func _input(event: InputEvent) -> void:
+	if not OS.is_debug_build() or not event is InputEventKey:
+		return
+	var key_event := event as InputEventKey
+	if not key_event.pressed or key_event.echo:
+		return
+	if key_event.keycode == KEY_F2 and not key_event.alt_pressed and not key_event.ctrl_pressed and not key_event.meta_pressed:
+		if is_instance_valid(debug_cheat_panel):
+			close_debug_cheats()
+		elif is_instance_valid(game_root) and not state.is_empty():
+			show_debug_cheats()
+		get_viewport().set_input_as_handled()
+	elif key_event.keycode == KEY_ESCAPE and is_instance_valid(debug_cheat_panel):
+		close_debug_cheats()
+		get_viewport().set_input_as_handled()
+
+
+func _process(delta: float) -> void:
+	if not music_enabled or not is_instance_valid(music_player):
+		music_watchdog_elapsed = 0.0
+		return
+	music_watchdog_elapsed += delta
+	if music_watchdog_elapsed >= 1.0:
+		music_watchdog_elapsed = 0.0
+		if not music_player.playing:
+			music_player.play()
+
+
 func capture_preview_if_requested() -> void:
 	var args := OS.get_cmdline_user_args()
+	if "--debug-cheat-smoke-test" in args:
+		run_debug_cheat_smoke_test()
+		return
 	if "--settings-smoke-test" in args:
 		run_settings_smoke_test()
+		return
+	if "--tutorial-smoke-test" in args:
+		run_tutorial_smoke_test()
+		return
+	if "--prologue-smoke-test" in args:
+		run_prologue_smoke_test()
 		return
 	if "--logic-smoke-test" in args:
 		run_logic_smoke_test()
@@ -375,7 +492,7 @@ func capture_preview_if_requested() -> void:
 	if "--unrest-smoke-test" in args:
 		run_unrest_smoke_test()
 		return
-	var game_captures := ["--capture-game", "--capture-clans", "--capture-economy", "--capture-budget-icons", "--capture-budget-levels", "--capture-budget-vote", "--capture-army", "--capture-government", "--capture-candidates", "--capture-minister-vote", "--capture-laws", "--capture-foreign", "--capture-war", "--capture-war-crisis", "--capture-weekly", "--capture-routine", "--capture-result", "--capture-new-week", "--capture-crisis", "--capture-creditor", "--capture-protest", "--capture-unrest"]
+	var game_captures := ["--capture-main-menu", "--capture-new-game-menu", "--capture-prologue", "--capture-game", "--capture-tutorial", "--capture-guide", "--capture-week-two", "--capture-week-briefing", "--capture-clans", "--capture-economy", "--capture-budget-icons", "--capture-budget-levels", "--capture-budget-vote", "--capture-army", "--capture-government", "--capture-candidates", "--capture-minister-vote", "--capture-laws", "--capture-foreign", "--capture-war", "--capture-war-crisis", "--capture-weekly", "--capture-routine", "--capture-result", "--capture-new-week", "--capture-crisis", "--capture-creditor", "--capture-protest", "--capture-unrest", "--capture-debug-cheats"]
 	var requested_capture := ""
 	for capture_arg in game_captures:
 		if capture_arg in args:
@@ -384,8 +501,29 @@ func capture_preview_if_requested() -> void:
 	if not "--capture-preview" in args and requested_capture == "":
 		return
 	if requested_capture != "":
-		start_game("Сид: 1991", 1991)
-		if requested_capture == "--capture-clans":
+		if requested_capture not in ["--capture-main-menu", "--capture-new-game-menu", "--capture-prologue"]:
+			start_game("Сид: 1991", 1991)
+		if requested_capture == "--capture-new-game-menu":
+			show_new_game_menu()
+		elif requested_capture == "--capture-prologue":
+			start_new_game("Сид: 1991", 1991)
+		elif requested_capture == "--capture-debug-cheats":
+			show_debug_cheats()
+		elif requested_capture == "--capture-tutorial":
+			tutorial_enabled = true
+			choose_option("left")
+			await get_tree().create_timer(0.20).timeout
+			continue_after_result()
+		elif requested_capture == "--capture-guide":
+			show_guide()
+		elif requested_capture == "--capture-week-two":
+			state.week = 2
+			update_interface()
+		elif requested_capture == "--capture-week-briefing":
+			state.week = 2
+			update_interface()
+			show_tutorial_week_briefing()
+		elif requested_capture == "--capture-clans":
 			show_clans()
 		elif requested_capture == "--capture-economy":
 			show_economy()
@@ -479,8 +617,22 @@ func capture_preview_if_requested() -> void:
 	await RenderingServer.frame_post_draw
 	var image := get_viewport().get_texture().get_image()
 	var output_path := "res://preview.png"
-	if requested_capture == "--capture-game":
+	if requested_capture == "--capture-main-menu":
+		output_path = "res://preview_main_menu.png"
+	elif requested_capture == "--capture-new-game-menu":
+		output_path = "res://preview_new_game_menu.png"
+	elif requested_capture == "--capture-prologue":
+		output_path = "res://preview_prologue.png"
+	elif requested_capture == "--capture-game":
 		output_path = "res://preview_game.png"
+	elif requested_capture == "--capture-tutorial":
+		output_path = "res://preview_tutorial.png"
+	elif requested_capture == "--capture-guide":
+		output_path = "res://preview_guide.png"
+	elif requested_capture == "--capture-week-two":
+		output_path = "res://preview_week_two.png"
+	elif requested_capture == "--capture-week-briefing":
+		output_path = "res://preview_week_briefing.png"
 	elif requested_capture == "--capture-clans":
 		output_path = "res://preview_clans.png"
 	elif requested_capture == "--capture-economy":
@@ -523,6 +675,8 @@ func capture_preview_if_requested() -> void:
 		output_path = "res://preview_protest.png"
 	elif requested_capture == "--capture-unrest":
 		output_path = "res://preview_unrest.png"
+	elif requested_capture == "--capture-debug-cheats":
+		output_path = "res://preview_debug_cheats.png"
 	image.save_png(output_path)
 	get_tree().quit()
 
@@ -968,6 +1122,17 @@ func run_unrest_smoke_test() -> void:
 		failures.append("Закон Ковач не уменьшает начальный уровень гражданского протеста.")
 	if calculate_unrest_level({"kind": "labor", "base_level": 1}) != labor_level_without_law:
 		failures.append("Закон Ковач ошибочно ослабляет трудовые забастовки.")
+	state.civic_mediation_law = false
+	state.support = 50
+	state.stability = 50
+	var ordinary_protest_level := calculate_unrest_level({"kind": "civic", "base_level": 2})
+	state.stability = 75
+	if calculate_unrest_level({"kind": "civic", "base_level": 2}) != ordinary_protest_level - 1:
+		failures.append("Высокая стабильность не сдерживает масштаб нового протеста.")
+	state.stability = 25
+	if calculate_unrest_level({"kind": "civic", "base_level": 2}) != ordinary_protest_level + 1:
+		failures.append("Низкая стабильность не усиливает новый протест.")
+	state.stability = 50
 	state.regional_commissions_law = false
 	var civic_stability_loss := unrest_stability_loss(2, false)
 	var labor_stability_loss := unrest_stability_loss(2, true)
@@ -1014,9 +1179,16 @@ func run_foreign_smoke_test() -> void:
 	state.west_relation = 2
 	if neighbor_relation_band("east") != "враждебные":
 		failures.append("Прямая категория отношений не показывает враждебное состояние.")
+	var support_before_invasion := int(state.support)
 	var invasion_note := start_invasion_if_needed()
 	if not bool(state.get("at_war", false)) or str(state.get("war_enemy", "")) != "east" or invasion_note == "":
 		failures.append("Враждебные отношения не запускают вторжение Восточного Союза.")
+	if int(state.support) != mini(100, support_before_invasion + WAR_DEFENSIVE_RALLY_SUPPORT):
+		failures.append("Начало оборонительной войны не сплачивает общество разовым приростом поддержки власти.")
+	var support_after_invasion := int(state.support)
+	start_invasion_if_needed()
+	if int(state.support) != support_after_invasion:
+		failures.append("Повторная проверка войны начисляет бонус поддержки второй раз.")
 	if not should_trigger_war_crisis() or str(build_war_crisis_event().get("title", "")) != "Вторжение":
 		failures.append("Начало войны не создаёт обязательный кризисный доклад о вторжении.")
 	var wartime_influence := int(state.get("influence", 0))
@@ -1050,11 +1222,16 @@ func run_foreign_smoke_test() -> void:
 		failures.append("Война не удаляет требование противника либо удаляет допустимое требование второго соседа.")
 	if frontline_required_personnel(80) >= frontline_required_personnel(25):
 		failures.append("Высокое качество армии не снижает минимальную численность фронта.")
+	if war_stability_loss(20) != 4 or war_stability_loss(50) != 2 or war_stability_loss(80) != 1:
+		failures.append("Военная потеря стабильности не зависит от поддержки войны по трём уровням.")
 	var personnel_before := int(state.get("army_personnel", 0))
 	var equipment_before := int(state.get("army_equipment", 0))
+	var stability_before_war := int(state.get("stability", 0))
 	var war_result := process_war_week()
 	if war_result.is_empty() or int(state.get("army_personnel", 0)) >= personnel_before or int(state.get("army_equipment", 0)) >= equipment_before or int(state.get("army_aircraft", 0)) >= 12:
 		failures.append("Военная неделя не наносит потери людям, наземной технике и авиации.")
+	if stability_before_war - int(state.get("stability", 0)) != int(war_result.get("stability_loss", -1)):
+		failures.append("Военные потери стабильности не совпадают с отчётом о неделе.")
 	state.army_personnel = 0
 	if army_effectiveness() != 0:
 		failures.append("При отсутствии людей фронтовая боеспособность должна падать до нуля.")
@@ -1062,12 +1239,18 @@ func run_foreign_smoke_test() -> void:
 	state.east_relation = 1
 	state.west_relation = 2
 	var influence_before := int(state.get("influence", 0))
+	selected_ministers.foreign = "kres"
+	perform_foreign_action("east", "mission")
+	if int(state.get("influence", 0)) != influence_before or not pending_week_changes.is_empty():
+		failures.append("Министр, отличный от Леи Нарин, провёл закрытую для него дипломатическую миссию.")
+	selected_ministers.foreign = "narin"
 	perform_foreign_action("east", "mission")
 	if projected_pending_value("east_relation") != 2 or projected_pending_value("west_relation") != 1 or int(state.get("influence", 0)) != influence_before - 1 or not foreign_action_used_this_week():
 		failures.append("Дипломатическая миссия должна улучшать выбранные отношения, ухудшать противоположные и отнимать очко решения.")
 	start_game("Сид: 1991", 1991)
 	state.east_relation = 2
 	state.west_relation = 2
+	selected_ministers.foreign = "narin"
 	perform_foreign_action("east", "mission")
 	if projected_pending_value("east_relation") != 3 or projected_pending_value("west_relation") != 1:
 		failures.append("Переход к партнёрским отношениям неверно меняет дипломатические категории.")
@@ -1179,11 +1362,45 @@ func run_foreign_smoke_test() -> void:
 		get_tree().quit(1)
 
 
+func run_prologue_smoke_test() -> void:
+	var failures: Array[String] = []
+	start_new_game("Сид: 1991", 1991)
+	if not is_instance_valid(overlay) or overlay_can_cancel:
+		failures.append("Новая игра должна открывать обязательный пролог.")
+	else:
+		var prologue_text := ""
+		var begin_button: Button = null
+		for item in overlay.find_children("*", "Label", true, false):
+			prologue_text += (item as Label).text + " "
+		for item in overlay.find_children("*", "Button", true, false):
+			if (item as Button).text == "ОТКРЫТЬ ПЕРВЫЙ ДОКЛАД":
+				begin_button = item as Button
+		if not prologue_text.contains("погиб при покушении") or not prologue_text.contains("26 недель"):
+			failures.append("Пролог не раскрывает гибель отца и срок выборов.")
+		if begin_button == null:
+			failures.append("В прологе нет кнопки перехода к первому докладу.")
+		else:
+			begin_button.pressed.emit()
+			if is_instance_valid(overlay) or str(current_event.get("title", "")) != "День после похорон":
+				failures.append("После пролога не открывается первый доклад.")
+	if int(state.get("week", 0)) != 1 or events_resolved_this_week != 0 or weekly_event_queue.size() != EVENTS_PER_WEEK - 1:
+		failures.append("Пролог не должен расходовать событие или продвигать неделю.")
+	if failures.is_empty():
+		print("PROLOGUE_SMOKE_TEST: OK | first_report=yes | week=1 | events_unchanged=yes")
+		get_tree().quit(0)
+	else:
+		for failure in failures:
+			push_error("PROLOGUE_SMOKE_TEST: " + failure)
+		get_tree().quit(1)
+
+
 func run_election_smoke_test() -> void:
 	var failures: Array[String] = []
 	start_game("Сид: 1991", 1991)
-	if str(current_event.get("title", "")) != "День после похорон" or not str(current_event.get("body", "")).contains("26 недель"):
-		failures.append("Вступление не объясняет временное президентство и срок досрочных выборов.")
+	if str(current_event.get("title", "")) != "День после похорон" or not PROLOGUE_MANDATE_TEXT.contains("26 недель"):
+		failures.append("Пролог не объясняет временное президентство и срок досрочных выборов.")
+	if str(current_event.get("body", "")).contains("26 недель"):
+		failures.append("Первый доклад повторяет сведения о выборах из пролога.")
 	state.week = 9
 	state.election_nomination_shown = false
 	var nomination := build_next_election_milestone_event()
@@ -2203,6 +2420,12 @@ func run_scroll_smoke_test() -> void:
 			budget_icon_count += 1
 	if budget_icon_count != WEEKLY_BUDGET_LINES.size():
 		failures.append("Экономика должна показывать шесть компактных кнопок регулируемых расходов.")
+	var custom_budget_art_count := 0
+	for node in overlay.find_children("BudgetArtwork_*", "Control", true, false):
+		if bool(node.get_meta("uses_custom_art", false)):
+			custom_budget_art_count += 1
+	if custom_budget_art_count != CUSTOM_BUDGET_ICON_PATHS.size():
+		failures.append("Пользовательские изображения подключены не ко всем трём выбранным статьям бюджета.")
 	show_budget_level_selector("budget_social", economy_target)
 	await get_tree().process_frame
 	await get_tree().process_frame
@@ -2271,11 +2494,18 @@ func run_result_flow_smoke_test() -> void:
 	start_game("Сид: 1991", 1991)
 	for expected_resolved in range(1, EVENTS_PER_WEEK + 1):
 		var previous_title := str(current_event.get("title", ""))
+		var sidebar_before_result := sidebar_number_values.duplicate(true)
 		choose_option("left")
 		await get_tree().create_timer(0.20).timeout
 		await get_tree().process_frame
 		if not is_instance_valid(overlay):
 			failures.append("После решения не появилось окно результата.")
+			break
+		for metric_key in sidebar_before_result:
+			if not is_equal_approx(float(sidebar_number_values.get(metric_key, 0.0)), float(sidebar_before_result[metric_key])):
+				failures.append("Боковые показатели начали меняться до закрытия окна результата.")
+				break
+		if not failures.is_empty():
 			break
 		var visible_buttons: Array[String] = []
 		for node in overlay.find_children("*", "Button", true, false):
@@ -2357,11 +2587,19 @@ func run_save_smoke_test() -> void:
 	state.money = 2.0
 	if not load_campaign() or not is_equal_approx(float(state.get("money", 0.0)), 66.0) or not is_iron_mode():
 		failures.append("Железное автосохранение не обновило единственный файл кампании.")
+	game_mode = "Без сохранений"
+	state.money = 999.0
+	if save_campaign(false):
+		failures.append("Режим без сохранений разрешил ручную запись кампании.")
+	autosave_if_iron()
+	var preserved_save := read_save_data()
+	if not is_equal_approx(float((preserved_save.get("state", {}) as Dictionary).get("money", 0.0)), 66.0):
+		failures.append("Режим без сохранений изменил прежний файл продолжения.")
 	if FileAccess.file_exists(campaign_save_path()):
 		DirAccess.remove_absolute(absolute_test_path)
 	save_path_override = ""
 	if failures.is_empty():
-		print("SAVE_SMOKE_TEST: OK | state=yes | event_queue=yes | budget_draft=yes | iron_autosave=yes")
+		print("SAVE_SMOKE_TEST: OK | state=yes | event_queue=yes | budget_draft=yes | iron_autosave=yes | no_save_preserves_previous=yes")
 		get_tree().quit(0)
 	else:
 		for failure in failures:
@@ -2371,15 +2609,73 @@ func run_save_smoke_test() -> void:
 
 func run_settings_smoke_test() -> void:
 	var failures: Array[String] = []
+	var main_menu_buttons: Array[String] = []
+	for menu_node in screen_layer.find_children("*", "Button", true, false):
+		var menu_control := menu_node as Button
+		if is_instance_valid(menu_control):
+			main_menu_buttons.append(menu_control.text)
+	if main_menu_buttons != ["НОВАЯ ИГРА", "ПРОДОЛЖИТЬ", "ДОСТИЖЕНИЯ", "НАСТРОЙКИ", "ВЫХОД"]:
+		failures.append("В главном меню должны быть пять заданных кнопок.")
+	show_new_game_menu()
+	var new_game_buttons: Array[String] = []
+	for menu_node in overlay.find_children("*", "Button", true, false):
+		new_game_buttons.append((menu_node as Button).text)
+	if new_game_buttons != ["ОБУЧЕНИЕ", "НАЧАТЬ С СИДОМ", "СЛУЧАЙНАЯ ИГРА", "ИГРА БЕЗ СОХРАНЕНИЙ", "НАЗАД"]:
+		failures.append("Экран новой игры не предлагает отдельный режим обучения и остальные способы начала.")
+	close_overlay()
 	var tooltip_panel := theme.get_stylebox("panel", "TooltipPanel") as StyleBoxFlat
 	if tooltip_panel == null or tooltip_panel.bg_color.a < 0.94:
 		failures.append("Фон подсказки остаётся слишком прозрачным.")
-	if audio_streams.size() < 7 or audio_players.size() != audio_streams.size():
+	if audio_streams.size() < 12 or audio_players.size() != audio_streams.size():
 		failures.append("Набор звуков интерфейса создан не полностью.")
 	for sound_name in audio_streams.keys():
 		var sound_stream := audio_streams[sound_name] as AudioStreamWAV
 		if sound_stream == null or sound_stream.data.is_empty():
 			failures.append("Звук %s не содержит аудиоданных." % str(sound_name))
+	if not is_instance_valid(music_player) or not music_player.stream is AudioStreamWAV:
+		failures.append("Фоновая музыкальная петля не создана.")
+	elif music_enabled and not music_player.playing:
+		failures.append("Фоновая музыка загружена, но плеер не начал воспроизведение.")
+	else:
+		var tested_music_stream := music_player.stream as AudioStreamWAV
+		if tested_music_stream.loop_mode != AudioStreamWAV.LOOP_FORWARD or tested_music_stream.loop_end <= tested_music_stream.loop_begin:
+			failures.append("У фоновой музыки задан пустой диапазон цикла.")
+	if is_instance_valid(music_player) and music_player.bus != &"Master":
+		failures.append("Музыка должна выводиться напрямую в общую звуковую шину.")
+	var hover_player := audio_players.get("hover") as AudioStreamPlayer
+	if not is_instance_valid(hover_player) or not is_instance_valid(music_player) or hover_player.bus != music_player.bus:
+		failures.append("Музыка и звук наведения должны использовать одну звуковую шину.")
+	if is_instance_valid(music_player) and music_player.autoplay:
+		failures.append("Музыка не должна запускаться до применения сохранённой громкости.")
+	if is_instance_valid(music_player) and not is_equal_approx(music_player.volume_db, MUSIC_BASE_VOLUME_DB + volume_offset_db(music_volume_percent)):
+		failures.append("Сохранённая громкость музыки не применена до воспроизведения.")
+	if is_instance_valid(hover_player) and not is_equal_approx(hover_player.volume_db, float(hover_player.get_meta("base_volume_db", -8.0)) + volume_offset_db(audio_volume_percent)):
+		failures.append("Сохранённая громкость эффектов не применена до воспроизведения.")
+	var original_audio_volume := audio_volume_percent
+	var original_music_volume := music_volume_percent
+	audio_volume_percent = 50.0
+	music_volume_percent = 25.0
+	apply_audio_volume()
+	apply_music_volume()
+	var decision_player := audio_players.get("decision") as AudioStreamPlayer
+	if not is_instance_valid(decision_player) or not is_equal_approx(decision_player.volume_db, float(decision_player.get_meta("base_volume_db", -3.0)) + linear_to_db(0.5)):
+		failures.append("Громкость звуковых эффектов не применяется к плеерам.")
+	if not is_equal_approx(music_player.volume_db, MUSIC_BASE_VOLUME_DB + linear_to_db(0.25)):
+		failures.append("Громкость музыки не применяется независимо от эффектов.")
+	audio_volume_percent = 100.0
+	music_volume_percent = 100.0
+	apply_audio_volume()
+	apply_music_volume()
+	if is_instance_valid(hover_player) and is_instance_valid(music_player) and music_player.volume_db < hover_player.volume_db:
+		failures.append("При одинаковом положении ползунков музыка тише звука наведения.")
+	audio_volume_percent = original_audio_volume
+	music_volume_percent = original_music_volume
+	apply_audio_volume()
+	apply_music_volume()
+	show_settings()
+	if overlay.find_children("*", "HSlider", true, false).size() != 2:
+		failures.append("Во вкладке настроек должны быть два ползунка громкости.")
+	close_overlay()
 	var bound_button_found := false
 	for node in screen_layer.find_children("*", "BaseButton", true, false):
 		if bool(node.get_meta("ui_audio_bound", false)):
@@ -2427,11 +2723,118 @@ func run_settings_smoke_test() -> void:
 		failures.append("Включённые подсказки решений неверно отражены в настройках.")
 	event_choice_hints_enabled = original_hint_setting
 	if failures.is_empty():
-		print("SETTINGS_SMOKE_TEST: OK | audio=7 | event_hints=optional_default_on | hover=yes | click=yes | menu_toggle=yes | F4=yes | F11=yes | Esc=closes_tabs | Alt+F4=reserved")
+		print("SETTINGS_SMOKE_TEST: OK | exit_button=yes | audio=12+music | separate_volume_sliders=yes | event_hints=optional_default_on | paper_tabs=yes | war=yes | protest=yes | save=yes | money_print=yes | F4=yes | F11=yes | Esc=closes_tabs | Alt+F4=reserved")
 		get_tree().quit(0)
 	else:
 		for failure in failures:
 			push_error("SETTINGS_SMOKE_TEST: " + failure)
+		get_tree().quit(1)
+
+
+func run_tutorial_smoke_test() -> void:
+	var failures: Array[String] = []
+	start_game("Обучение", 1991)
+	if str(selected_ministers.get("foreign", "")) != "narin" or int(state.get("east_relation", 0)) != 2 or int(state.get("west_relation", 0)) != 2:
+		failures.append("Обучение должно начинаться с Леей Нарин и средними отношениями с обоими соседями.")
+	var accusation_effects := convert_legacy_foreign_effects({"east_pressure": 6, "west_commitment": 1})
+	if 2 + int(accusation_effects.get("east_relation", 0)) <= 0 or 2 + int(accusation_effects.get("west_relation", 0)) <= 0:
+		failures.append("Первое резкое внешнеполитическое решение не должно сразу переводить соседа во враждебное состояние.")
+	refresh_tutorial_focus()
+	var state_before := state.duplicate(true)
+	var event_before := current_event.duplicate(true)
+	if not tutorial_left_mask.visible or not tutorial_right_mask.visible:
+		failures.append("Первый доклад не скрывает боковые панели.")
+	if (tutorial_section_buttons["economy"] as Button).visible or law_button.visible:
+		failures.append("Разделы управления открылись до обучения.")
+	for stat_key in ["money", "support", "stability", "war_support"]:
+		var stat_tooltip := (stat_labels[stat_key] as Label).tooltip_text
+		if not stat_tooltip.contains("\n") or stat_tooltip.length() == 0:
+			failures.append("Подсказка показателя %s не разбита по уровням." % stat_key)
+	for sidebar_label in sidebar_summary_labels.values():
+		if not is_instance_valid(sidebar_label):
+			continue
+		for tooltip_line in (sidebar_label as Label).tooltip_text.split("\n"):
+			if tooltip_line.length() > 46:
+				failures.append("Подсказка левой панели выходит за заданную ширину.")
+				break
+	show_economy()
+	var corruption_hint_found := false
+	for node in overlay.find_children("*", "Label", true, false):
+		var economy_label := node as Label
+		if not economy_label.text.begins_with("Коррупция:"):
+			continue
+		corruption_hint_found = economy_label.mouse_filter == Control.MOUSE_FILTER_STOP
+		for tier in range(CORRUPTION_LABELS.size()):
+			if not economy_label.tooltip_text.contains(CORRUPTION_LABELS[tier].capitalize()) or not economy_label.tooltip_text.contains("−%d%%" % CORRUPTION_TRANSACTION_RATES[tier]):
+				corruption_hint_found = false
+		break
+	if not corruption_hint_found:
+		failures.append("Экономика не показывает доступную подсказку со всеми категориями коррупции.")
+	close_overlay()
+	var first_data: Dictionary = TUTORIAL_WEEK_BRIEFINGS[1]
+	show_tutorial_briefing("chapter_1", str(first_data["title"]), str(first_data["body"]))
+	if not is_instance_valid(tutorial_dialog) or tutorial_left_mask.visible or not tutorial_right_mask.visible:
+		failures.append("После первого решения левая панель не вышла в фокус.")
+	if state != state_before or current_event != event_before:
+		failures.append("Обучение изменило состояние игры или доклад.")
+	if not "chapter_1" in campaign_snapshot().get("tutorial_seen", []):
+		failures.append("Прогресс обучения не попал в сохранение.")
+	if not bool(campaign_snapshot().get("tutorial_enabled", false)):
+		failures.append("Сохранение не помнит, что это обучающая кампания.")
+	finish_tutorial_dialog()
+	event_resolved = true
+	events_resolved_this_week = EVENTS_PER_WEEK
+	weekly_event_queue.clear()
+	state.financial_slot_consumed = true
+	refresh_tutorial_focus()
+	if tutorial_right_mask.visible:
+		failures.append("Кнопка новой недели осталась закрыта после докладов.")
+	state.week = 2
+	event_resolved = false
+	events_resolved_this_week = 0
+	refresh_tutorial_focus()
+	if not (tutorial_section_buttons["economy"] as Button).visible or (tutorial_section_buttons["government"] as Button).visible:
+		failures.append("На второй неделе экономика должна открыться раньше правительства.")
+	state.week = 4
+	refresh_tutorial_focus()
+	if not law_button.visible or (tutorial_section_buttons["foreign"] as Button).visible:
+		failures.append("Законы и дипломатия открываются не по очереди.")
+	state.week = 5
+	refresh_tutorial_focus()
+	if not (tutorial_section_buttons["foreign"] as Button).visible or (tutorial_section_buttons["clans"] as Button).visible:
+		failures.append("Внешняя политика должна открыться перед группами.")
+	state.week = 6
+	refresh_tutorial_focus()
+	if not (tutorial_section_buttons["clans"] as Button).visible or (tutorial_section_buttons["army"] as Button).visible:
+		failures.append("Группы должны открыться перед армией.")
+	state.week = 7
+	refresh_tutorial_focus()
+	if not (tutorial_section_buttons["army"] as Button).visible or not TUTORIAL_WEEK_BRIEFINGS.has(12):
+		failures.append("Армия или заключительная глава обучения недоступна.")
+	state.week = 2
+	state.at_war = true
+	refresh_tutorial_focus()
+	if not (tutorial_section_buttons["army"] as Button).visible or not (tutorial_section_buttons["foreign"] as Button).visible:
+		failures.append("Война не открыла срочный доступ к армии и дипломатии.")
+	state.at_war = false
+	show_guide()
+	if not is_instance_valid(overlay):
+		failures.append("Справка не открылась.")
+	close_overlay()
+	tutorial_enabled = false
+	refresh_tutorial_focus()
+	offer_tutorial("foreign")
+	if is_instance_valid(tutorial_card) or "foreign" in tutorial_seen or not (tutorial_section_buttons["government"] as Button).visible:
+		failures.append("Выключенное обучение продолжает показывать подсказки.")
+	start_game("Без сида", 1991)
+	if tutorial_enabled or str(selected_ministers.get("foreign", "")) != str(randomized_starting_ministers(1991).get("foreign", "")):
+		failures.append("Обычная игра наследует обучение или фиксированный кабинет учебного режима.")
+	if failures.is_empty():
+		print("TUTORIAL_SMOKE_TEST: OK | focus=yes | staged_weeks=yes | emergency_access=yes | optional=yes | no_gameplay_change=yes | saved_progress=yes | guide=yes")
+		get_tree().quit(0)
+	else:
+		for failure in failures:
+			push_error("TUTORIAL_SMOKE_TEST: " + failure)
 		get_tree().quit(1)
 
 
@@ -2487,6 +2890,33 @@ func add_hover_detail(control: Control, detail: String) -> void:
 		return
 	control.tooltip_text = detail
 	control.mouse_default_cursor_shape = Control.CURSOR_HELP
+
+
+func compact_tooltip(text_value: String, max_line_length := 46) -> String:
+	var wrapped_lines: Array[String] = []
+	for paragraph in text_value.split("\n", true):
+		var line := ""
+		for word in paragraph.split(" ", false):
+			if line != "" and line.length() + word.length() + 1 > max_line_length:
+				wrapped_lines.append(line)
+				line = word
+			else:
+				line += (" " if line != "" else "") + word
+		wrapped_lines.append(line)
+	return "\n".join(wrapped_lines)
+
+
+func main_stat_tooltip(key: String) -> String:
+	match key:
+		"money":
+			return "КАЗНА\nКритично: денег не хватит после следующей недели — дефолт.\nНизкий запас: до двух недель расходов — название красное.\nОбычный запас: между двумя и шестью неделями расходов.\nВысокий запас: от шести недель расходов — название зелёное."
+		"support":
+			return "ПОДДЕРЖКА ВЛАСТИ\n0%: президента свергают.\n1–40%: название красное; непопулярное решение может вызвать протест.\n41–50%: непопулярное решение тоже может вызвать протест.\n51–69%: без постоянного бонуса.\n70–100%: стабильность +1 каждую неделю."
+		"stability":
+			return "СТАБИЛЬНОСТЬ\n0%: государство раскалывается.\n1–30%: −1 очко решений; новые протесты начинаются на уровень сильнее.\n31–69%: без постоянного бонуса.\n70–100%: +1 очко решений; новые протесты начинаются на уровень слабее."
+		"war_support":
+			return "ПОДДЕРЖКА ВОЙНЫ\n0% во время войны: капитуляция.\n1–30%: набор медленнее; есть уклонисты и дезертиры. Расширение призыва вызывает протест. Война снимает 4 стабильности в неделю.\n31–64%: обычный набор; война снимает 2 стабильности в неделю.\n65–100%: набор быстрее, армия лояльнее; война снимает 1 стабильность в неделю. Нехватка людей на фронте добавляет потери стабильности."
+	return ""
 
 
 func minister_data(slot: String, candidate_id := "") -> Dictionary:
@@ -2898,6 +3328,22 @@ func budget_draft_cost() -> int:
 
 
 func clear_screen() -> void:
+	clear_tutorial_card()
+	clear_tutorial_dialog()
+	tutorial_left_panel = null
+	tutorial_right_panel = null
+	tutorial_left_mask = null
+	tutorial_right_mask = null
+	tutorial_focus_layer = null
+	tutorial_minister_section = null
+	tutorial_sections_header = null
+	tutorial_section_grid = null
+	tutorial_section_buttons.clear()
+	stop_sidebar_number_animation()
+	sidebar_number_values.clear()
+	sidebar_number_targets.clear()
+	sidebar_number_flush_pending = false
+	sidebar_refresh_pending = false
 	for child in get_children():
 		if bool(child.get_meta("persistent_audio", false)):
 			continue
@@ -2970,18 +3416,14 @@ func show_start_screen() -> void:
 	var title := label("НАСЛЕДНИК\nРЕСПУБЛИКИ", 76, CREAM)
 	title.add_theme_constant_override("line_spacing", -10)
 	left.add_child(title)
-	var subtitle := label("Двадцать шесть недель между наследием отца, армией брата и двумя державами, которые не готовы уступить вас друг другу.", 25, Color("#cfc3aa"))
+	var subtitle := label("Политическая драма о цене власти и независимости молодой республики.", 25, Color("#cfc3aa"))
 	subtitle.custom_minimum_size = Vector2(720, 0)
 	left.add_child(subtitle)
 	left.add_child(HSeparator.new())
-	var intro_panel := PanelContainer.new()
-	intro_panel.add_theme_stylebox_override("panel", style(Color("#20242a"), 24, Color(GOLD, 0.5), 1))
-	left.add_child(intro_panel)
-	intro_panel.add_child(label("Ваш отец — освободитель страны и первый президент — погиб при покушении. Незадолго до смерти он провёл ваше сомнительное назначение вице-президентом. Теперь вы временно исполняете обязанности главы государства: через 26 недель республика должна избрать президента. Казна почти пуста, брат контролирует армию, а два соседа требуют выбрать сторону.", 23, CREAM))
 	var spacer := Control.new()
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	left.add_child(spacer)
-	left.add_child(label("Оригинальный минималистичный интерфейс • сухие доклады • последствия решений", 15, MUTED))
+	left.add_child(label("КАЖДАЯ НЕДЕЛЯ — НОВЫЕ РЕШЕНИЯ", 15, MUTED))
 	var mode_panel := PanelContainer.new()
 	mode_panel.custom_minimum_size = Vector2(520, 0)
 	mode_panel.add_theme_stylebox_override("panel", style(Color("#1d2228"), 26, Color("#4c535a"), 1))
@@ -2995,50 +3437,121 @@ func show_start_screen() -> void:
 	var column := VBoxContainer.new()
 	column.add_theme_constant_override("separation", 18)
 	mode_margin.add_child(column)
-	column.add_child(label("НАЧАТЬ КАМПАНИЮ", 28, CREAM, HORIZONTAL_ALIGNMENT_CENTER))
-	column.add_child(label("Выберите правила сохранения и случайности.", 17, MUTED, HORIZONTAL_ALIGNMENT_CENTER))
+	column.add_child(label("ГЛАВНОЕ МЕНЮ", 28, CREAM, HORIZONTAL_ALIGNMENT_CENTER))
+	column.add_child(label("Двадцать шесть недель до выборов.", 17, MUTED, HORIZONTAL_ALIGNMENT_CENTER))
+	var new_game_button := menu_button("НОВАЯ ИГРА")
+	new_game_button.pressed.connect(show_new_game_menu)
+	column.add_child(new_game_button)
 	var saved_campaign := read_save_data()
 	var continue_button := menu_button("ПРОДОЛЖИТЬ")
 	if saved_campaign.is_empty():
-		continue_button.text = "ПРОДОЛЖИТЬ — НЕТ СОХРАНЕНИЯ"
 		continue_button.disabled = true
+		continue_button.tooltip_text = "Пока нет сохранённой кампании."
 	else:
 		var saved_state: Dictionary = saved_campaign.get("state", {})
-		continue_button.text = "ПРОДОЛЖИТЬ — НЕДЕЛЯ %d" % int(saved_state.get("week", 1))
-		continue_button.tooltip_text = "%s • казна %.2f млн • сохранено %s" % [str(saved_campaign.get("game_mode", "Кампания")), float(saved_state.get("money", 0.0)), str(saved_campaign.get("saved_at", "дата неизвестна"))]
+		continue_button.tooltip_text = "%s • неделя %d • казна %.2f млн • сохранено %s" % [str(saved_campaign.get("game_mode", "Кампания")), int(saved_state.get("week", 1)), float(saved_state.get("money", 0.0)), str(saved_campaign.get("saved_at", "дата неизвестна"))]
 		continue_button.pressed.connect(load_campaign)
 	column.add_child(continue_button)
-	var panel_spacer := Control.new()
-	panel_spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	column.add_child(panel_spacer)
+	var achievements_button := menu_button("ДОСТИЖЕНИЯ")
+	achievements_button.pressed.connect(show_achievements)
+	column.add_child(achievements_button)
+	var settings_button := menu_button("НАСТРОЙКИ")
+	settings_button.pressed.connect(show_settings)
+	column.add_child(settings_button)
+	var exit_button := menu_button("ВЫХОД")
+	exit_button.add_theme_stylebox_override("normal", style(Color("#3b2929"), 14, Color("#76504b"), 1))
+	exit_button.add_theme_stylebox_override("hover", style(Color("#573331"), 14, RED, 2))
+	exit_button.pressed.connect(quit_game)
+	column.add_child(exit_button)
+	column.add_child(label("Управление: мышь; A / D — основные решения; S / ↓ — третье; Esc — закрыть вкладку; F4 / F11 — полный экран", 14, MUTED, HORIZONTAL_ALIGNMENT_CENTER))
+
+
+func show_new_game_menu() -> void:
+	var content := VBoxContainer.new()
+	content.custom_minimum_size = Vector2(580, 0)
+	content.add_theme_constant_override("separation", 16)
+	content.add_child(label("НОВАЯ ИГРА", 30, INK, HORIZONTAL_ALIGNMENT_CENTER))
+	content.add_child(label("Выберите способ начать кампанию.", 17, Color("#5f594d"), HORIZONTAL_ALIGNMENT_CENTER))
+	var tutorial_button := menu_button("ОБУЧЕНИЕ")
+	tutorial_button.pressed.connect(func(): start_new_game("Обучение", 1991))
+	content.add_child(tutorial_button)
+	content.add_child(label("Постепенно открывает управление. Лея Нарин сохраняет равновесие между соседями. Кампанию можно сохранить.", 15, Color("#5f594d")))
+	content.add_child(HSeparator.new())
+	content.add_child(label("ИГРА С СИДОМ", 17, Color("#8b6c4b")))
+	content.add_child(label("Одинаковый сид создаёт одинаковые стартовые условия и подбор событий. Кампанию можно сохранить.", 15, INK))
 	var seed_row := HBoxContainer.new()
 	seed_row.add_theme_constant_override("separation", 10)
-	column.add_child(seed_row)
+	content.add_child(seed_row)
 	var seed_input := LineEdit.new()
-	seed_input.placeholder_text = "Сид, например 1991"
+	seed_input.placeholder_text = "Введите сид, например 1991"
 	seed_input.text = "1991"
 	seed_input.custom_minimum_size = Vector2(0, 58)
 	seed_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	seed_input.add_theme_font_size_override("font_size", 20)
 	seed_input.add_theme_stylebox_override("normal", style(Color("#252a30"), 14, Color("#515861"), 1))
 	seed_row.add_child(seed_input)
-	var seed_button := menu_button("С СИДОМ")
-	seed_button.pressed.connect(func(): start_game("Сид: " + seed_input.text, campaign_seed_from_text(seed_input.text)))
+	var seed_button := menu_button("НАЧАТЬ С СИДОМ")
+	seed_input.text_changed.connect(func(value: String): seed_button.disabled = value.strip_edges() == "")
+	seed_button.pressed.connect(func(): start_new_game("Сид: " + seed_input.text.strip_edges(), campaign_seed_from_text(seed_input.text)))
 	seed_row.add_child(seed_button)
-	var normal_button := menu_button("БЕЗ СИДА — НОВАЯ КАМПАНИЯ")
-	normal_button.pressed.connect(func(): start_game("Без сида", fresh_campaign_seed()))
-	column.add_child(normal_button)
-	var iron_button := menu_button("ЖЕЛЕЗНЫЙ РЕЖИМ")
-	iron_button.add_theme_stylebox_override("normal", style(Color("#4c2827"), 14, Color("#8e5048"), 1))
-	iron_button.pressed.connect(func(): start_game("Железный режим", fresh_campaign_seed()))
-	column.add_child(iron_button)
-	var settings_button := menu_button("НАСТРОЙКИ")
-	settings_button.pressed.connect(show_settings)
-	column.add_child(settings_button)
-	var achievements_button := menu_button("ДОСТИЖЕНИЯ • %d / %d" % [unlocked_achievement_count(), ENDING_ACHIEVEMENTS.size()])
-	achievements_button.pressed.connect(show_achievements)
-	column.add_child(achievements_button)
-	column.add_child(label("Управление: мышь; A / D — основные решения; S / ↓ — третье; Esc — закрыть вкладку; F4 / F11 — полный экран", 14, MUTED, HORIZONTAL_ALIGNMENT_CENTER))
+	content.add_child(HSeparator.new())
+	var random_button := menu_button("СЛУЧАЙНАЯ ИГРА")
+	random_button.pressed.connect(func(): start_new_game("Без сида", fresh_campaign_seed()))
+	content.add_child(random_button)
+	content.add_child(label("Новый случайный сид; ручное и недельное сохранение доступны.", 15, Color("#5f594d")))
+	var no_save_button := menu_button("ИГРА БЕЗ СОХРАНЕНИЙ")
+	no_save_button.pressed.connect(func(): start_new_game("Без сохранений", fresh_campaign_seed()))
+	content.add_child(no_save_button)
+	content.add_child(label("Случайная кампания без ручного и автоматического сохранения. Существующий файл продолжения не меняется.", 15, Color("#5f594d")))
+	var back_button := menu_button("НАЗАД")
+	back_button.pressed.connect(close_overlay)
+	content.add_child(back_button)
+	show_overlay(content, PAPER, true, 650)
+
+
+func start_new_game(mode: String, seed_value: int) -> void:
+	close_overlay(false)
+	start_game(mode, seed_value, true)
+
+
+func show_prologue() -> void:
+	var content := VBoxContainer.new()
+	content.custom_minimum_size = Vector2(760, 0)
+	content.add_theme_constant_override("separation", 14)
+	content.add_child(label("ПРОЛОГ   /   ПЕРЕД ПЕРВЫМ ДОКЛАДОМ", 16, Color("#8b6c4b")))
+	content.add_child(HSeparator.new())
+	content.add_child(label("ПОСЛЕ ПОХОРОН", 39, INK))
+	var scene := PanelContainer.new()
+	scene.add_theme_stylebox_override("panel", style(Color("#252a30"), 16, GOLD, 1))
+	content.add_child(scene)
+	var scene_margin := MarginContainer.new()
+	scene_margin.add_theme_constant_override("margin_left", 24)
+	scene_margin.add_theme_constant_override("margin_right", 24)
+	scene_margin.add_theme_constant_override("margin_top", 22)
+	scene_margin.add_theme_constant_override("margin_bottom", 22)
+	scene.add_child(scene_margin)
+	scene_margin.add_child(label("Траурные венки у дворца промокли под дождём. В кабинете остались незаконченная речь отца и папка с вашим назначением.", 22, CREAM))
+	content.add_child(label("Ваш отец — первый президент независимой республики — погиб при покушении. Страна ещё не знает, кто стоит за его смертью.", 20, INK))
+	content.add_child(label(PROLOGUE_MANDATE_TEXT, 20, INK))
+	content.add_child(HSeparator.new())
+	content.add_child(label("Министры ждут вашей подписи. Первый доклад уже на столе.", 17, Color("#6d6455")))
+	var begin_button := menu_button("ОТКРЫТЬ ПЕРВЫЙ ДОКЛАД")
+	begin_button.add_theme_color_override("font_color", INK)
+	begin_button.add_theme_color_override("font_hover_color", INK)
+	begin_button.add_theme_stylebox_override("normal", style(GOLD, 14, Color("#8b6c4b"), 1))
+	begin_button.add_theme_stylebox_override("hover", style(CREAM, 14, GOLD, 2))
+	begin_button.pressed.connect(finish_prologue)
+	content.add_child(begin_button)
+	show_overlay(content, PAPER, false, 860)
+
+
+func finish_prologue() -> void:
+	close_overlay(false)
+	display_current_event()
+
+
+func quit_game() -> void:
+	get_tree().quit()
 
 
 func fullscreen_status_text() -> String:
@@ -3057,6 +3570,14 @@ func audio_toggle_button_text() -> String:
 	return "ВЫКЛЮЧИТЬ ЗВУКИ" if audio_enabled else "ВКЛЮЧИТЬ ЗВУКИ"
 
 
+func music_status_text() -> String:
+	return "Фоновая музыка включена." if music_enabled else "Фоновая музыка отключена."
+
+
+func music_toggle_button_text() -> String:
+	return "ВЫКЛЮЧИТЬ МУЗЫКУ" if music_enabled else "ВКЛЮЧИТЬ МУЗЫКУ"
+
+
 func event_choice_hints_status_text() -> String:
 	return "Подсказки под решениями показываются." if event_choice_hints_enabled else "Последствия решений заранее скрыты."
 
@@ -3065,10 +3586,32 @@ func event_choice_hints_toggle_button_text() -> String:
 	return "СКРЫТЬ ПОДСКАЗКИ РЕШЕНИЙ" if event_choice_hints_enabled else "ПОКАЗЫВАТЬ ПОДСКАЗКИ РЕШЕНИЙ"
 
 
+func tutorial_toggle_button_text() -> String:
+	return "ОБУЧЕНИЕ: ВКЛЮЧЕНО" if tutorial_enabled else "ОБУЧЕНИЕ: ВЫКЛЮЧЕНО"
+
+
+func set_tutorial_enabled(enabled: bool) -> void:
+	tutorial_enabled = enabled
+	save_display_settings()
+	if not tutorial_enabled:
+		clear_tutorial_card()
+		clear_tutorial_dialog()
+	refresh_tutorial_focus()
+
+
+func toggle_tutorial_from_settings(toggle_button: Button) -> void:
+	set_tutorial_enabled(not tutorial_enabled)
+	toggle_button.text = tutorial_toggle_button_text()
+
+
 func show_settings() -> void:
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(690, 700)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	var content := VBoxContainer.new()
-	content.custom_minimum_size = Vector2(690, 0)
+	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	content.add_theme_constant_override("separation", 18)
+	scroll.add_child(content)
 	content.add_child(label("НАСТРОЙКИ", 30, INK, HORIZONTAL_ALIGNMENT_CENTER))
 	content.add_child(label("ЭКРАН", 15, Color("#8b6c4b"), HORIZONTAL_ALIGNMENT_CENTER))
 	var status_label := label(fullscreen_status_text(), 21, Color("#4c4941"), HORIZONTAL_ALIGNMENT_CENTER)
@@ -3084,7 +3627,40 @@ func show_settings() -> void:
 	var audio_button := menu_button(audio_toggle_button_text())
 	audio_button.pressed.connect(toggle_audio_from_settings.bind(audio_button, audio_status_label))
 	content.add_child(audio_button)
-	content.add_child(label("Наведение, нажатия, доклады, решения, предупреждения и новая неделя имеют разные сигналы.", 15, Color("#6d6455"), HORIZONTAL_ALIGNMENT_CENTER))
+	var audio_volume_label := label("Громкость эффектов: %d%%" % roundi(audio_volume_percent), 18, Color("#4c4941"), HORIZONTAL_ALIGNMENT_CENTER)
+	content.add_child(audio_volume_label)
+	var audio_volume_slider := HSlider.new()
+	audio_volume_slider.custom_minimum_size = Vector2(0, 36)
+	audio_volume_slider.min_value = 0.0
+	audio_volume_slider.max_value = 100.0
+	audio_volume_slider.step = 1.0
+	audio_volume_slider.value = audio_volume_percent
+	audio_volume_slider.value_changed.connect(change_audio_volume.bind(audio_volume_label))
+	audio_volume_slider.drag_ended.connect(preview_audio_volume)
+	content.add_child(audio_volume_slider)
+	content.add_child(label("Наведение, нажатия, листы, доклады, решения, война и протесты имеют разные сигналы.", 15, Color("#6d6455"), HORIZONTAL_ALIGNMENT_CENTER))
+	var music_status_label := label(music_status_text(), 21, Color("#4c4941"), HORIZONTAL_ALIGNMENT_CENTER)
+	content.add_child(music_status_label)
+	var music_button := menu_button(music_toggle_button_text())
+	music_button.pressed.connect(toggle_music_from_settings.bind(music_button, music_status_label))
+	content.add_child(music_button)
+	var music_volume_label := label("Громкость музыки: %d%%" % roundi(music_volume_percent), 18, Color("#4c4941"), HORIZONTAL_ALIGNMENT_CENTER)
+	content.add_child(music_volume_label)
+	var music_volume_slider := HSlider.new()
+	music_volume_slider.custom_minimum_size = Vector2(0, 36)
+	music_volume_slider.min_value = 0.0
+	music_volume_slider.max_value = 100.0
+	music_volume_slider.step = 1.0
+	music_volume_slider.value = music_volume_percent
+	music_volume_slider.value_changed.connect(change_music_volume.bind(music_volume_label))
+	content.add_child(music_volume_slider)
+	content.add_child(label("ИСТОЧНИК ЗВУКА СОХРАНЕНИЯ", 15, Color("#8b6c4b"), HORIZONTAL_ALIGNMENT_CENTER))
+	var typewriter_credit := label("Щелчки пишущей машинки — ZvukiPro.com (автор записи на сайте не указан).", 15, Color("#6d6455"), HORIZONTAL_ALIGNMENT_CENTER)
+	add_hover_detail(typewriter_credit, "Источник: https://zvukipro.com/predmet/190-zvuki-pishuschey-mashinki-pechatnoy.html\nУсловия: https://zvukipro.com/uslovija-ispolzovanija.html")
+	content.add_child(typewriter_credit)
+	var bell_credit := label("Звонок пишущей машинки — ramsamba, CC0 1.0.", 15, Color("#6d6455"), HORIZONTAL_ALIGNMENT_CENTER)
+	add_hover_detail(bell_credit, "Источник: https://freesound.org/people/ramsamba/sounds/318687/")
+	content.add_child(bell_credit)
 	content.add_child(HSeparator.new())
 	content.add_child(label("СОБЫТИЯ", 15, Color("#8b6c4b"), HORIZONTAL_ALIGNMENT_CENTER))
 	var hints_status_label := label(event_choice_hints_status_text(), 21, Color("#4c4941"), HORIZONTAL_ALIGNMENT_CENTER)
@@ -3093,10 +3669,19 @@ func show_settings() -> void:
 	hints_button.pressed.connect(toggle_event_choice_hints_from_settings.bind(hints_button, hints_status_label))
 	content.add_child(hints_button)
 	content.add_child(label("Настройка скрывает или показывает только краткие описания последствий под вариантами в докладах. Точные числа по-прежнему появляются после выбора.", 15, Color("#6d6455"), HORIZONTAL_ALIGNMENT_CENTER))
+	content.add_child(HSeparator.new())
+	content.add_child(label("ОБУЧЕНИЕ", 15, Color("#8b6c4b"), HORIZONTAL_ALIGNMENT_CENTER))
+	var tutorial_button := menu_button(tutorial_toggle_button_text())
+	tutorial_button.pressed.connect(toggle_tutorial_from_settings.bind(tutorial_button))
+	content.add_child(tutorial_button)
+	content.add_child(label("В режиме обучения разделы открываются по неделям. Здесь можно включить или выключить подсказки в текущей кампании; справка доступна всегда.", 15, Color("#6d6455"), HORIZONTAL_ALIGNMENT_CENTER))
+	var guide_button := menu_button("КАК ИГРАТЬ")
+	guide_button.pressed.connect(show_guide.bind(true))
+	content.add_child(guide_button)
 	var close := menu_button("ГОТОВО")
 	close.pressed.connect(close_overlay)
 	content.add_child(close)
-	show_overlay(content, PAPER, true, 750)
+	show_overlay(scroll, PAPER, true, 750)
 
 
 func toggle_fullscreen_from_settings(toggle_button: Button, status_label: Label) -> void:
@@ -3114,6 +3699,33 @@ func toggle_audio_from_settings(toggle_button: Button, status_label: Label) -> v
 		play_game_sound("decision")
 
 
+func toggle_music_from_settings(toggle_button: Button, status_label: Label) -> void:
+	music_enabled = not music_enabled
+	save_display_settings()
+	toggle_button.text = music_toggle_button_text()
+	status_label.text = music_status_text()
+	update_background_music()
+
+
+func change_audio_volume(value: float, value_label: Label) -> void:
+	audio_volume_percent = clampf(value, 0.0, 100.0)
+	value_label.text = "Громкость эффектов: %d%%" % roundi(audio_volume_percent)
+	apply_audio_volume()
+	save_display_settings()
+
+
+func preview_audio_volume(changed: bool) -> void:
+	if changed and audio_enabled:
+		play_game_sound("decision")
+
+
+func change_music_volume(value: float, value_label: Label) -> void:
+	music_volume_percent = clampf(value, 0.0, 100.0)
+	value_label.text = "Громкость музыки: %d%%" % roundi(music_volume_percent)
+	apply_music_volume()
+	save_display_settings()
+
+
 func toggle_event_choice_hints_from_settings(toggle_button: Button, status_label: Label) -> void:
 	event_choice_hints_enabled = not event_choice_hints_enabled
 	save_display_settings()
@@ -3124,22 +3736,92 @@ func toggle_event_choice_hints_from_settings(toggle_button: Button, status_label
 
 func setup_audio() -> void:
 	audio_streams = {
-		"hover": make_ui_tone(620.0, 780.0, 0.040, 0.075, 0.10),
-		"click": make_ui_tone(255.0, 145.0, 0.070, 0.17, 0.18),
-		"report": make_ui_tone(280.0, 430.0, 0.145, 0.13, 0.12),
-		"decision": make_ui_tone(410.0, 680.0, 0.190, 0.16, 0.20),
-		"warning": make_ui_tone(205.0, 105.0, 0.280, 0.17, 0.24),
-		"week": make_ui_tone(300.0, 590.0, 0.340, 0.15, 0.18),
-		"ending": make_ui_tone(360.0, 115.0, 0.520, 0.17, 0.22)
+		"hover": load_audio_wav("res://audio/cc0/hover_01.wav", make_ui_tone(620.0, 780.0, 0.040, 0.075, 0.10)),
+		"click": load_audio_wav("res://audio/cc0/click_01.wav", make_ui_tone(255.0, 145.0, 0.070, 0.17, 0.18)),
+		"page": load_audio_wav("res://audio/cc0/page_01.wav", make_ui_tone(310.0, 460.0, 0.130, 0.11, 0.28)),
+		"report": load_audio_wav("res://audio/cc0/report_01.wav", make_ui_tone(280.0, 430.0, 0.145, 0.13, 0.12)),
+		"decision": load_audio_wav("res://audio/cc0/decision_01.wav", make_ui_tone(410.0, 680.0, 0.190, 0.16, 0.20)),
+		"warning": load_audio_wav("res://audio/cc0/warning_01.wav", make_ui_tone(205.0, 105.0, 0.280, 0.17, 0.24)),
+		"week": load_audio_wav("res://audio/cc0/week_report.wav", make_ui_tone(300.0, 590.0, 0.340, 0.15, 0.18)),
+		"ending": load_audio_wav("res://audio/cc0/ending_01.wav", make_ui_tone(360.0, 115.0, 0.520, 0.17, 0.22)),
+		"war": load_audio_wav("res://audio/cc0/war_01.wav", make_ui_tone(105.0, 48.0, 1.200, 0.22, 0.45)),
+		"protest": load_audio_wav("res://audio/cc0/protest_01.wav", make_ui_tone(190.0, 125.0, 0.850, 0.14, 0.38)),
+		"save": load_audio_wav("res://audio/licensed/save.wav", make_ui_tone(520.0, 320.0, 0.220, 0.14, 0.18)),
+		"money_print": load_audio_wav("res://audio/cc0/money_print.wav", make_ui_tone(135.0, 105.0, 0.900, 0.16, 0.42))
 	}
+	var volume_by_sound := {"hover": -8.0, "click": -5.0, "page": -4.0, "report": -4.0, "decision": -3.0, "warning": -2.0, "week": -3.0, "ending": -2.0, "war": 1.0, "protest": -5.0, "save": -3.0, "money_print": -4.0}
 	for sound_name in audio_streams.keys():
 		var player := AudioStreamPlayer.new()
 		player.name = "Audio_%s" % str(sound_name)
 		player.stream = audio_streams[sound_name]
+		# Effects and music intentionally share the exact same output path. This
+		# prevents a device- or bus-specific gain difference between the hover
+		# reference sound and the background track.
+		player.bus = &"Master"
+		var base_volume_db := float(volume_by_sound.get(sound_name, -4.0))
+		player.volume_db = base_volume_db
+		player.set_meta("base_volume_db", base_volume_db)
 		player.set_meta("persistent_audio", true)
 		add_child(player)
 		audio_players[sound_name] = player
+	apply_audio_volume()
+	music_player = get_node_or_null("BackgroundMusic") as AudioStreamPlayer
+	if not is_instance_valid(music_player):
+		music_player = AudioStreamPlayer.new()
+		music_player.name = "BackgroundMusic"
+		add_child(music_player)
+	music_player.process_mode = Node.PROCESS_MODE_ALWAYS
+	music_player.bus = &"Master"
+	music_player.volume_db = MUSIC_BASE_VOLUME_DB
+	var music_stream := load_audio_wav("res://audio/variants/music_03_documents.wav", make_ui_tone(73.0, 73.0, 4.0, 0.035, 0.35))
+	music_stream.loop_begin = 0
+	# Imported WAV resources default loop_end to zero. Enabling a forward loop
+	# without filling it makes Godot loop a zero-length region forever: the
+	# player reports `playing`, but no music reaches the speakers.
+	music_stream.loop_end = maxi(1, roundi(music_stream.get_length() * float(music_stream.mix_rate)))
+	music_stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	music_player.stream = music_stream
+	music_player.set_meta("persistent_audio", true)
+	apply_music_volume()
+	# Settings are loaded before setup_audio(). Start only on the next frame so
+	# the saved gain is applied before the first audible music sample.
+	call_deferred("update_background_music")
 	get_tree().node_added.connect(bind_audio_to_new_node)
+
+
+func load_audio_wav(path: String, fallback: AudioStreamWAV) -> AudioStreamWAV:
+	var loaded := load(path)
+	return loaded as AudioStreamWAV if loaded is AudioStreamWAV else fallback
+
+
+func update_background_music() -> void:
+	if not is_instance_valid(music_player):
+		return
+	if music_enabled:
+		apply_music_volume()
+		if not music_player.playing:
+			music_player.play()
+	else:
+		music_player.stop()
+
+
+func volume_offset_db(percent: float) -> float:
+	if percent <= 0.0:
+		return -80.0
+	return linear_to_db(clampf(percent, 0.0, 100.0) / 100.0)
+
+
+func apply_audio_volume() -> void:
+	var offset := volume_offset_db(audio_volume_percent)
+	for player_value in audio_players.values():
+		var player := player_value as AudioStreamPlayer
+		if is_instance_valid(player):
+			player.volume_db = float(player.get_meta("base_volume_db", -4.0)) + offset
+
+
+func apply_music_volume() -> void:
+	if is_instance_valid(music_player):
+		music_player.volume_db = MUSIC_BASE_VOLUME_DB + volume_offset_db(music_volume_percent)
 
 
 func make_ui_tone(start_frequency: float, end_frequency: float, duration: float, amplitude: float, harmonic_mix: float) -> AudioStreamWAV:
@@ -3185,7 +3867,7 @@ func play_button_hover(button: BaseButton) -> void:
 
 func play_button_click(button: BaseButton) -> void:
 	if is_instance_valid(button) and not button.disabled:
-		play_game_sound("click")
+		play_game_sound(str(button.get_meta("ui_click_sound", "click")))
 
 
 func play_game_sound(sound_name: String) -> void:
@@ -3194,6 +3876,9 @@ func play_game_sound(sound_name: String) -> void:
 	var player := audio_players.get(sound_name) as AudioStreamPlayer
 	if not is_instance_valid(player):
 		return
+	# Always apply the current setting before playback. This also prevents a
+	# one-frame full-volume click after loading or changing the preferences.
+	player.volume_db = float(player.get_meta("base_volume_db", -4.0)) + volume_offset_db(audio_volume_percent)
 	player.stop()
 	player.play()
 
@@ -3217,8 +3902,12 @@ func campaign_seed_caption(seed_value := int(state.get("campaign_seed", 0))) -> 
 
 func campaign_header_caption() -> String:
 	var mode_caption := "ПОВТОР"
-	if is_iron_mode():
+	if game_mode == "Обучение":
+		mode_caption = "ОБУЧЕНИЕ"
+	elif is_iron_mode():
 		mode_caption = "ЖЕЛЕЗНЫЙ"
+	elif is_no_save_mode():
+		mode_caption = "БЕЗ СОХРАНЕНИЙ"
 	elif game_mode == "Без сида":
 		mode_caption = "СЛУЧАЙНЫЙ"
 	return "%s • %s" % [mode_caption, campaign_seed_caption()]
@@ -3327,7 +4016,11 @@ func show_achievements() -> void:
 func load_display_settings() -> void:
 	fullscreen_enabled = false
 	audio_enabled = true
+	music_enabled = true
+	audio_volume_percent = 100.0
+	music_volume_percent = 100.0
 	event_choice_hints_enabled = true
+	tutorial_enabled = true
 	if not persistence_allowed() or not FileAccess.file_exists(SETTINGS_PATH):
 		apply_fullscreen_mode()
 		return
@@ -3339,7 +4032,11 @@ func load_display_settings() -> void:
 	if parsed is Dictionary:
 		fullscreen_enabled = bool((parsed as Dictionary).get("fullscreen", false))
 		audio_enabled = bool((parsed as Dictionary).get("audio_enabled", true))
+		music_enabled = bool((parsed as Dictionary).get("music_enabled", true))
+		audio_volume_percent = clampf(float((parsed as Dictionary).get("audio_volume_percent", 100.0)), 0.0, 100.0)
+		music_volume_percent = clampf(float((parsed as Dictionary).get("music_volume_percent", 100.0)), 0.0, 100.0)
 		event_choice_hints_enabled = bool((parsed as Dictionary).get("event_choice_hints_enabled", true))
+		tutorial_enabled = bool((parsed as Dictionary).get("tutorial_enabled", true))
 	apply_fullscreen_mode()
 
 
@@ -3349,7 +4046,7 @@ func save_display_settings() -> void:
 	var file := FileAccess.open(SETTINGS_PATH, FileAccess.WRITE)
 	if file == null:
 		return
-	file.store_string(JSON.stringify({"fullscreen": fullscreen_enabled, "audio_enabled": audio_enabled, "event_choice_hints_enabled": event_choice_hints_enabled}, "\t"))
+	file.store_string(JSON.stringify({"fullscreen": fullscreen_enabled, "audio_enabled": audio_enabled, "music_enabled": music_enabled, "audio_volume_percent": audio_volume_percent, "music_volume_percent": music_volume_percent, "event_choice_hints_enabled": event_choice_hints_enabled, "tutorial_enabled": tutorial_enabled}, "\t"))
 	file.flush()
 
 
@@ -3388,6 +4085,10 @@ func is_iron_mode() -> bool:
 	return game_mode == "Железный режим"
 
 
+func is_no_save_mode() -> bool:
+	return game_mode == "Без сохранений"
+
+
 func campaign_snapshot() -> Dictionary:
 	return {
 		"version": SAVE_VERSION,
@@ -3403,6 +4104,8 @@ func campaign_snapshot() -> Dictionary:
 		"law_worked_this_week": law_worked_this_week,
 		"recruitment_changed_this_week": recruitment_changed_this_week,
 		"pending_week_changes": pending_week_changes.duplicate(true),
+		"tutorial_enabled": tutorial_enabled,
+		"tutorial_seen": tutorial_seen.duplicate(),
 		"event_resolved": event_resolved,
 		"events_resolved_this_week": events_resolved_this_week,
 		"events_required_this_week": events_required_this_week,
@@ -3416,7 +4119,7 @@ func campaign_snapshot() -> Dictionary:
 
 
 func save_campaign(show_feedback := true) -> bool:
-	if state.is_empty() or not persistence_allowed():
+	if state.is_empty() or is_no_save_mode() or not persistence_allowed():
 		return false
 	var file := FileAccess.open(campaign_save_path(), FileAccess.WRITE)
 	if file == null:
@@ -3426,7 +4129,8 @@ func save_campaign(show_feedback := true) -> bool:
 	file.store_string(JSON.stringify(campaign_snapshot(), "\t"))
 	file.flush()
 	if show_feedback and is_instance_valid(game_root):
-		show_notice("Кампания сохранена. Продолжить её можно из главного меню.")
+		play_game_sound("save")
+		show_notice("Кампания сохранена. Продолжить её можно из главного меню.", "", false)
 	return true
 
 
@@ -3735,6 +4439,7 @@ func load_campaign() -> bool:
 		show_notice("Сохранение отсутствует, повреждено или создано несовместимой версией игры.")
 		return false
 	game_mode = str(data.get("game_mode", "Без сида"))
+	tutorial_enabled = bool(data.get("tutorial_enabled", tutorial_enabled))
 	state = (data.get("state", {}) as Dictionary).duplicate(true)
 	normalize_loaded_state()
 	selected_ministers = (data.get("selected_ministers", {}) as Dictionary).duplicate(true)
@@ -3747,6 +4452,9 @@ func load_campaign() -> bool:
 	law_worked_this_week = bool(data.get("law_worked_this_week", false))
 	recruitment_changed_this_week = bool(data.get("recruitment_changed_this_week", false))
 	pending_week_changes = dictionary_array_from_save(data.get("pending_week_changes", []))
+	tutorial_seen.clear()
+	for tutorial_id in data.get("tutorial_seen", []):
+		tutorial_seen.append(str(tutorial_id))
 	normalize_loaded_pending_relations()
 	event_resolved = bool(data.get("event_resolved", false))
 	events_resolved_this_week = int(data.get("events_resolved_this_week", 0))
@@ -3784,6 +4492,12 @@ func load_campaign() -> bool:
 		next_event()
 	else:
 		display_current_event()
+	if tutorial_enabled:
+		if int(state.get("week", 1)) == 1 and events_resolved_this_week > 0:
+			var first_data: Dictionary = TUTORIAL_WEEK_BRIEFINGS[1]
+			show_tutorial_briefing("chapter_1", str(first_data["title"]), str(first_data["body"]))
+		elif int(state.get("week", 1)) >= 2:
+			show_tutorial_week_briefing()
 	return true
 
 
@@ -3828,11 +4542,16 @@ func apply_starting_minister_effects() -> Dictionary:
 	return applied_by_office
 
 
-func start_game(mode: String, seed_value: int) -> void:
+func start_game(mode: String, seed_value: int, show_opening_prologue := false) -> void:
 	game_mode = mode
+	tutorial_enabled = mode == "Обучение"
+	tutorial_seen.clear()
+	clear_tutorial_card()
 	story_rng.seed = seed_value ^ STORY_SEED_SALT
 	routine_rng.seed = seed_value ^ ROUTINE_SEED_SALT
 	selected_ministers = randomized_starting_ministers(seed_value)
+	if mode == "Обучение":
+		selected_ministers["foreign"] = "narin"
 	pending_week_changes.clear()
 	state = {
 		"week": 1, "campaign_seed": seed_value, "money": 42.0, "support": 58, "stability": 42, "army": 52,
@@ -3911,7 +4630,9 @@ func start_game(mode: String, seed_value: int) -> void:
 	prepare_recurring_event_queue()
 	build_game_screen()
 	prepare_week_event_queue()
-	next_event()
+	next_event(not show_opening_prologue, not show_opening_prologue)
+	if show_opening_prologue:
+		show_prologue()
 	autosave_if_iron()
 
 
@@ -4013,6 +4734,7 @@ func build_game_screen() -> void:
 	column.add_child(workspace)
 
 	var left_panel := PanelContainer.new()
+	tutorial_left_panel = left_panel
 	left_panel.custom_minimum_size = Vector2(300, 0)
 	left_panel.add_theme_stylebox_override("panel", style(Color("#1c2025"), 18, Color("#343b43"), 1))
 	workspace.add_child(left_panel)
@@ -4125,6 +4847,7 @@ func build_game_screen() -> void:
 	choice_grid.add_child(third_hint)
 
 	var right_panel := PanelContainer.new()
+	tutorial_right_panel = right_panel
 	right_panel.custom_minimum_size = Vector2(330, 0)
 	right_panel.add_theme_stylebox_override("panel", style(Color("#1c2025"), 18, Color("#343b43"), 1))
 	workspace.add_child(right_panel)
@@ -4136,50 +4859,84 @@ func build_game_screen() -> void:
 	influence_label.autowrap_mode = TextServer.AUTOWRAP_OFF
 	right_box.add_child(influence_label)
 	right_box.add_child(HSeparator.new())
-	right_box.add_child(label("МИНИСТР ЭКОНОМИКИ", 12, MUTED))
+	var minister_section := VBoxContainer.new()
+	minister_section.add_theme_constant_override("separation", 8)
+	tutorial_minister_section = minister_section
+	right_box.add_child(minister_section)
+	minister_section.add_child(label("МИНИСТР ЭКОНОМИКИ", 12, MUTED))
 	economy_name_label = label(current_minister_name("economy"), 18, PAPER)
-	right_box.add_child(economy_name_label)
-	right_box.add_child(label("МИНИСТР ВНУТРЕННИХ ДЕЛ", 12, MUTED))
+	minister_section.add_child(economy_name_label)
+	minister_section.add_child(label("МИНИСТР ВНУТРЕННИХ ДЕЛ", 12, MUTED))
 	interior_name_label = label(current_minister_name("interior"), 18, PAPER)
-	right_box.add_child(interior_name_label)
-	right_box.add_child(label("МИНИСТР ОБОРОНЫ", 12, MUTED))
+	minister_section.add_child(interior_name_label)
+	minister_section.add_child(label("МИНИСТР ОБОРОНЫ", 12, MUTED))
 	defense_name_label = label(current_minister_name("defense"), 18, PAPER)
-	right_box.add_child(defense_name_label)
-	right_box.add_child(label("МИНИСТР ИНОСТРАННЫХ ДЕЛ", 12, MUTED))
+	minister_section.add_child(defense_name_label)
+	minister_section.add_child(label("МИНИСТР ИНОСТРАННЫХ ДЕЛ", 12, MUTED))
 	foreign_name_label = label(current_minister_name("foreign"), 18, PAPER)
-	right_box.add_child(foreign_name_label)
-	right_box.add_child(HSeparator.new())
-	right_box.add_child(label("РАЗДЕЛЫ", 12, MUTED))
+	minister_section.add_child(foreign_name_label)
+	minister_section.add_child(HSeparator.new())
+	var sections_header := HBoxContainer.new()
+	tutorial_sections_header = sections_header
+	right_box.add_child(sections_header)
+	var sections_caption := label("РАЗДЕЛЫ", 12, MUTED)
+	sections_caption.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	sections_header.add_child(sections_caption)
+	var guide_button := small_button("?  СПРАВКА")
+	guide_button.custom_minimum_size = Vector2(112, 32)
+	guide_button.add_theme_font_size_override("font_size", 12)
+	guide_button.set_meta("ui_click_sound", "page")
+	guide_button.pressed.connect(show_guide)
+	sections_header.add_child(guide_button)
 	var section_grid := GridContainer.new()
+	tutorial_section_grid = section_grid
 	section_grid.columns = 2
 	section_grid.add_theme_constant_override("h_separation", 8)
 	section_grid.add_theme_constant_override("v_separation", 8)
 	right_box.add_child(section_grid)
 	var ministers_button := small_button("ПРАВИТЕЛЬСТВО")
+	ministers_button.set_meta("ui_click_sound", "page")
 	ministers_button.pressed.connect(show_ministers)
 	section_grid.add_child(ministers_button)
+	tutorial_section_buttons["government"] = ministers_button
 	var clans_button := small_button("КЛАНЫ")
+	clans_button.set_meta("ui_click_sound", "page")
 	clans_button.pressed.connect(show_clans)
 	section_grid.add_child(clans_button)
+	tutorial_section_buttons["clans"] = clans_button
 	var economy_button := small_button("ЭКОНОМИКА")
+	economy_button.set_meta("ui_click_sound", "page")
 	economy_button.pressed.connect(show_economy)
 	section_grid.add_child(economy_button)
+	tutorial_section_buttons["economy"] = economy_button
 	var army_button := small_button("АРМИЯ")
+	army_button.set_meta("ui_click_sound", "page")
 	army_button.pressed.connect(show_army)
 	section_grid.add_child(army_button)
+	tutorial_section_buttons["army"] = army_button
 	var foreign_button := small_button("ВНЕШНЯЯ ПОЛИТИКА")
+	foreign_button.set_meta("ui_click_sound", "page")
 	foreign_button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	foreign_button.pressed.connect(show_foreign_policy)
 	section_grid.add_child(foreign_button)
+	tutorial_section_buttons["foreign"] = foreign_button
 	var report_button := small_button("СВОДКА")
+	# The report screen plays the same page sound itself, including when it is
+	# opened automatically after the week ends. Avoid playing it twice here.
+	report_button.set_meta("ui_click_sound", "")
 	report_button.pressed.connect(show_weekly_report)
 	section_grid.add_child(report_button)
+	tutorial_section_buttons["report"] = report_button
 	law_button = small_button("ПОДГОТОВИТЬ ЗАКОН")
+	law_button.set_meta("ui_click_sound", "page")
 	law_button.custom_minimum_size = Vector2(0, 54)
 	law_button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	law_button.pressed.connect(on_law_button_pressed)
 	right_box.add_child(law_button)
 	end_week_button = small_button("ДОКЛАД 1 / 3")
+	# When the week closes, the weekly summary supplies the page sound. The
+	# generic button click would otherwise add the unwanted electronic signal.
+	end_week_button.set_meta("ui_click_sound", "")
 	end_week_button.disabled = true
 	end_week_button.pressed.connect(on_week_action_pressed)
 	right_box.add_child(end_week_button)
@@ -4189,14 +4946,15 @@ func build_game_screen() -> void:
 	var footer := HBoxContainer.new()
 	footer.add_theme_constant_override("separation", 8)
 	right_box.add_child(footer)
-	var save_button := small_button("АВТОСОХРАНЕНИЕ" if is_iron_mode() else "СОХРАНИТЬ")
+	var save_button := small_button("БЕЗ СОХРАНЕНИЙ" if is_no_save_mode() else "АВТОСОХРАНЕНИЕ" if is_iron_mode() else "СОХРАНИТЬ")
 	save_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	save_button.disabled = is_iron_mode()
-	save_button.tooltip_text = "Железный режим автоматически обновляет единственное сохранение после решений и не позволяет создать точку для отката." if is_iron_mode() else "Сохранить текущее состояние кампании. Недельное автосохранение также создаётся при переходе к новой неделе."
-	if not is_iron_mode():
+	save_button.disabled = is_iron_mode() or is_no_save_mode()
+	save_button.tooltip_text = "В этом режиме кампания не сохраняется. Старый файл продолжения остаётся нетронутым." if is_no_save_mode() else "Железный режим автоматически обновляет единственное сохранение после решений и не позволяет создать точку для отката." if is_iron_mode() else "Сохранить текущее состояние кампании. Недельное автосохранение также создаётся при переходе к новой неделе."
+	if not is_iron_mode() and not is_no_save_mode():
 		save_button.pressed.connect(save_campaign.bind(true))
 	footer.add_child(save_button)
 	var settings_button := small_button("НАСТРОЙКИ")
+	settings_button.set_meta("ui_click_sound", "page")
 	settings_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	settings_button.tooltip_text = "Полноэкранный режим и горячие клавиши F4 / F11."
 	settings_button.pressed.connect(show_settings)
@@ -4205,6 +4963,8 @@ func build_game_screen() -> void:
 	restart_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	restart_button.pressed.connect(show_start_screen)
 	footer.add_child(restart_button)
+	build_tutorial_focus_layer()
+	call_deferred("refresh_tutorial_focus")
 
 
 func add_stat(parent: Container, key: String, caption: String, value: String, color: Color) -> void:
@@ -4222,15 +4982,9 @@ func add_stat(parent: Container, key: String, caption: String, value: String, co
 	var caption_label := label(caption, 11, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 	box.add_child(caption_label)
 	var value_label := label(value, 19 if key == "money" else 21, CREAM, HORIZONTAL_ALIGNMENT_CENTER)
+	value_label.mouse_filter = Control.MOUSE_FILTER_STOP
 	box.add_child(value_label)
-	if key == "money":
-		panel.tooltip_text = "Доступные деньги государства. Название краснеет, когда казны не хватает примерно на две недели текущих расходов или ближайший переход грозит дефолтом; зеленеет при запасе примерно на шесть недель."
-	elif key == "support":
-		panel.tooltip_text = "Общественная поддержка и фактическая легитимность президента. При 70% и выше она укрепляет стабильность на 1 каждую неделю. При низкой поддержке непопулярные решения могут вызвать отдельные протестные события; при 0% власть будет свергнута."
-	elif key == "stability":
-		panel.tooltip_text = "Способность центральной власти исполнять решения. При 70% и выше слаженная работа государства даёт +1 очко решений в начале недели. При 30% и ниже управленческий кризис отнимает 1 очко решений в начале недели; при 0% страна расколется."
-	elif key == "war_support":
-		panel.tooltip_text = "Готовность общества принять мобилизацию, потери и военные расходы. При 30% и ниже набор замедляется, во время войны появляются дезертиры, а расширение призыва вызывает протест. При 65% и выше набор ускоряется и во время войны растёт лояльность армии. При 0% воюющая страна капитулирует."
+	panel.tooltip_text = compact_tooltip(main_stat_tooltip(key))
 	stat_labels[key] = value_label
 	stat_caption_labels[key] = caption_label
 
@@ -4238,6 +4992,7 @@ func add_stat(parent: Container, key: String, caption: String, value: String, co
 func add_sidebar_summary_row(parent: Container, key: String, caption: String, value: String) -> void:
 	var row := HBoxContainer.new()
 	row.custom_minimum_size = Vector2(0, 19)
+	row.mouse_filter = Control.MOUSE_FILTER_STOP
 	parent.add_child(row)
 	var caption_label := label(caption, 13, MUTED)
 	caption_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -4245,8 +5000,112 @@ func add_sidebar_summary_row(parent: Container, key: String, caption: String, va
 	row.add_child(caption_label)
 	var value_label := label(value, 14, CREAM, HORIZONTAL_ALIGNMENT_RIGHT)
 	value_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	value_label.mouse_filter = Control.MOUSE_FILTER_STOP
 	row.add_child(value_label)
 	sidebar_summary_labels[key] = value_label
+
+
+func sidebar_number_label(metric_key: String) -> Label:
+	if stat_labels.has(metric_key):
+		return stat_labels[metric_key] as Label
+	if metric_key in ["army_equipment", "army_aircraft"]:
+		return sidebar_summary_labels.get("army_assets") as Label
+	return sidebar_summary_labels.get(metric_key) as Label
+
+
+func render_sidebar_number(metric_key: String) -> void:
+	var value_label := sidebar_number_label(metric_key)
+	if not is_instance_valid(value_label):
+		return
+	if metric_key == "money":
+		value_label.text = "%.1f млн" % float(sidebar_number_values.get(metric_key, 0.0))
+	elif metric_key == "army_personnel":
+		value_label.text = format_people(roundi(float(sidebar_number_values.get(metric_key, 0.0))))
+	elif metric_key in ["army_equipment", "army_aircraft"]:
+		value_label.text = "%d / %d" % [
+			roundi(float(sidebar_number_values.get("army_equipment", 0.0))),
+			roundi(float(sidebar_number_values.get("army_aircraft", 0.0)))
+		]
+	else:
+		value_label.text = "%d%%" % roundi(float(sidebar_number_values.get(metric_key, 0.0)))
+
+
+func set_sidebar_number_animation_value(value: float, metric_key: String) -> void:
+	sidebar_number_values[metric_key] = value
+	render_sidebar_number(metric_key)
+
+
+func queue_sidebar_number(metric_key: String, target_value: float) -> void:
+	sidebar_number_targets[metric_key] = target_value
+	if not sidebar_number_values.has(metric_key) or DisplayServer.get_name() == "headless":
+		sidebar_number_values[metric_key] = target_value
+		render_sidebar_number(metric_key)
+		return
+	if not sidebar_number_flush_pending:
+		sidebar_number_flush_pending = true
+		call_deferred("flush_sidebar_number_animations")
+
+
+func stop_sidebar_number_animation() -> void:
+	if is_instance_valid(sidebar_number_tween):
+		sidebar_number_tween.kill()
+	sidebar_number_tween = null
+
+
+func flush_sidebar_number_animations() -> void:
+	sidebar_number_flush_pending = false
+	if DisplayServer.get_name() == "headless":
+		for metric_key in sidebar_number_targets:
+			sidebar_number_values[metric_key] = float(sidebar_number_targets[metric_key])
+			render_sidebar_number(str(metric_key))
+		return
+	if not is_instance_valid(game_root) or is_instance_valid(overlay) or is_instance_valid(debug_cheat_panel):
+		return
+	stop_sidebar_number_animation()
+	var changed_metrics: Array[String] = []
+	for metric_key_value in sidebar_number_targets:
+		var metric_key := str(metric_key_value)
+		var current_value := float(sidebar_number_values.get(metric_key, sidebar_number_targets[metric_key]))
+		var target_value := float(sidebar_number_targets[metric_key])
+		if not is_equal_approx(current_value, target_value):
+			changed_metrics.append(metric_key)
+		else:
+			render_sidebar_number(metric_key)
+	if changed_metrics.is_empty():
+		return
+	sidebar_number_tween = create_tween().set_parallel(true)
+	for metric_key in changed_metrics:
+		var current_value := float(sidebar_number_values[metric_key])
+		var target_value := float(sidebar_number_targets[metric_key])
+		sidebar_number_tween.tween_method(set_sidebar_number_animation_value.bind(metric_key), current_value, target_value, 0.65).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+
+
+func request_sidebar_refresh() -> void:
+	if DisplayServer.get_name() == "headless":
+		refresh_sidebar_content()
+		return
+	if sidebar_refresh_pending:
+		return
+	sidebar_refresh_pending = true
+	call_deferred("flush_sidebar_refresh")
+
+
+func flush_sidebar_refresh() -> void:
+	if is_instance_valid(overlay):
+		return
+	sidebar_refresh_pending = false
+	refresh_sidebar_content()
+
+
+func refresh_sidebar_content() -> void:
+	if not is_instance_valid(game_root) or not is_instance_valid(week_label):
+		return
+	update_projected_main_stat("money", "Казна", true)
+	update_projected_main_stat("support", "Поддержка власти")
+	update_projected_main_stat("stability", "Стабильность")
+	update_projected_main_stat("war_support", "Поддержка войны")
+	update_main_stat_caption_colors()
+	update_sidebar_summary()
 
 
 func update_sidebar_summary() -> void:
@@ -4283,9 +5142,9 @@ func update_sidebar_summary() -> void:
 		var value := projected_pending_value(key)
 		var pending := value != current_value
 		var value_label: Label = sidebar_summary_labels[key]
-		value_label.text = "%d%%" % value
+		queue_sidebar_number(str(key), value)
 		value_label.add_theme_color_override("font_color", PENDING_BLUE if pending else GREEN if value >= CLAN_HIGH_SUPPORT else RED if value <= CLAN_LOW_SUPPORT else CREAM)
-		value_label.tooltip_text = (pending_value_tooltip(str(clan_titles[key]), "%d%%" % current_value, "%d%%" % value) + "\n\nОжидаемое состояние: %s.\n%s" % [clan_band(value), clan_full_effect_description(key, value)]) if pending else "%s: %s.\n%s" % [str(clan_titles[key]), clan_band(value), clan_full_effect_description(key, value)]
+		value_label.tooltip_text = clan_support_levels_tooltip(str(key), str(clan_titles[key]), current_value, value)
 		value_label.mouse_default_cursor_shape = Control.CURSOR_HELP
 	for side in ["east", "west"]:
 		var relation_key: String = str(side) + "_relation"
@@ -4302,16 +5161,16 @@ func update_sidebar_summary() -> void:
 	var loyalty := projected_pending_value("army")
 	var loyalty_pending := loyalty != current_loyalty
 	var loyalty_label: Label = sidebar_summary_labels["army_loyalty"]
-	loyalty_label.text = "%d%%" % loyalty
+	queue_sidebar_number("army_loyalty", loyalty)
 	loyalty_label.add_theme_color_override("font_color", PENDING_BLUE if loyalty_pending else GREEN if loyalty >= 65 else RED if loyalty <= 40 else CREAM)
-	loyalty_label.tooltip_text = (pending_value_tooltip("Лояльность армии", "%d%%" % current_loyalty, "%d%%" % loyalty) + "\n\n%s.\n%s" % [army_group_band(loyalty), army_group_effect_description(loyalty)]) if loyalty_pending else "%s.\n%s" % [army_group_band(loyalty), army_group_effect_description(loyalty)]
+	loyalty_label.tooltip_text = army_loyalty_levels_tooltip(current_loyalty, loyalty)
 	loyalty_label.mouse_default_cursor_shape = Control.CURSOR_HELP
 	var projected_army := projected_army_snapshot()
 	var current_effectiveness := army_effectiveness()
 	var effectiveness := int(projected_army["effectiveness"])
 	var effectiveness_pending := effectiveness != current_effectiveness
 	var effectiveness_label: Label = sidebar_summary_labels["army_effectiveness"]
-	effectiveness_label.text = "%d%%" % effectiveness
+	queue_sidebar_number("army_effectiveness", effectiveness)
 	effectiveness_label.add_theme_color_override("font_color", PENDING_BLUE if effectiveness_pending else GREEN if effectiveness >= 70 else RED if effectiveness < 45 else CREAM)
 	var effectiveness_detail := "Сводный показатель подготовки, обеспеченности техникой и авиацией, снабжения и морали."
 	if bool(state.get("at_war", false)):
@@ -4322,14 +5181,14 @@ func update_sidebar_summary() -> void:
 	var supply := int(projected_army["supply"])
 	var supply_pending := supply != current_supply
 	var supply_label: Label = sidebar_summary_labels["army_supply"]
-	supply_label.text = "%d%%" % supply
+	queue_sidebar_number("army_supply", supply)
 	supply_label.add_theme_color_override("font_color", PENDING_BLUE if supply_pending else GREEN if supply >= 75 else RED if supply < 50 else CREAM)
 	supply_label.tooltip_text = (pending_value_tooltip("Снабжение армии", "%d%%" % current_supply, "%d%%" % supply) + "\n\nЗависит от доли недельной добычи нефти, направленной армии.") if supply_pending else "Зависит от доли недельной добычи нефти, направленной армии. Ниже 75% падает лояльность, ниже 50% дополнительно страдает стабильность."
 	supply_label.mouse_default_cursor_shape = Control.CURSOR_HELP
 	var current_personnel := int(state.get("army_personnel", 0))
 	var projected_personnel := int(projected_army["personnel"])
 	var personnel_label: Label = sidebar_summary_labels["army_personnel"]
-	personnel_label.text = format_people(projected_personnel)
+	queue_sidebar_number("army_personnel", projected_personnel)
 	personnel_label.add_theme_color_override("font_color", PENDING_BLUE if projected_personnel != current_personnel else CREAM)
 	personnel_label.tooltip_text = (pending_value_tooltip("Военнослужащие", format_people(current_personnel), format_people(projected_personnel)) + "\n\nЦель выбранной модели: %s." % format_people(recruitment_target())) if projected_personnel != current_personnel else "Текущее число военнослужащих. Цель выбранной модели комплектования: %s." % format_people(recruitment_target())
 	personnel_label.mouse_default_cursor_shape = Control.CURSOR_HELP
@@ -4339,10 +5198,15 @@ func update_sidebar_summary() -> void:
 	var projected_aircraft := int(projected_army["aircraft"])
 	var assets_pending := projected_equipment != current_equipment or projected_aircraft != current_aircraft
 	var assets_label: Label = sidebar_summary_labels["army_assets"]
-	assets_label.text = "%d / %d" % [projected_equipment, projected_aircraft]
+	queue_sidebar_number("army_equipment", projected_equipment)
+	queue_sidebar_number("army_aircraft", projected_aircraft)
 	assets_label.add_theme_color_override("font_color", PENDING_BLUE if assets_pending else CREAM)
 	assets_label.tooltip_text = (pending_value_tooltip("Техника / авиация", "%d / %d" % [current_equipment, current_aircraft], "%d / %d" % [projected_equipment, projected_aircraft]) + "\n\nПотребность ожидаемой армии: %d / %d. Авиацию республика не производит." % [int(projected_army["required_equipment"]), int(projected_army["required_aircraft"])]) if assets_pending else "Наземная техника / авиация. Потребность текущей армии: %d / %d. Авиацию республика не производит." % [army_required_equipment(), army_required_aircraft()]
 	assets_label.mouse_default_cursor_shape = Control.CURSOR_HELP
+	for summary_label in sidebar_summary_labels.values():
+		if is_instance_valid(summary_label):
+			summary_label.tooltip_text = compact_tooltip(summary_label.tooltip_text)
+			(summary_label.get_parent() as Control).tooltip_text = summary_label.tooltip_text
 
 
 func choice_button(color: Color) -> Button:
@@ -4422,14 +5286,18 @@ func calculate_unrest_level(data: Dictionary) -> int:
 	var kind := str(data.get("kind", "civic"))
 	if support <= 40:
 		level += 1
-	if support <= 20 or stability <= 25:
+	if support <= 20:
 		level += 1
+	# Стабильные институты сдерживают масштаб кризиса даже при непопулярной
+	# власти; при распаде управления тот же конфликт распространяется шире.
+	if stability <= 30:
+		level += 1
+	elif stability >= 70:
+		level -= 1
 	if kind == "labor" and int(state.get("clan_workers", 50)) <= 35:
 		level += 1
 	elif kind == "regional" and int(state.get("clan_regions", 50)) <= 35:
 		level += 1
-	if support >= 70 and stability >= 55:
-		level -= 1
 	if bool(state.get("civic_mediation_law", false)) and kind != "labor":
 		level -= 1
 	return clampi(level, 1, 3)
@@ -4824,7 +5692,7 @@ func build_foreign_followup_event(kind: String) -> Dictionary:
 	return {}
 
 
-func next_event() -> void:
+func next_event(play_default_report_sound := true, play_special_event_sound := true) -> void:
 	if check_terminal_state():
 		return
 	if int(state.week) > DEMO_WEEKS:
@@ -4834,6 +5702,7 @@ func next_event() -> void:
 	if should_trigger_war_crisis():
 		current_event = build_war_crisis_event()
 		current_event["_kind"] = "urgent"
+		current_event["_sound"] = "war"
 		state.war_crisis_pending = false
 		state.war_crisis_shown = true
 		events_required_this_week += 1
@@ -4854,16 +5723,19 @@ func next_event() -> void:
 	elif should_trigger_emergency_powers_protest():
 		current_event = emergency_powers_protest_event.duplicate(true)
 		current_event["_kind"] = "urgent"
+		current_event["_sound"] = "protest"
 		state.emergency_powers_protest_pending = false
 		events_required_this_week += 1
 	elif should_trigger_social_protest():
 		current_event = social_protest_event.duplicate(true)
 		current_event["_kind"] = "urgent"
+		current_event["_sound"] = "protest"
 		state.social_protest_pending = false
 		events_required_this_week += 1
 	elif should_trigger_unrest():
 		current_event = take_unrest_event()
 		current_event["_kind"] = "urgent"
+		current_event["_sound"] = "protest"
 		events_required_this_week += 1
 	elif should_trigger_story_followup():
 		current_event = take_story_followup_event()
@@ -4893,14 +5765,18 @@ func next_event() -> void:
 		current_event = build_wartime_replacement_event(queued_event) if event_blocked_by_current_war(queued_event) else queued_event
 	event_resolved = false
 	customize_event_for_ministers()
-	display_current_event()
+	display_current_event(play_default_report_sound, play_special_event_sound)
 
 
-func display_current_event() -> void:
+func display_current_event(play_default_report_sound := true, play_special_event_sound := true) -> void:
 	update_interface()
 	if current_event.is_empty():
 		return
-	play_game_sound("report")
+	var report_sound := str(current_event.get("_sound", "report"))
+	# «Продолжить» после результата не должно давать двойной электронный
+	# сигнал. Особые звуки войны и протестов всё равно воспроизводятся.
+	if (report_sound == "report" and play_default_report_sound) or (report_sound != "report" and play_special_event_sound):
+		play_game_sound(report_sound)
 	source_label.text = str(current_event["source"]).to_upper()
 	title_label.text = str(current_event["title"]).to_upper()
 	body_label.text = str(current_event["body"])
@@ -5088,8 +5964,13 @@ func continue_after_result() -> void:
 		# После последнего доклада игрок возвращается к обычному экрану,
 		# где отдельно выделена кнопка перехода к новой неделе.
 		update_interface()
+		if int(state.get("week", 1)) == 1:
+			show_tutorial_briefing("week_end", "ПЕРВАЯ НЕДЕЛЯ ЗАВЕРШЕНА", "Теперь все три доклада рассмотрены. Выбранные последствия и обязательные выплаты применятся, когда вы нажмёте «Новая неделя» справа. Перед этим можно ещё проверить ожидаемые голубые изменения слева.")
 		return
-	next_event()
+	next_event(false)
+	if int(state.get("week", 1)) == 1 and events_resolved_this_week == 1:
+		var first_data: Dictionary = TUTORIAL_WEEK_BRIEFINGS[1]
+		show_tutorial_briefing("chapter_1", str(first_data["title"]), str(first_data["body"]))
 
 
 func on_week_action_pressed() -> void:
@@ -5298,6 +6179,8 @@ func choose_option(side: String) -> void:
 	var decision_effects := amplify_decision_effects(original_effects, str(current_event.get("_kind", "general")))
 	var change_source := "Доклад «%s»: %s" % [str(current_event.get("title", "Событие")), str(option.get("label", "решение"))]
 	var option_flags: Dictionary = (option.get("set", {}) as Dictionary).duplicate(true)
+	if bool(option_flags.get("printed_money", false)):
+		play_game_sound("money_print")
 	var free_foreign_appointment := str(option_flags.get("free_foreign_appointment", ""))
 	if free_foreign_appointment != "":
 		apply_free_foreign_appointment(free_foreign_appointment)
@@ -5305,8 +6188,10 @@ func choose_option(side: String) -> void:
 	var applied_effects := queue_week_change(change_source, decision_effects, option_flags)
 	event_resolved = true
 	events_resolved_this_week += 1
-	update_interface()
 	autosave_if_iron()
+	# Не обновляем боковые показатели до показа результата. Их новые ожидаемые
+	# значения и анимация появятся только после закрытия окна «Решение принято»,
+	# когда игрок снова окажется на основном экране.
 	# Пока карточка результата проходит короткую анимацию, боковой переход
 	# остаётся недоступен и не может перескочить на следующий доклад раньше окна.
 	end_week_button.disabled = true
@@ -5732,6 +6617,35 @@ func clan_full_effect_description(key: String, value: int) -> String:
 	return "%s%s; фракция «%s» получает %+d к позиции на голосованиях" % [clan_weekly_effect_description(key, value), influence_note, clan_parliament_faction_title(key), modifier]
 
 
+func clan_support_levels_tooltip(key: String, title: String, current_value: int, projected_value: int) -> String:
+	var lines: Array[String] = []
+	if current_value != projected_value:
+		lines.append(pending_value_tooltip(title, "%d%%" % current_value, "%d%%" % projected_value))
+	else:
+		lines.append("%s: %d%%" % [title, current_value])
+	lines.append("Фракция: %s" % clan_parliament_faction_title(key))
+	lines.append("")
+	var levels := [
+		{"range": "0–20%", "min": 0, "max": 20, "sample": 10},
+		{"range": "21–40%", "min": 21, "max": 40, "sample": 30},
+		{"range": "41–59%", "min": 41, "max": 59, "sample": 50},
+		{"range": "60–79%", "min": 60, "max": 79, "sample": 70},
+		{"range": "80–100%", "min": 80, "max": 100, "sample": 90}
+	]
+	for level in levels:
+		var sample := int(level["sample"])
+		var marker := "► " if projected_value >= int(level["min"]) and projected_value <= int(level["max"]) else "  "
+		lines.append("%s%s · %s" % [marker, str(level["range"]), clan_band(sample)])
+		var weekly_effect := clan_weekly_effect_description(key, sample)
+		weekly_effect = weekly_effect.replace("поддержка власти", "власть").replace("поддержка войны", "война")
+		weekly_effect = weekly_effect.replace("каждую неделю", "/нед.").replace("раз в месяц", "/мес.")
+		weekly_effect = weekly_effect.replace("раз в две недели", "/2 нед.").replace("постоянного недельного эффекта нет", "без недельного эффекта")
+		lines.append("  %s; фракция %+d" % [weekly_effect, clan_position_modifier(sample)])
+	if key == "clan_church" and bool(state.get("secular_education", false)):
+		lines.append("Светское образование ослабляет эффекты Церкви.")
+	return compact_tooltip("\n".join(lines))
+
+
 func clan_transition_text(applied_effects: Dictionary) -> String:
 	var titles := {
 		"clan_oligarchs": "Олигархи",
@@ -5782,6 +6696,7 @@ func show_result(result_text: String, original_effects: Dictionary, applied_effe
 	elif pending_extra_reports > 0:
 		content.add_child(label("Подготовлен срочный дополнительный доклад до завершения этой недели.", 16, RED, HORIZONTAL_ALIGNMENT_CENTER))
 	var continue_button := menu_button("ПРОДОЛЖИТЬ")
+	continue_button.set_meta("ui_click_sound", "")
 	continue_button.pressed.connect(continue_after_result)
 	content.add_child(continue_button)
 	show_overlay(content, PAPER, false)
@@ -5849,6 +6764,15 @@ func effects_to_text(original_effects: Dictionary, applied_effects: Dictionary, 
 
 func corruption_level(value: int) -> String:
 	return CORRUPTION_LABELS[clampi(value, 0, CORRUPTION_LABELS.size() - 1)]
+
+
+func corruption_levels_tooltip(current_tier: int) -> String:
+	var lines: Array[String] = ["КОРРУПЦИЯ · ПОТЕРИ ДОХОДОВ", "Каждое поступление в казну уменьшается по категории:"]
+	for tier in range(CORRUPTION_LABELS.size()):
+		lines.append("%s%s: −%d%% дохода" % ["► " if tier == current_tier else "  ", CORRUPTION_LABELS[tier].capitalize(), CORRUPTION_TRANSACTION_RATES[tier]])
+	lines.append("")
+	lines.append("Расходы, цены и очки решений коррупция не меняет.")
+	return compact_tooltip("\n".join(lines))
 
 
 func creditor_obligation_level(value: int) -> String:
@@ -5993,6 +6917,15 @@ func war_fatigue_loss(war_week_override := -1) -> int:
 	if war_week <= 11:
 		return 3
 	return 4
+
+
+func war_stability_loss(war_support_override := -1) -> int:
+	var value := int(state.get("war_support", 0)) if war_support_override < 0 else war_support_override
+	if value <= WAR_SUPPORT_LOW:
+		return 4
+	if value >= WAR_SUPPORT_HIGH:
+		return 1
+	return 2
 
 
 func war_personnel_attrition_multiplier(war_week_override := -1) -> float:
@@ -6587,6 +7520,7 @@ func start_invasion_if_needed() -> String:
 	state.at_war = true
 	state.military_threat = true
 	state.war_enemy = enemy
+	var rally_gain := int(apply_effects({"support": WAR_DEFENSIVE_RALLY_SUPPORT}).get("support", 0))
 	schedule_foreign_minister_resignation_if_needed()
 	state.war_started_week = int(state.get("week", 1))
 	state.war_weeks = 0
@@ -6605,8 +7539,9 @@ func start_invasion_if_needed() -> String:
 		var grounded_west := mini(3, int(state.get("army_aircraft", 0)))
 		state.army_aircraft = maxi(0, int(state.get("army_aircraft", 0)) - grounded_west)
 		dependency_note = " Западный поставщик отозвал коды обслуживания: %d самолёта выведены из строя." % grounded_west
-	state.last_war_report = "%s начал вторжение после перехода отношений во враждебное состояние.%s" % [neighbor_title(enemy), dependency_note]
-	return "%s разорвал дипломатические гарантии и начал вторжение. Республика вступила в войну.%s" % [neighbor_title(enemy), dependency_note]
+	var rally_note := " Перед лицом вторжения общество сплотилось: поддержка власти +%d." % rally_gain if rally_gain > 0 else ""
+	state.last_war_report = "%s начал вторжение после перехода отношений во враждебное состояние.%s%s" % [neighbor_title(enemy), dependency_note, rally_note]
+	return "%s разорвал дипломатические гарантии и начал вторжение. Республика вступила в войну.%s%s" % [neighbor_title(enemy), dependency_note, rally_note]
 
 
 func process_war_week() -> Dictionary:
@@ -6641,17 +7576,19 @@ func process_war_week() -> Dictionary:
 	state.army_aircraft = aircraft_before - aircraft_loss
 	state.war_casualties = int(state.get("war_casualties", 0)) + personnel_loss
 	var fatigue_loss := war_fatigue_loss(war_week)
-	var political_effects := {"war_support": -fatigue_loss}
+	var support_before_battles := int(state.get("war_support", 0))
+	var stability_loss := war_stability_loss(support_before_battles)
+	var political_effects := {"war_support": -fatigue_loss, "stability": -stability_loss}
 	var high_support_note := ""
 	if int(state.get("war_support", 0)) >= WAR_SUPPORT_HIGH:
 		political_effects["army"] = 1
 		high_support_note = " Высокая поддержка войны укрепила лояльность армии на 1."
 	if shortage_ratio > 0.0:
-		political_effects["stability"] = -1 if shortage_ratio < 0.25 else -2
+		political_effects["stability"] = int(political_effects["stability"]) - (1 if shortage_ratio < 0.25 else 2)
 		political_effects["support"] = -1
 	apply_effects(political_effects)
 	var coverage_percent := clampi(roundi(float(personnel_before) / float(maxi(required, 1)) * 100.0), 0, 100)
-	var escalation_note := " Истощение войны: людские потери ×%.2f, потери техники ×%.2f, поддержка войны −%d." % [duration_personnel_multiplier, duration_equipment_multiplier * temporary_ammo_conservation_multiplier(), fatigue_loss]
+	var escalation_note := " Истощение войны: людские потери ×%.2f, потери техники ×%.2f, поддержка войны −%d. Поддержка войны перед боями %d%%: стабильность −%d%s." % [duration_personnel_multiplier, duration_equipment_multiplier * temporary_ammo_conservation_multiplier(), fatigue_loss, support_before_battles, stability_loss, "; нехватка людей на фронте добавила ещё −%d" % (absi(int(political_effects["stability"])) - stability_loss) if shortage_ratio > 0.0 else ""]
 	var medicine_note := " Медицинское обеспечение: ×%.2f к людским потерям." % medical_multiplier
 	var report := "%s • неделя войны %d. Боеспособность перед боями: %d%%. Фронту требовалось %s, имелось %s (%d%%). Потери: %s военнослужащих, %d техники, %d авиации.%s%s%s" % [neighbor_title(enemy), int(state.get("war_weeks", 0)), combat_effectiveness, format_people(required), format_people(personnel_before), coverage_percent, format_people(personnel_loss), equipment_loss, aircraft_loss, escalation_note, medicine_note, high_support_note]
 	state.last_war_report = report
@@ -6660,6 +7597,7 @@ func process_war_week() -> Dictionary:
 		"personnel_loss": personnel_loss,
 		"equipment_loss": equipment_loss,
 		"aircraft_loss": aircraft_loss,
+		"stability_loss": absi(int(political_effects["stability"])),
 		"required": required,
 		"effectiveness": combat_effectiveness
 	}
@@ -7133,6 +8071,29 @@ func army_group_effect_description(value: int) -> String:
 	return "%s; %s" % [weekly_effect, parliament_effect]
 
 
+func army_loyalty_levels_tooltip(current_value: int, projected_value: int) -> String:
+	var lines: Array[String] = []
+	if current_value != projected_value:
+		lines.append(pending_value_tooltip("Лояльность армии", "%d%%" % current_value, "%d%%" % projected_value))
+	else:
+		lines.append("Лояльность армии: %d%%" % current_value)
+	lines.append("")
+	var levels := [
+		{"range": "0–20%", "min": 0, "max": 20, "sample": 10},
+		{"range": "21–40%", "min": 21, "max": 40, "sample": 30},
+		{"range": "41–64%", "min": 41, "max": 64, "sample": 50},
+		{"range": "65–79%", "min": 65, "max": 79, "sample": 70},
+		{"range": "80–100%", "min": 80, "max": 100, "sample": 90}
+	]
+	for level in levels:
+		var sample := int(level["sample"])
+		var marker := "► " if projected_value >= int(level["min"]) and projected_value <= int(level["max"]) else "  "
+		lines.append("%s%s · %s" % [marker, str(level["range"]), army_group_band(sample)])
+		var combat_bonus := 10 if sample >= 80 else 5 if sample >= 65 else -15 if sample <= 20 else -7 if sample <= 40 else 0
+		lines.append("  Боеспособность %+d п.п.; Гвардия %+d" % [combat_bonus, army_parliament_modifier(sample)])
+	return compact_tooltip("\n".join(lines))
+
+
 func process_army_recruitment() -> Dictionary:
 	var current := int(state.get("army_personnel", 0))
 	var target := recruitment_target()
@@ -7429,10 +8390,12 @@ func advance_week() -> void:
 		return
 	if int(state.get("week", 1)) <= DEMO_WEEKS:
 		prepare_week_event_queue()
-	next_event()
+	# The first report of the new week is prepared behind the weekly summary.
+	# Its default electronic report sound must not play under the page sound.
+	next_event(false, false)
 	save_campaign(false)
 	if int(state.get("week", 1)) <= DEMO_WEEKS and is_instance_valid(game_root):
-		show_weekly_report()
+		show_weekly_report(true)
 
 
 func add_weekly_report_note(all_notes: Array[String], sections: Dictionary, category: String, note: String) -> void:
@@ -7596,12 +8559,14 @@ func weekly_report_panel(title_text: String, lines: Array, accent: Color, toolti
 	return panel
 
 
-func show_weekly_report() -> void:
+func show_weekly_report(week_just_closed := false) -> void:
 	var report: Dictionary = state.get("last_weekly_report", {})
 	if report.is_empty():
 		show_notice("Первая недельная сводка появится после завершения текущего хода.")
 		return
-	play_game_sound("week")
+	# During a war, every completed week ends with the distant explosion cue.
+	# Manual visits to the report keep the ordinary page sound.
+	play_game_sound("war" if week_just_closed and bool(state.get("at_war", false)) else "page")
 	var scroll := ScrollContainer.new()
 	scroll.custom_minimum_size = Vector2(920, 660)
 	var content := VBoxContainer.new()
@@ -7656,9 +8621,19 @@ func show_weekly_report() -> void:
 	if str(report.get("monthly", "")) != "":
 		content.add_child(weekly_report_panel("НАСЕЛЕНИЕ", [str(report.get("monthly", ""))], Color("#7c6688")))
 	var close := menu_button("ПЕРЕЙТИ К ДОКЛАДУ НОВОЙ НЕДЕЛИ")
-	close.pressed.connect(close_overlay)
+	if week_just_closed:
+		close.pressed.connect(finish_weekly_report)
+	else:
+		close.pressed.connect(close_overlay)
 	content.add_child(close)
 	show_overlay(scroll, PAPER, false, 980)
+	if bool(state.get("at_war", false)):
+		offer_tutorial("war")
+
+
+func finish_weekly_report() -> void:
+	close_overlay()
+	show_tutorial_week_briefing()
 
 
 func update_projected_main_stat(key: String, title: String, is_money := false) -> void:
@@ -7669,16 +8644,16 @@ func update_projected_main_stat(key: String, title: String, is_money := false) -
 		var current_money := float(state.get(key, 0.0))
 		var projected_money := projected_pending_float(key)
 		var changed := not is_equal_approx(current_money, projected_money)
-		value_label.text = "%.1f млн" % projected_money
+		queue_sidebar_number(key, projected_money)
 		value_label.add_theme_color_override("font_color", PENDING_BLUE if changed else CREAM)
-		value_label.tooltip_text = pending_value_tooltip(title, "%.2f млн" % current_money, "%.2f млн" % projected_money) if changed else ""
+		value_label.tooltip_text = compact_tooltip((pending_value_tooltip(title, "%.2f млн" % current_money, "%.2f млн" % projected_money) + "\n\n" if changed else "") + main_stat_tooltip(key))
 	else:
 		var current_value := int(state.get(key, 0))
 		var projected_value := projected_pending_value(key)
 		var changed := current_value != projected_value
-		value_label.text = "%d%%" % projected_value
+		queue_sidebar_number(key, projected_value)
 		value_label.add_theme_color_override("font_color", PENDING_BLUE if changed else CREAM)
-		value_label.tooltip_text = pending_value_tooltip(title, "%d%%" % current_value, "%d%%" % projected_value) if changed else ""
+		value_label.tooltip_text = compact_tooltip((pending_value_tooltip(title, "%d%%" % current_value, "%d%%" % projected_value) + "\n\n" if changed else "") + main_stat_tooltip(key))
 	value_label.mouse_default_cursor_shape = Control.CURSOR_HELP if value_label.tooltip_text != "" else Control.CURSOR_ARROW
 
 
@@ -7728,12 +8703,7 @@ func update_interface() -> void:
 	week_label.text = "НЕДЕЛЯ %d • ДОКЛАД %d/%d" % [int(state.week), report_number, displayed_required]
 	if is_instance_valid(mode_label):
 		mode_label.text = campaign_header_caption()
-	update_projected_main_stat("money", "Казна", true)
-	update_projected_main_stat("support", "Поддержка власти")
-	update_projected_main_stat("stability", "Стабильность")
-	update_projected_main_stat("war_support", "Поддержка войны")
-	update_main_stat_caption_colors()
-	update_sidebar_summary()
+	request_sidebar_refresh()
 	influence_label.text = "ОЧКИ РЕШЕНИЙ: %d / %d" % [int(state.influence), weekly_influence_cap()]
 	influence_label.tooltip_text = "Финансирование государственного аппарата даёт %d очк. в неделю.%s" % [
 		2 if budget_level("budget_admin") == 0 else 4 if budget_level("budget_admin") == 2 else 3,
@@ -7755,6 +8725,7 @@ func update_interface() -> void:
 	defense_name_label.text = current_minister_name("defense")
 	foreign_name_label.text = current_minister_name("foreign")
 	update_week_action_button()
+	refresh_tutorial_focus()
 
 
 func update_week_action_button() -> void:
@@ -7874,7 +8845,7 @@ func minister_law_catalog() -> Array[Dictionary]:
 		},
 		{
 			"name": "Национализация стратегической промышленности", "slot": "economy", "minister_id": "grad", "weeks": 3, "cost": 1,
-			"hint": "Потребует 14 млн компенсаций, но навсегда добавит 1 млн валового недельного дохода госпредприятий и ускорит выпуск наземной техники на 25%. Забастовки смогут урезать новый доход."
+			"hint": "Потребует 11 млн компенсаций, но навсегда добавит 1 млн валового недельного дохода госпредприятий и ускорит выпуск наземной техники на 25%. Забастовки смогут урезать новый доход."
 		},
 		{
 			"name": "Закон о коллективных договорах", "slot": "economy", "minister_id": "sorec", "weeks": 3, "cost": 1,
@@ -8259,6 +9230,8 @@ func show_foreign_policy() -> void:
 	show_overlay(scroll, PAPER, true, overlay_width)
 	scroll.scroll_vertical = 0
 	scroll.set_deferred("scroll_vertical", 0)
+	if int(state.get("week", 1)) < 5:
+		offer_tutorial("foreign")
 
 
 func add_neighbor_policy_card(parent: Container, side: String) -> void:
@@ -8283,10 +9256,10 @@ func add_neighbor_policy_card(parent: Container, side: String) -> void:
 	var enemy_at_war := bool(state.get("at_war", false)) and str(state.get("war_enemy", "")) == side
 	if enemy_at_war:
 		box.add_child(label("С этим государством идёт война. Обычные дипломатические действия недоступны.", 14, RED))
-	var mission_cost := 2 if str(selected_ministers.get("foreign", "narin")) == "narin" else 3
-	var mission := foreign_policy_button("МИССИЯ • −%d МЛН • 1 ОЧК." % mission_cost)
-	mission.disabled = foreign_action_used_this_week() or int(state.get("influence", 0)) < 1 or enemy_at_war or projected_pending_value(side + "_relation") >= 3
-	mission.tooltip_text = "Отношения с государством-противником нельзя улучшать, пока продолжается война." if enemy_at_war else "%s Расход составит ровно %d млн; коррупция его не увеличивает.%s" % [relation_improvement_summary(side), mission_cost, " С министром Леей Нарин миссия дешевле на 1 млн." if mission_cost == 2 else ""]
+	var narin_in_office := str(selected_ministers.get("foreign", "narin")) == "narin"
+	var mission := foreign_policy_button("МИССИЯ • −2 МЛН • 1 ОЧК.")
+	mission.disabled = not narin_in_office or foreign_action_used_this_week() or int(state.get("influence", 0)) < 1 or enemy_at_war or projected_pending_value(side + "_relation") >= 3
+	mission.tooltip_text = "Миссии по улучшению отношений доступны только при министре иностранных дел Лее Нарин." if not narin_in_office else "Отношения с государством-противником нельзя улучшать, пока продолжается война." if enemy_at_war else "%s Расход составит ровно 2 млн; коррупция его не увеличивает." % relation_improvement_summary(side)
 	mission.pressed.connect(perform_foreign_action.bind(side, "mission"))
 	box.add_child(mission)
 	var concession_income := adjusted_money_transaction(10.0, projected_corruption_tier())
@@ -8327,11 +9300,13 @@ func perform_foreign_action(side: String, action: String) -> void:
 	var flags: Dictionary = {}
 	var description := ""
 	if action == "mission":
+		if str(selected_ministers.get("foreign", "")) != "narin":
+			show_notice("Дипломатические миссии доступны только при министре иностранных дел Лее Нарин.")
+			return
 		if enemy_at_war or projected_pending_value(side + "_relation") >= 3:
 			show_notice("Дипломатическая миссия сейчас не сможет изменить положение.")
 			return
-		var mission_cost := 2 if str(selected_ministers.get("foreign", "narin")) == "narin" else 3
-		effects = {"money": -mission_cost}
+		effects = {"money": -2}
 		merge_numeric_effects(effects, relation_shift_effect(side, 1))
 		description = relation_improvement_summary(side)
 	elif action == "concession":
@@ -8478,7 +9453,6 @@ func show_economy(scroll_position := 0) -> void:
 	scroll.add_child(content)
 	content.add_child(label("ЭКОНОМИКА И БЮДЖЕТ", 30, INK, HORIZONTAL_ALIGNMENT_CENTER))
 	var tier := int(state.get("corruption_tier", 0))
-	var rate := corruption_transaction_rate(tier)
 	var actual_income := weekly_actual_income()
 	var actual_expenses := weekly_actual_expenses()
 	var weekly_delta := actual_income - actual_expenses
@@ -8509,7 +9483,8 @@ func show_economy(scroll_position := 0) -> void:
 		pending_economy.tooltip_text = "Голубые значения уже зафиксированы решениями этой недели, но будут применены только при переходе к следующей. Регулярные недельные доходы, расходы и пороговые эффекты рассчитываются отдельно."
 		summary_box.add_child(pending_economy)
 	var corruption_info := label("Коррупция: %s ⓘ" % corruption_level(tier), 16, Color("#5f594d"))
-	corruption_info.tooltip_text = "Категория урезает все поступления в казну на %d%%. Расходы, стоимость решений и рыночные цены она не увеличивает. Коррупция не снимает отдельную фиксированную сумму и не уменьшает очки решений." % rate
+	corruption_info.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_hover_detail(corruption_info, corruption_levels_tooltip(tier))
 	summary_box.add_child(corruption_info)
 	var creditor_level := int(state.get("creditor_obligations", 0))
 	var creditor_info := label("Международные кредиторы: %s ⓘ" % creditor_obligation_level(creditor_level), 16, Color("#5f594d"))
@@ -8589,6 +9564,8 @@ func show_economy(scroll_position := 0) -> void:
 	content.add_child(close)
 	show_overlay(scroll, PAPER, true, 1040)
 	restore_overlay_scroll_position(scroll, scroll_position)
+	if int(state.get("week", 1)) < 2:
+		offer_tutorial("budget")
 
 
 func add_economy_population_panel(parent: VBoxContainer, corruption_tier: int) -> void:
@@ -8702,8 +9679,12 @@ func add_budget_icon_card(parent: Container, item: Dictionary, corruption_tier: 
 	box.add_theme_constant_override("separation", 3)
 	margin.add_child(box)
 	var icon := BudgetIconArt.new()
+	icon.name = "BudgetArtwork_" + key
 	icon.custom_minimum_size = Vector2(64, 64)
-	icon.setup(key, accent)
+	var custom_icon_path := str(CUSTOM_BUDGET_ICON_PATHS.get(key, ""))
+	var custom_icon := load(custom_icon_path) as Texture2D if custom_icon_path != "" else null
+	icon.setup(key, accent, custom_icon)
+	icon.set_meta("uses_custom_art", custom_icon != null)
 	box.add_child(icon)
 	box.add_child(label(str(item["title"]).to_upper(), 13, Color("#5b4038"), HORIZONTAL_ALIGNMENT_CENTER))
 	var level_caption: String = str(BUDGET_LEVEL_NAMES[draft_level]).to_upper()
@@ -9199,6 +10180,8 @@ func show_army(scroll_position := 0) -> void:
 	content.add_child(close)
 	show_overlay(scroll, PAPER, true, 1040)
 	restore_overlay_scroll_position(scroll, scroll_position)
+	if bool(state.get("at_war", false)) and int(state.get("week", 1)) < 7:
+		offer_tutorial("war")
 
 
 func add_recruitment_option(parent: Container, model_id: String) -> void:
@@ -9566,8 +10549,9 @@ func show_parliament_vote_result(title_text: String, message: String, detail: St
 	show_overlay(content, PAPER, true, 820)
 
 
-func show_notice(message: String, tooltip_detail := "") -> void:
-	play_game_sound("warning")
+func show_notice(message: String, tooltip_detail := "", play_warning_sound := true) -> void:
+	if play_warning_sound:
+		play_game_sound("warning")
 	var content := VBoxContainer.new()
 	content.add_theme_constant_override("separation", 20)
 	content.add_child(label("СЛУЖЕБНАЯ ЗАПИСКА", 18, RED, HORIZONTAL_ALIGNMENT_CENTER))
@@ -9580,8 +10564,228 @@ func show_notice(message: String, tooltip_detail := "") -> void:
 	show_overlay(content, PAPER, false)
 
 
+func build_tutorial_focus_layer() -> void:
+	tutorial_focus_layer = Control.new()
+	tutorial_focus_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	tutorial_focus_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	game_root.add_child(tutorial_focus_layer)
+	tutorial_left_mask = PanelContainer.new()
+	tutorial_left_mask.anchor_left = 0.0
+	tutorial_left_mask.anchor_right = 0.0
+	tutorial_left_mask.anchor_top = 0.0
+	tutorial_left_mask.anchor_bottom = 1.0
+	tutorial_left_mask.offset_left = 22.0
+	tutorial_left_mask.offset_right = 322.0
+	tutorial_left_mask.offset_top = 54.0
+	tutorial_left_mask.offset_bottom = -12.0
+	tutorial_left_mask.mouse_filter = Control.MOUSE_FILTER_STOP
+	tutorial_left_mask.add_theme_stylebox_override("panel", style(Color("#101418", 0.97), 18, Color("#343b43"), 1))
+	tutorial_focus_layer.add_child(tutorial_left_mask)
+	var left_message := label("ПОКАЗАТЕЛИ ОТКРОЮТСЯ\nПОСЛЕ ПЕРВОГО РЕШЕНИЯ", 17, GOLD, HORIZONTAL_ALIGNMENT_CENTER)
+	left_message.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	left_message.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tutorial_left_mask.add_child(left_message)
+	tutorial_right_mask = PanelContainer.new()
+	tutorial_right_mask.anchor_left = 1.0
+	tutorial_right_mask.anchor_right = 1.0
+	tutorial_right_mask.anchor_top = 0.0
+	tutorial_right_mask.anchor_bottom = 1.0
+	tutorial_right_mask.offset_left = -385.0
+	tutorial_right_mask.offset_right = -22.0
+	tutorial_right_mask.offset_top = 54.0
+	tutorial_right_mask.offset_bottom = -12.0
+	tutorial_right_mask.mouse_filter = Control.MOUSE_FILTER_STOP
+	tutorial_right_mask.add_theme_stylebox_override("panel", style(Color("#101418", 0.97), 18, Color("#343b43"), 1))
+	tutorial_focus_layer.add_child(tutorial_right_mask)
+	var right_message := label("УПРАВЛЕНИЕ ОТКРОЕТСЯ\nПОСТЕПЕННО", 17, GOLD, HORIZONTAL_ALIGNMENT_CENTER)
+	right_message.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	right_message.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tutorial_right_mask.add_child(right_message)
+
+
+func refresh_tutorial_focus() -> void:
+	if not is_instance_valid(tutorial_focus_layer) or not is_instance_valid(tutorial_left_panel) or not is_instance_valid(tutorial_right_panel):
+		return
+	var week := int(state.get("week", 1))
+	var guided := tutorial_enabled and not state.is_empty()
+	var first_choice_made := week > 1 or events_resolved_this_week > 0 or "chapter_1" in tutorial_seen
+	var emergency_money := guided and (weekly_balance_forecast() <= FINANCIAL_CRISIS_RESERVE or str(current_event.get("title", "")) == "Счета к оплате")
+	var emergency_war := guided and (bool(state.get("at_war", false)) or bool(state.get("military_threat", false)))
+	var emergency_foreign := emergency_war or int(state.get("east_relation", 2)) == 0 or int(state.get("west_relation", 2)) == 0
+	if is_instance_valid(tutorial_minister_section):
+		tutorial_minister_section.visible = not guided or week >= 3
+	if is_instance_valid(influence_label):
+		influence_label.visible = not guided or week >= 2
+	if is_instance_valid(tutorial_sections_header):
+		tutorial_sections_header.visible = not guided or week >= 2 or emergency_money or emergency_war
+	if is_instance_valid(tutorial_section_grid):
+		tutorial_section_grid.visible = not guided or week >= 2 or emergency_money or emergency_war
+	var unlock_weeks := {"economy": 2, "report": 2, "government": 3, "foreign": 5, "clans": 6, "army": 7}
+	for section_key in tutorial_section_buttons.keys():
+		var section_button: Button = tutorial_section_buttons[section_key]
+		var early_unlock: bool = (section_key == "economy" and emergency_money) or (section_key == "foreign" and emergency_foreign) or (section_key == "army" and emergency_war)
+		section_button.visible = not guided or week >= int(unlock_weeks.get(section_key, 1)) or early_unlock
+	if is_instance_valid(law_button):
+		law_button.visible = not guided or week >= 4
+	tutorial_left_mask.visible = guided and week == 1 and not first_choice_made
+	tutorial_right_mask.visible = guided and week == 1 and not week_ready_for_new_week() and not emergency_money and not emergency_war
+
+
+func clear_tutorial_dialog() -> void:
+	if is_instance_valid(tutorial_dialog):
+		tutorial_dialog.queue_free()
+	tutorial_dialog = null
+
+
+func finish_tutorial_dialog() -> void:
+	clear_tutorial_dialog()
+	refresh_tutorial_focus()
+	autosave_if_iron()
+
+
+func show_tutorial_briefing(chapter_id: String, chapter_title: String, chapter_body: String) -> void:
+	if not tutorial_enabled or chapter_id in tutorial_seen or not is_instance_valid(screen_layer):
+		return
+	tutorial_seen.append(chapter_id)
+	clear_tutorial_card()
+	clear_tutorial_dialog()
+	refresh_tutorial_focus()
+	tutorial_dialog = Control.new()
+	tutorial_dialog.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	tutorial_dialog.mouse_filter = Control.MOUSE_FILTER_STOP
+	screen_layer.add_child(tutorial_dialog)
+	var shade := ColorRect.new()
+	shade.color = Color(0.0, 0.0, 0.0, 0.15)
+	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	shade.mouse_filter = Control.MOUSE_FILTER_STOP
+	tutorial_dialog.add_child(shade)
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tutorial_dialog.add_child(center)
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(780, 0)
+	panel.add_theme_stylebox_override("panel", style(PAPER, 22, GOLD, 3))
+	center.add_child(panel)
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 32)
+	margin.add_theme_constant_override("margin_right", 32)
+	margin.add_theme_constant_override("margin_top", 28)
+	margin.add_theme_constant_override("margin_bottom", 28)
+	panel.add_child(margin)
+	var content := VBoxContainer.new()
+	content.add_theme_constant_override("separation", 22)
+	margin.add_child(content)
+	content.add_child(label("ПАМЯТКА ПРЕЗИДЕНТСКОГО АППАРАТА", 17, Color("#6f3e37"), HORIZONTAL_ALIGNMENT_CENTER))
+	content.add_child(label(chapter_title, 32, INK, HORIZONTAL_ALIGNMENT_CENTER))
+	content.add_child(label(chapter_body, 22, INK, HORIZONTAL_ALIGNMENT_CENTER))
+	var continue_button := menu_button("ПОНЯТНО  •  ПРОДОЛЖИТЬ")
+	continue_button.pressed.connect(finish_tutorial_dialog)
+	content.add_child(continue_button)
+
+
+func show_tutorial_week_briefing() -> void:
+	var week := int(state.get("week", 1))
+	if not TUTORIAL_WEEK_BRIEFINGS.has(week):
+		return
+	var data: Dictionary = TUTORIAL_WEEK_BRIEFINGS[week]
+	show_tutorial_briefing("chapter_%d" % week, str(data["title"]), str(data["body"]))
+
+
+func clear_tutorial_card() -> void:
+	if is_instance_valid(tutorial_card):
+		tutorial_card.queue_free()
+	tutorial_card = null
+
+
+func offer_tutorial(tutorial_id: String) -> void:
+	if not tutorial_enabled or tutorial_id in tutorial_seen or not TUTORIAL_CARDS.has(tutorial_id) or not is_instance_valid(screen_layer):
+		return
+	tutorial_seen.append(tutorial_id)
+	clear_tutorial_card()
+	var tutorial_data: Dictionary = TUTORIAL_CARDS[tutorial_id]
+	tutorial_card = PanelContainer.new()
+	tutorial_card.mouse_filter = Control.MOUSE_FILTER_STOP
+	tutorial_card.add_theme_stylebox_override("panel", style(Color("#222a31"), 14, GOLD, 2))
+	var inline_parent: VBoxContainer = null
+	if is_instance_valid(active_overlay_scroll) and active_overlay_scroll.get_child_count() > 0:
+		inline_parent = active_overlay_scroll.get_child(0) as VBoxContainer
+	if is_instance_valid(inline_parent):
+		inline_parent.add_child(tutorial_card)
+		inline_parent.move_child(tutorial_card, 0)
+		active_overlay_scroll.scroll_vertical = 0
+	else:
+		tutorial_card.anchor_left = 0.5
+		tutorial_card.anchor_right = 0.5
+		tutorial_card.anchor_top = 1.0
+		tutorial_card.anchor_bottom = 1.0
+		tutorial_card.offset_left = -350.0
+		tutorial_card.offset_right = 350.0
+		tutorial_card.offset_top = -110.0
+		tutorial_card.offset_bottom = -10.0
+		screen_layer.add_child(tutorial_card)
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 18)
+	margin.add_theme_constant_override("margin_right", 18)
+	margin.add_theme_constant_override("margin_top", 14)
+	margin.add_theme_constant_override("margin_bottom", 14)
+	tutorial_card.add_child(margin)
+	var content := HBoxContainer.new()
+	content.add_theme_constant_override("separation", 12)
+	margin.add_child(content)
+	var text_column := VBoxContainer.new()
+	text_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	text_column.add_theme_constant_override("separation", 3)
+	content.add_child(text_column)
+	text_column.add_child(label("ЗАПИСКА АППАРАТА  •  " + str(tutorial_data["title"]), 17, GOLD))
+	text_column.add_child(label(str(tutorial_data["body"]), 19, CREAM))
+	var buttons := VBoxContainer.new()
+	buttons.custom_minimum_size = Vector2(128, 0)
+	buttons.add_theme_constant_override("separation", 4)
+	content.add_child(buttons)
+	var dismiss := menu_button("ПОНЯТНО")
+	dismiss.custom_minimum_size = Vector2(120, 46)
+	dismiss.add_theme_font_size_override("font_size", 15)
+	dismiss.pressed.connect(clear_tutorial_card)
+	buttons.add_child(dismiss)
+
+
+func show_guide(return_to_settings := false) -> void:
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(840, 650)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	var content := VBoxContainer.new()
+	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	content.add_theme_constant_override("separation", 12)
+	scroll.add_child(content)
+	content.add_child(label("КАК ИГРАТЬ", 30, INK, HORIZONTAL_ALIGNMENT_CENTER))
+	content.add_child(label("Памятка президентского аппарата. Её можно открыть снова в любой момент.", 16, Color("#5f594d"), HORIZONTAL_ALIGNMENT_CENTER))
+	for section in [
+		["ЦЕЛЬ КАМПАНИИ", "У вас 26 недель до досрочных выборов. Итог зависит от решений, состояния страны и того, удастся ли удержаться у власти. Единственного «правильного» курса нет."],
+		["ДОКЛАДЫ И НЕДЕЛЯ", "Каждую неделю нужно рассмотреть не меньше трёх докладов. Выбирайте по ситуации: результат решения показывается сразу, но численные изменения применяются при переходе к новой неделе. Голубые числа слева — ожидаемый итог уже выбранных действий."],
+		["ЭКОНОМИКА", "Во вкладке «Экономика» видны недельные доходы, расходы и прогноз казны. Наведите курсор на сумму или категорию коррупции, чтобы увидеть расчёт и уровни. Если денег не хватит на обязательные выплаты, кампания завершится дефолтом. Коррупция уменьшает поступления, но не повышает цены."],
+		["ПРАВИТЕЛЬСТВО И ЗАКОНЫ", "Парламент голосует за бюджетные поправки и смену министров. Министров выбираете вы; они меняют события и доступные возможности. Законопроект можно вести только один: после запуска он продвигается сам при наличии очков решений, а до завершения его можно отменить."],
+		["СОСЕДИ", "У каждого соседа виден один из четырёх уровней отношений. При министре иностранных дел Лее Нарин доступны дипломатические миссии: сближение с одной стороной отдаляет другую. При враждебных отношениях завершение недели приводит к вторжению; во время войны улучшать отношения с противником нельзя."],
+		["АРМИЯ И НАСЕЛЕНИЕ", "Во вкладке «Армия» выбирается способ комплектования и распределяются ресурсы. Призыв берёт людей только из работоспособного населения. На войне важны численность, боеспособность, техника, авиация и снабжение. Каждую военную неделю стабильность падает на 4, 2 или 1 пункт при низкой, средней или высокой поддержке войны; нехватка людей на фронте добавляет ущерб."],
+		["ГРУППЫ И ОБЩЕСТВО", "Поддержка кланов и общественных групп меняет их бонусы и противодействие. Непопулярные решения могут вызвать протест или забастовку. При стабильности 70% и выше новые протесты слабее на одну ступень, при 30% и ниже сильнее. Откройте «Кланы» и недельную «Сводку», чтобы понять, кто и почему отреагировал."],
+		["УПРАВЛЕНИЕ", "Мышь — основные действия. A / D — левый и правый ответ; S / ↓ — третий. Esc закрывает вкладку. F4 / F11 переключают полный экран. Обучение и подсказки последствий настраиваются отдельно."]
+	]:
+		content.add_child(weekly_report_panel(str(section[0]), [str(section[1])], Color("#6f3e37")))
+	var close := menu_button("ЗАКРЫТЬ СПРАВКУ")
+	if return_to_settings:
+		close.pressed.connect(show_settings)
+	else:
+		close.pressed.connect(close_overlay)
+	content.add_child(close)
+	show_overlay(scroll, PAPER, true, 900)
+
+
 func show_overlay(content: Control, panel_color: Color, can_cancel: bool, panel_width := 610.0) -> void:
-	close_overlay()
+	clear_tutorial_card()
+	stop_sidebar_number_animation()
+	# Замена одного окна другим не означает возвращение к управлению и не
+	# должна запускать обновление/анимацию боковых показателей.
+	close_overlay(false)
 	overlay = Control.new()
 	overlay_can_cancel = can_cancel
 	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -9615,6 +10819,173 @@ func show_overlay(content: Control, panel_color: Color, can_cancel: bool, panel_
 	active_overlay_scroll = content as ScrollContainer
 
 
+func show_debug_cheats() -> void:
+	if not OS.is_debug_build() or state.is_empty() or not is_instance_valid(game_root):
+		return
+	stop_sidebar_number_animation()
+	debug_cheat_fields.clear()
+	debug_cheat_panel = Control.new()
+	debug_cheat_panel.name = "DebugCheatPanel"
+	debug_cheat_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	debug_cheat_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(debug_cheat_panel)
+	var dim := ColorRect.new()
+	dim.color = Color(0.02, 0.025, 0.03, 0.90)
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	debug_cheat_panel.add_child(dim)
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	debug_cheat_panel.add_child(center)
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(810, 0)
+	panel.add_theme_stylebox_override("panel", style(PAPER, 20, GOLD, 2))
+	center.add_child(panel)
+	var margin := MarginContainer.new()
+	for side_name in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side_name, 20)
+	panel.add_child(margin)
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 10)
+	margin.add_child(column)
+	column.add_child(label("ОТЛАДКА · ЧИТЫ", 25, INK, HORIZONTAL_ALIGNMENT_CENTER))
+	column.add_child(label("F2 или Esc — закрыть. Значения применяются сразу и сохраняются обычным способом.", 14, Color("#625b50"), HORIZONTAL_ALIGNMENT_CENTER))
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(760, 510)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	column.add_child(scroll)
+	var sections := VBoxContainer.new()
+	sections.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	sections.add_theme_constant_override("separation", 13)
+	scroll.add_child(sections)
+	add_debug_cheat_section(sections, "ФИНАНСЫ И УПРАВЛЕНИЕ", [
+		["money", "Казна, млн", 10000, 0.1], ["debt", "Долг, млн", 10000, 0.1],
+		["influence", "Очки решений", 30, 1], ["corruption_tier", "Коррупция: 0 минимум · 4 паралич", 4, 1]
+	])
+	add_debug_cheat_section(sections, "ОБЩЕСТВО И ГРУППЫ", [
+		["support", "Поддержка власти", 100, 1], ["stability", "Стабильность", 100, 1],
+		["war_support", "Поддержка войны", 100, 1], ["clan_oligarchs", "Олигархи", 100, 1],
+		["clan_church", "Церковь", 100, 1], ["clan_workers", "Профсоюзы", 100, 1],
+		["clan_regions", "Регионы", 100, 1]
+	])
+	add_debug_cheat_section(sections, "НАСЕЛЕНИЕ И АРМИЯ", [
+		["population_total", "Население", 10000000, 1000], ["population_workable", "Работоспособные", 10000000, 1000],
+		["army", "Лояльность армии", 100, 1], ["army_personnel", "Военнослужащие", 1000000, 1000],
+		["army_equipment", "Наземная техника", 10000, 10], ["army_aircraft", "Авиация", 1000, 1]
+	])
+	add_debug_cheat_section(sections, "СОСЕДИ", [
+		["east_relation", "Восток: 0 вражда · 3 партнёрство", 3, 1],
+		["west_relation", "Запад: 0 вражда · 3 партнёрство", 3, 1]
+	])
+	sections.add_child(label("Отношение 0 может запустить вторжение. Во время войны отношение с противником не меняется.", 14, Color("#625b50")))
+	var actions := HBoxContainer.new()
+	actions.add_theme_constant_override("separation", 10)
+	column.add_child(actions)
+	var apply_button := menu_button("ПРИМЕНИТЬ")
+	apply_button.pressed.connect(apply_debug_cheats)
+	actions.add_child(apply_button)
+	var close_button := menu_button("ЗАКРЫТЬ")
+	close_button.pressed.connect(close_debug_cheats)
+	actions.add_child(close_button)
+
+
+func add_debug_cheat_section(parent: VBoxContainer, title_text: String, fields: Array) -> void:
+	parent.add_child(label(title_text, 17, Color("#8b6c4b")))
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 14)
+	grid.add_theme_constant_override("v_separation", 7)
+	parent.add_child(grid)
+	for field_data in fields:
+		var key := str(field_data[0])
+		var field_box := HBoxContainer.new()
+		field_box.custom_minimum_size = Vector2(355, 38)
+		grid.add_child(field_box)
+		var field_label := label(str(field_data[1]), 14, INK)
+		field_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		field_box.add_child(field_label)
+		var spin := SpinBox.new()
+		spin.custom_minimum_size = Vector2(120, 36)
+		spin.min_value = 0
+		spin.max_value = float(field_data[2])
+		spin.step = float(field_data[3])
+		spin.value = float(state.get(key, 0))
+		var edit := spin.get_line_edit()
+		edit.add_theme_color_override("font_color", INK)
+		edit.add_theme_color_override("font_selected_color", INK)
+		edit.add_theme_stylebox_override("normal", style(Color("#f4eddd"), 6, Color("#98876b"), 1))
+		edit.add_theme_stylebox_override("focus", style(Color("#fff8e8"), 6, GOLD, 2))
+		if bool(state.get("at_war", false)) and key == str(state.get("war_enemy", "")) + "_relation":
+			spin.editable = false
+			spin.tooltip_text = "Во время войны отношения с противником нельзя улучшить."
+		field_box.add_child(spin)
+		debug_cheat_fields[key] = spin
+
+
+func apply_debug_cheats() -> void:
+	if not OS.is_debug_build() or not is_instance_valid(debug_cheat_panel) or state.is_empty():
+		return
+	for key in debug_cheat_fields:
+		if bool(state.get("at_war", false)) and key == str(state.get("war_enemy", "")) + "_relation":
+			continue
+		var spin := debug_cheat_fields[key] as SpinBox
+		state[key] = snappedf(spin.value, 0.01) if key in ["money", "debt"] else roundi(spin.value)
+	state.population_total = maxi(0, int(state.get("population_total", 0)))
+	state.army_personnel = clampi(int(state.get("army_personnel", 0)), 0, int(state.population_total))
+	state.population_workable = clampi(int(state.get("population_workable", 0)), 0, int(state.population_total) - int(state.army_personnel))
+	start_invasion_if_needed()
+	update_interface()
+	autosave_if_iron()
+	close_debug_cheats()
+
+
+func close_debug_cheats() -> void:
+	if is_instance_valid(debug_cheat_panel):
+		debug_cheat_panel.queue_free()
+	debug_cheat_panel = null
+	debug_cheat_fields.clear()
+	request_sidebar_refresh()
+
+
+func run_debug_cheat_smoke_test() -> void:
+	var failures: Array[String] = []
+	if not OS.is_debug_build():
+		failures.append("Тестовая сборка не определена как отладочная.")
+	else:
+		start_game("Сид: 1991", 1991)
+		show_overlay(VBoxContainer.new(), PAPER, false)
+		var f2 := InputEventKey.new()
+		f2.keycode = KEY_F2
+		f2.pressed = true
+		_input(f2)
+		if not is_instance_valid(debug_cheat_panel):
+			failures.append("F2 не открывает панель читов в отладочной сборке.")
+		else:
+			(debug_cheat_fields["money"] as SpinBox).value = 100.0
+			(debug_cheat_fields["support"] as SpinBox).value = 75.0
+			(debug_cheat_fields["population_workable"] as SpinBox).value = 10000000.0
+			apply_debug_cheats()
+			if not is_equal_approx(float(state.money), 100.0) or int(state.support) != 75:
+				failures.append("Изменения читов не применились сразу.")
+			if int(state.population_workable) > int(state.population_total) - int(state.army_personnel):
+				failures.append("Чит нарушил ограничение работоспособного населения.")
+			if is_instance_valid(debug_cheat_panel) or not is_instance_valid(overlay):
+				failures.append("Закрытие читов не вернуло предыдущую вкладку.")
+			_input(f2)
+			_input(f2)
+			if is_instance_valid(debug_cheat_panel):
+				failures.append("Повторный F2 не закрывает панель читов.")
+		close_overlay()
+	if failures.is_empty():
+		print("DEBUG_CHEAT_SMOKE_TEST: OK")
+		get_tree().quit(0)
+	else:
+		for failure in failures:
+			push_error(failure)
+		get_tree().quit(1)
+
+
 func current_overlay_scroll_position() -> int:
 	return active_overlay_scroll.scroll_vertical if is_instance_valid(active_overlay_scroll) else 0
 
@@ -9624,12 +10995,18 @@ func restore_overlay_scroll_position(scroll: ScrollContainer, position: int) -> 
 		scroll.set_deferred("scroll_vertical", position)
 
 
-func close_overlay() -> void:
+func close_overlay(refresh_sidebar := true) -> void:
 	if is_instance_valid(overlay):
 		overlay.queue_free()
 	overlay = null
 	overlay_can_cancel = false
 	active_overlay_scroll = null
+	if not refresh_sidebar:
+		return
+	if sidebar_refresh_pending:
+		call_deferred("flush_sidebar_refresh")
+	else:
+		request_sidebar_refresh()
 
 
 func check_terminal_state() -> bool:
@@ -9791,7 +11168,6 @@ func show_ending(forced_title := "", forced_text := "") -> void:
 	var war_outcome := "мир" if not bool(state.get("at_war", false)) else "война с %s • потери %s" % [neighbor_title(str(state.get("war_enemy", "east"))), format_people(int(state.get("war_casualties", 0)))]
 	var metrics := "Казна: %.2f млн • долг: %.2f млн • недельная ставка: %.3f%%\nМеждународные кредиторы: %s\nВосточный Союз: %s • Западная Федерация: %s\nВнешнее положение: %s\nПоддержка власти: %d%% • стабильность: %d%% • поддержка войны: %d%%\nНаселение: %s • работоспособные: %s • военнослужащие: %s\nАрмия: лояльность %d%% • боеспособность %d%% • %s\nНаземная техника: %d • авиация: %d\nКоррупция: %s • потери доходов: %d%%" % [float(state.money), float(state.get("debt", 0.0)), debt_weekly_interest_percent(), creditor_obligation_level(int(state.get("creditor_obligations", 0))), neighbor_relation_band("east"), neighbor_relation_band("west"), war_outcome, state.support, state.stability, state.war_support, format_people(total_population()), format_people(workable_population()), format_people(int(state.get("army_personnel", 0))), state.army, army_effectiveness(), str(recruitment.get("title", "смешанная")), int(state.get("army_equipment", 0)), int(state.get("army_aircraft", 0)), corruption_level(int(state.corruption_tier)), corruption_transaction_rate(int(state.corruption_tier))]
 	summary.add_child(label(metrics, 20, Color("#423e36"), HORIZONTAL_ALIGNMENT_CENTER))
-	column.add_child(label("Игра не оценивает этот итог. Победа это или поражение — решаете вы.", 16, Color("#cfc3aa"), HORIZONTAL_ALIGNMENT_CENTER))
 	var again := menu_button("НАЧАТЬ НОВУЮ КАМПАНИЮ")
 	again.pressed.connect(show_start_screen)
 	column.add_child(again)
@@ -9802,10 +11178,19 @@ func _unhandled_input(event: InputEvent) -> void:
 		toggle_fullscreen()
 		get_viewport().set_input_as_handled()
 		return
+	if is_instance_valid(debug_cheat_panel):
+		return
 	var cancel_pressed: bool = event.is_action_pressed("ui_cancel") or (event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE)
 	if cancel_pressed:
+		if is_instance_valid(tutorial_dialog):
+			finish_tutorial_dialog()
+			get_viewport().set_input_as_handled()
+			return
 		if is_instance_valid(overlay) and overlay_can_cancel:
 			close_overlay()
+			get_viewport().set_input_as_handled()
+		elif not is_instance_valid(overlay) and tutorial_enabled and not state.is_empty() and int(state.get("week", 1)) == 1:
+			show_settings()
 			get_viewport().set_input_as_handled()
 		return
 	if not is_instance_valid(game_root) or is_instance_valid(overlay) or current_event.is_empty():
@@ -9854,7 +11239,7 @@ func build_event_database() -> void:
 		option("Передать комиссии", "Порядок сохранится • общество заподозрит сокрытие", {"support": -2, "stability": 2, "neutrality": 1}, "Документы опечатали до завершения закрытого расследования. Комиссия начала вызывать бывших чиновников, а газеты напечатали пустые страницы вместо фамилий.", {"occupation_archives_classified": true})
 	)
 	events = [
-		event("Канцелярия президента", "family", "#a9473f", "День после похорон", "Несколько месяцев назад отец провёл ваше назначение вице-президентом через спорное парламентское голосование. После его убийства вы автоматически стали исполняющим обязанности президента, но только на 26 недель: затем конституция требует досрочных выборов. Служба безопасности не исключает нового нападения, а старший брат предлагает на две недели передать армии охрану парламента, телевидения, центрального банка и президентской резиденции.",
+		event("Старший брат", "military", "#a9473f", "День после похорон", "Служба безопасности не исключает нового нападения. Старший брат предлагает на две недели передать армии охрану парламента, телевидения, центрального банка и президентской резиденции. Полиция предупреждает: после покушения военные у ключевых учреждений могут выглядеть не только как защита.",
 			liberal_option("Оставить охрану полиции", "Поддержка немного вырастет • брат настроит армию против решения", {"support": 4, "army": -5, "brother_trust": -1}, "Вы оставили ключевые здания под охраной полиции. Газеты называют это первым самостоятельным решением нового президента, а брат — опасным недоверием к армии после покушения.", "Поддержка немного вырастет • армия останется вне столицы", "Вы оставили ключевые здания под охраной полиции. Газеты называют это первым самостоятельным решением нового президента."),
 			option("Передать объекты армии", "Порядок и армия укрепятся • поддержка снизится • развёртывание потребует денег", {"money": -2, "stability": 5, "army": 4, "support": -2, "brother_trust": 1}, "Военные на две недели заняли внешние посты у парламента, телевидения, центрального банка и президентской резиденции. Работа учреждений продолжилась, но фотографии бронемашин в центре столицы вызвали споры о том, кто теперь обеспечивает передачу власти.")),
 		event("Служба безопасности", "military", "#536f82", "Генерал с чемоданом", "Следователи задержали популярного генерала при получении взятки. Он близок к вашему брату и располагает сведениями о закупках армии.",

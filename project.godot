@@ -13,7 +13,8 @@ config_version=5
 config/name="Наследник Республики"
 run/main_scene="res://main.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
-config/icon="res://emblem.svg"
+config/icon="res://assets/budget_icons/budget_admin.png"
+config/windows_native_icon="res://assets/app_icon.ico"
 
 [display]
 
