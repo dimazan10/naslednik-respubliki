@@ -4,6 +4,9 @@
 /build/
 /release/
 /realise/
+/marketing/itch_upload/
+/marketing/**/*.import
+/preview*.png.import
 __pycache__/
 /audio/licensed/
 /audio/previews/
