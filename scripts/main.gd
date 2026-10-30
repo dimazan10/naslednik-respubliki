@@ -202,6 +202,9 @@ const ENDING_ACHIEVEMENTS := [
 	{"ending": "ХРУПКИЙ НЕЙТРАЛИТЕТ", "title": "Между двух стульев", "description": "Сохранить промежуточное положение между двумя соседями."},
 	{"ending": "НАСЛЕДСТВО ОТЦА", "title": "Достойный наследник", "description": "Сохранить и укрепить семейную авторитарную систему."}
 ]
+const SPECIAL_ACHIEVEMENTS := [
+	{"id": "bills_without_rescuers", "title": "Счета без спасателей", "description": "Отказаться от печати денег и кредита в кризисе «Счета к оплате», затем прожить четыре игровые недели без дефолта."}
+]
 
 
 class Backdrop:
@@ -565,7 +568,7 @@ func capture_preview_if_requested() -> void:
 	if "--unrest-smoke-test" in args:
 		run_unrest_smoke_test()
 		return
-	var game_captures := ["--capture-main-menu", "--capture-new-game-menu", "--capture-new-game-seed", "--capture-new-game-cyborg", "--capture-settings", "--capture-credits", "--capture-prologue", "--capture-game", "--capture-tutorial", "--capture-guide", "--capture-week-two", "--capture-week-briefing", "--capture-clans", "--capture-economy", "--capture-tooltip-economy", "--capture-budget-icons", "--capture-budget-levels", "--capture-budget-vote", "--capture-army", "--capture-government", "--capture-candidates", "--capture-minister-vote", "--capture-laws", "--capture-foreign", "--capture-war", "--capture-war-crisis", "--capture-weekly", "--capture-routine", "--capture-result", "--capture-new-week", "--capture-crisis", "--capture-creditor", "--capture-protest", "--capture-unrest", "--capture-debug-cheats", "--capture-ending-fate", "--capture-ending-country", "--capture-ending-legacy", "--capture-ending-metrics", "--capture-ending-statistics", "--capture-ending-russian", "--capture-ending-russian-metrics", "--capture-ending-russian-statistics"]
+	var game_captures := ["--capture-main-menu", "--capture-achievements", "--capture-new-game-menu", "--capture-new-game-seed", "--capture-new-game-cyborg", "--capture-settings", "--capture-credits", "--capture-prologue", "--capture-game", "--capture-tutorial", "--capture-guide", "--capture-week-two", "--capture-week-briefing", "--capture-clans", "--capture-economy", "--capture-tooltip-economy", "--capture-budget-icons", "--capture-budget-levels", "--capture-budget-vote", "--capture-army", "--capture-government", "--capture-candidates", "--capture-minister-vote", "--capture-laws", "--capture-foreign", "--capture-war", "--capture-war-crisis", "--capture-weekly", "--capture-routine", "--capture-result", "--capture-new-week", "--capture-crisis", "--capture-creditor", "--capture-protest", "--capture-unrest", "--capture-debug-cheats", "--capture-ending-fate", "--capture-ending-country", "--capture-ending-legacy", "--capture-ending-metrics", "--capture-ending-statistics", "--capture-ending-russian", "--capture-ending-russian-metrics", "--capture-ending-russian-statistics"]
 	var requested_capture := ""
 	for capture_arg in game_captures:
 		if capture_arg in args:
@@ -574,9 +577,11 @@ func capture_preview_if_requested() -> void:
 	if not "--capture-preview" in args and requested_capture == "":
 		return
 	if requested_capture != "":
-		if requested_capture not in ["--capture-main-menu", "--capture-new-game-menu", "--capture-new-game-seed", "--capture-new-game-cyborg", "--capture-settings", "--capture-credits", "--capture-prologue"]:
+		if requested_capture not in ["--capture-main-menu", "--capture-achievements", "--capture-new-game-menu", "--capture-new-game-seed", "--capture-new-game-cyborg", "--capture-settings", "--capture-credits", "--capture-prologue"]:
 			start_game("Сид: 1991", 1991)
-		if requested_capture == "--capture-new-game-menu":
+		if requested_capture == "--capture-achievements":
+			show_achievements()
+		elif requested_capture == "--capture-new-game-menu":
 			show_new_game_menu()
 		elif requested_capture == "--capture-new-game-seed":
 			show_new_game_menu()
@@ -754,6 +759,8 @@ func capture_preview_if_requested() -> void:
 	var output_path := "res://preview.png"
 	if requested_capture == "--capture-main-menu":
 		output_path = "res://preview_main_menu.png"
+	elif requested_capture == "--capture-achievements":
+		output_path = "res://preview_achievements.png"
 	elif requested_capture == "--capture-new-game-menu":
 		output_path = "res://preview_new_game_menu.png"
 	elif requested_capture == "--capture-new-game-seed":
@@ -2606,13 +2613,52 @@ func run_financial_crisis_smoke_test() -> void:
 		failures.append("Показанный кризис не помечен использованным и может повториться.")
 	state.financial_slot_consumed = false
 	if should_trigger_financial_crisis():
-		failures.append("Событие «Счета к оплате» повторно появилось после первого показа в той же кампании.")
+		failures.append("Событие «Счета к оплате» повторно появилось без отказа от помощи.")
+	apply_state_flags({"financial_crisis_ignored": true})
+	if int(state.get("financial_crisis_refusal_week", 0)) != 1 or not bool(state.get("financial_crisis_survival_pending", false)):
+		failures.append("Отказ не запустил четырёхнедельное ожидание достижения.")
+	state.week = 4
+	if should_trigger_financial_crisis() or financial_rescue_survived_four_weeks():
+		failures.append("Кризис или достижение появились раньше четырёх недель после отказа.")
+	state.week = 5
+	if not should_trigger_financial_crisis() or not financial_rescue_survived_four_weeks():
+		failures.append("Через четыре недели отказ не позволил повторный кризис или достижение.")
+	state.money = 0.0
+	if financial_rescue_survived_four_weeks():
+		failures.append("Достижение выдано после опустошения казны.")
+	state.money = 0.01
+	apply_state_flags({"printed_money": true})
+	if should_trigger_financial_crisis():
+		failures.append("Печать денег не закрыла повторный финансовый кризис.")
 	event_resolved = true
 	events_resolved_this_week += 1
 	if events_resolved_this_week != EVENTS_PER_WEEK + 1 or not weekly_event_queue.is_empty() or not week_ready_for_new_week():
 		failures.append("Неделя с кризисом не завершилась после четырёх решений.")
+	start_game("Сид: 1991", 1991)
+	state.money = 500.0
+	apply_state_flags({"financial_crisis_ignored": true})
+	for completed_weeks in range(1, 5):
+		event_resolved = true
+		events_resolved_this_week = EVENTS_PER_WEEK
+		events_required_this_week = EVENTS_PER_WEEK
+		weekly_event_queue.clear()
+		advance_week()
+		if int(state.get("week", 0)) != completed_weeks + 1:
+			failures.append("Тест отказа не перешёл к следующей неделе.")
+			break
+		if bool(state.get("financial_crisis_survival_pending", false)) != (completed_weeks < 4):
+			failures.append("Достижение не завершило ожидание ровно после четырёх переходов.")
+			break
+	show_achievements()
+	var special_card_found := false
+	for node in overlay.find_children("*", "Label", true, false):
+		if (node as Label).text.contains("Счета без спасателей"):
+			special_card_found = true
+			break
+	if not special_card_found or SPECIAL_ACHIEVEMENTS.size() != 1:
+		failures.append("Особое достижение не отображается отдельно от концовок.")
 	if failures.is_empty():
-		print("FINANCIAL_CRISIS_SMOKE_TEST: OK | required=%d | resolved=%d | third_choice=yes | baseline_preserved=yes" % [events_required_this_week, events_resolved_this_week])
+		print("FINANCIAL_CRISIS_SMOKE_TEST: OK | refusal_cooldown=4 | achievement_survival=4 | special_card=yes")
 		get_tree().quit(0)
 	else:
 		for failure in failures:
@@ -4665,11 +4711,31 @@ func unlock_ending_achievement(ending_title: String) -> bool:
 	return save_unlocked_achievements(unlocked)
 
 
+func unlock_special_achievement(achievement_id: String) -> bool:
+	if not persistence_allowed():
+		return false
+	var exists := false
+	for achievement in SPECIAL_ACHIEVEMENTS:
+		if str(achievement.get("id", "")) == achievement_id:
+			exists = true
+			break
+	if not exists:
+		return false
+	var unlocked := read_unlocked_achievements()
+	if unlocked.has(achievement_id):
+		return false
+	unlocked[achievement_id] = Time.get_datetime_string_from_system(false, true)
+	return save_unlocked_achievements(unlocked)
+
+
 func unlocked_achievement_count() -> int:
 	var unlocked := read_unlocked_achievements()
 	var count := 0
 	for achievement in ENDING_ACHIEVEMENTS:
 		if unlocked.has(str(achievement.get("ending", ""))):
+			count += 1
+	for achievement in SPECIAL_ACHIEVEMENTS:
+		if unlocked.has(str(achievement.get("id", ""))):
 			count += 1
 	return count
 
@@ -4684,7 +4750,28 @@ func show_achievements() -> void:
 	content.add_theme_constant_override("separation", 12)
 	scroll.add_child(content)
 	content.add_child(label("ДОСТИЖЕНИЯ", 30, INK, HORIZONTAL_ALIGNMENT_CENTER))
-	content.add_child(label("Открыто %d из %d. Каждая доступная концовка имеет отдельное достижение." % [unlocked_achievement_count(), ENDING_ACHIEVEMENTS.size()], 16, Color("#5f594d"), HORIZONTAL_ALIGNMENT_CENTER))
+	content.add_child(label("Открыто %d из %d. Есть достижения за концовки и особые решения." % [unlocked_achievement_count(), ENDING_ACHIEVEMENTS.size() + SPECIAL_ACHIEVEMENTS.size()], 16, Color("#5f594d"), HORIZONTAL_ALIGNMENT_CENTER))
+	content.add_child(label("ОСОБЫЕ ДОСТИЖЕНИЯ", 19, Color("#765f38")))
+	for achievement in SPECIAL_ACHIEVEMENTS:
+		var achievement_id := str(achievement.get("id", ""))
+		var is_unlocked := unlocked.has(achievement_id)
+		var card := PanelContainer.new()
+		card.add_theme_stylebox_override("panel", style(Color("#ded4bf") if is_unlocked else Color("#d2c9b7"), 12, GOLD if is_unlocked else Color("#938a7b"), 2 if is_unlocked else 1))
+		content.add_child(card)
+		var card_margin := MarginContainer.new()
+		for side in ["left", "right"]:
+			card_margin.add_theme_constant_override("margin_" + side, 16)
+		for side in ["top", "bottom"]:
+			card_margin.add_theme_constant_override("margin_" + side, 12)
+		card.add_child(card_margin)
+		var card_box := VBoxContainer.new()
+		card_box.add_theme_constant_override("separation", 4)
+		card_margin.add_child(card_box)
+		card_box.add_child(label(("ОТКРЫТО • " if is_unlocked else "ЗАКРЫТО • ") + str(achievement.get("title", "Достижение")), 18, GREEN if is_unlocked else MUTED))
+		card_box.add_child(label(str(achievement.get("description", "")), 15, INK if is_unlocked else Color("#625e56")))
+		if is_unlocked:
+			card_box.add_child(label("Получено %s" % str(unlocked.get(achievement_id, "дата неизвестна")), 13, Color("#6f6557")))
+	content.add_child(label("КОНЦОВКИ", 19, Color("#765f38")))
 	for achievement in ENDING_ACHIEVEMENTS:
 		var ending_title := str(achievement.get("ending", ""))
 		var is_unlocked := unlocked.has(ending_title)
@@ -5071,7 +5158,7 @@ func normalize_loaded_state() -> void:
 		"war_started_week", "war_weeks", "war_casualties", "war_pressure_next_week", "war_frontline_reductions", "war_frontline_pressure", "war_ceasefire_until_week",
 		"war_medical_priority_until_week", "war_ammo_conservation_until_week", "foreign_action_week", "narin_crisis_delay_weeks", "emission_shock_weeks", "emission_shock_elapsed",
 		"creditor_budget_lock_level", "creditor_budget_lock_until_week", "east_energy_discount_until_week",
-		"west_market_access_until_week", "kres_fuel_supply_until_week", "double_standards_until_week", "active_unrest_level", "active_unrest_weeks"
+		"west_market_access_until_week", "kres_fuel_supply_until_week", "double_standards_until_week", "active_unrest_level", "active_unrest_weeks", "financial_crisis_refusal_week"
 	]
 	for key in integer_keys:
 		if state.has(key):
@@ -5106,6 +5193,8 @@ func normalize_loaded_state() -> void:
 		"election_rules_shown": int(state.get("week", 1)) >= 19,
 		"election_campaign": "", "election_rules": "undecided", "election_method": "",
 		"final_alignment": "", "final_course_reserved": false,
+		"financial_crisis_refusal_week": int(state.get("week", 1)) if bool(state.get("financial_crisis_ignored", false)) else 0,
+		"financial_crisis_survival_pending": false,
 		"debt_weekly_interest_rate": DEBT_INITIAL_WEEKLY_RATE
 	}
 	for key in loaded_defaults:
@@ -5322,6 +5411,8 @@ func start_game(mode: String, seed_value: int, show_opening_prologue := false) -
 		"last_parliament_vote": "",
 		"last_parliament_vote_detail": "",
 		"financial_slot_consumed": false, "financial_crisis_shown": false,
+		"financial_crisis_ignored": false, "financial_crisis_refusal_week": 0,
+		"financial_crisis_survival_pending": false,
 		"appointed_ministers": {
 			"economy": [str(selected_ministers.get("economy", "radan"))],
 			"interior": [str(selected_ministers.get("interior", "volsky"))],
@@ -6640,13 +6731,28 @@ func should_trigger_financial_crisis() -> bool:
 		events_resolved_this_week >= EVENTS_PER_WEEK
 		and weekly_event_queue.is_empty()
 	)
+	var refused_and_ready := (
+		bool(state.get("financial_crisis_ignored", false))
+		and int(state.get("financial_crisis_refusal_week", 0)) > 0
+		and int(state.get("week", 1)) >= int(state.get("financial_crisis_refusal_week", 0)) + 4
+	)
 	return (
 		not final_story_resolved
 		and two_days_before_payment
-		and not bool(state.get("financial_crisis_shown", false))
+		and (not bool(state.get("financial_crisis_shown", false)) or refused_and_ready)
 		and not bool(state.get("financial_slot_consumed", false))
 		and not financial_crisis_event.is_empty()
 		and weekly_balance_forecast() <= FINANCIAL_CRISIS_RESERVE
+	)
+
+
+func financial_rescue_survived_four_weeks() -> bool:
+	var refusal_week := int(state.get("financial_crisis_refusal_week", 0))
+	return (
+		bool(state.get("financial_crisis_survival_pending", false))
+		and refusal_week > 0
+		and int(state.get("week", 1)) >= refusal_week + 4
+		and float(state.get("money", 0.0)) > 0.0
 	)
 
 
@@ -7024,6 +7130,11 @@ func apply_state_flags(option_flags: Dictionary) -> void:
 		if str(flag) in ["unrest", "unrest_resolved", "unrest_reverse_policy", "unrest_continue", "war_frontline_retreat", "war_medical_priority", "war_ammo_conservation"]:
 			continue
 		state[flag] = option_flags[flag]
+	if bool(option_flags.get("financial_crisis_ignored", false)):
+		state.financial_crisis_refusal_week = int(state.get("week", 1))
+		state.financial_crisis_survival_pending = true
+	elif bool(option_flags.get("printed_money", false)) or bool(option_flags.get("fund_debt", false)):
+		state.financial_crisis_ignored = false
 	if bool(option_flags.get("war_frontline_retreat", false)):
 		state.war_frontline_reductions = mini(3, int(state.get("war_frontline_reductions", 0)) + 1)
 	if bool(option_flags.get("war_medical_priority", false)):
@@ -9428,6 +9539,12 @@ func advance_week() -> void:
 	if check_terminal_state():
 		save_campaign(false)
 		return
+	if financial_rescue_survived_four_weeks():
+		state.financial_crisis_survival_pending = false
+		if unlock_special_achievement("bills_without_rescuers"):
+			add_weekly_report_note(consequence_notes, report_sections, "decisions", "Достижение открыто: «Счета без спасателей». Четыре недели после отказа от экстренной помощи страна прожила без дефолта.")
+			state.last_weekly_report["consequences"] = consequence_notes
+			state.last_weekly_report["sections"] = report_sections
 	if int(state.get("week", 1)) <= DEMO_WEEKS:
 		prepare_week_event_queue()
 	# The first report of the new week is prepared behind the weekly summary.
