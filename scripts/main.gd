@@ -187,7 +187,9 @@ const ENDING_ACHIEVEMENTS := [
 ]
 const SPECIAL_ACHIEVEMENTS := [
 	{"id": "bills_without_rescuers", "title": "Счета без спасателей", "description": "Отказаться от печати денег и кредита в кризисе «Счета к оплате», затем прожить четыре игровые недели без дефолта."},
-	{"id": "armistice_signed", "title": "Тишина на фронте", "description": "Заключить перемирие после затяжной войны, сохранив достаточно сильную армию для продолжения обороны."}
+	{"id": "armistice_signed", "title": "Тишина на фронте", "description": "Заключить перемирие после затяжной войны, сохранив достаточно сильную армию для продолжения обороны."},
+	{"id": "two_front_war", "title": "Между двух огней", "description": "Оказаться в состоянии войны одновременно с Восточным Союзом и Западной Федерацией."},
+	{"id": "peaceful_campaign", "title": "Двадцать шесть недель мира", "description": "Завершить все 26 недель кампании, ни разу не вступив в войну."}
 ]
 
 
@@ -1373,6 +1375,34 @@ func run_foreign_smoke_test() -> void:
 		failures.append("Повторная проверка войны начисляет бонус поддержки второй раз.")
 	if not should_trigger_war_crisis() or str(build_war_crisis_event().get("title", "")) != "Вторжение":
 		failures.append("Начало войны не создаёт обязательный кризисный доклад о вторжении.")
+	var one_front_need := frontline_required_personnel()
+	var before_battle := state.duplicate(true)
+	var single_front_battle := process_war_week(true)
+	state = before_battle
+	state.west_relation = 0
+	var second_invasion_note := start_invasion_if_needed()
+	if not two_front_war_active() or not at_war_with("east") or not at_war_with("west") or second_invasion_note == "" or not bool(state.get("war_ever_started", false)):
+		failures.append("Враждебный второй сосед не открывает второй фронт.")
+	if frontline_required_personnel() <= one_front_need or str(build_war_crisis_event().get("title", "")) != "Второй фронт":
+		failures.append("Двухфронтовая война не увеличивает потребность в людях или не создаёт отдельный кризисный доклад.")
+	var two_front_state := state.duplicate(true)
+	var double_front_battle := process_war_week(true)
+	state = two_front_state
+	if int(double_front_battle.get("personnel_loss", 0)) <= int(single_front_battle.get("personnel_loss", 0)) or int(double_front_battle.get("equipment_loss", 0)) <= int(single_front_battle.get("equipment_loss", 0)):
+		failures.append("Война на два фронта не увеличивает еженедельные потери людей и техники.")
+	if not (armistice_readiness().get("missing", []) as Array).has("Перемирие с одним соседом не завершит войну на втором фронте"):
+		failures.append("Перемирие с одним соседом ошибочно завершает войну на двух фронтах.")
+	start_game("Сид: 1991", 1991)
+	state.east_relation = 0
+	state.west_relation = 0
+	start_invasion_if_needed()
+	if not two_front_war_active():
+		failures.append("Одновременная враждебность обоих соседей не открывает два фронта сразу.")
+	start_game("Сид: 1991", 1991)
+	state.at_war = true
+	state.war_enemy = "east"
+	state.east_relation = 0
+	state.west_relation = 2
 	var wartime_influence := int(state.get("influence", 0))
 	var wartime_pending := pending_week_changes.size()
 	perform_foreign_action("east", "mission")
@@ -2664,7 +2694,7 @@ func run_financial_crisis_smoke_test() -> void:
 		if (node as Label).text.contains("Счета без спасателей"):
 			special_card_found = true
 			break
-	if not special_card_found or SPECIAL_ACHIEVEMENTS.size() != 2:
+	if not special_card_found or SPECIAL_ACHIEVEMENTS.size() != 4:
 		failures.append("Особое достижение не отображается отдельно от концовок.")
 	if failures.is_empty():
 		print("FINANCIAL_CRISIS_SMOKE_TEST: OK | refusal_cooldown=4 | achievement_survival=4 | special_card=yes")
@@ -3625,8 +3655,7 @@ func minister_lock_reason(slot: String, candidate: Dictionary) -> String:
 func foreign_minister_conflicts_with_war(candidate_id: String) -> bool:
 	if not bool(state.get("at_war", false)):
 		return false
-	var enemy := str(state.get("war_enemy", ""))
-	return (candidate_id == "varek" and enemy == "west") or (candidate_id == "kres" and enemy == "east")
+	return (candidate_id == "varek" and at_war_with("west")) or (candidate_id == "kres" and at_war_with("east"))
 
 
 func empty_parliament_modifiers() -> Dictionary:
@@ -4720,6 +4749,10 @@ func ending_achievement_id(president_title: String, survived_weeks: int) -> Stri
 	return ""
 
 
+func peaceful_campaign_achievement_eligible(survived_weeks: int, forced_title: String) -> bool:
+	return forced_title == "" and survived_weeks >= DEMO_WEEKS and not bool(state.get("war_ever_started", false)) and not bool(state.get("at_war", false))
+
+
 func read_achievement_record() -> Dictionary:
 	if not persistence_allowed() or not FileAccess.file_exists(ACHIEVEMENTS_PATH):
 		return {}
@@ -4829,25 +4862,22 @@ func show_achievements() -> void:
 	content.add_theme_constant_override("separation", 16)
 	content.add_child(label("ДОСТИЖЕНИЯ", 30, INK, HORIZONTAL_ALIGNMENT_CENTER))
 	content.add_child(label("Открыто %d из %d. Два исхода власти и особые достижения." % [unlocked_achievement_count(), ENDING_ACHIEVEMENTS.size() + SPECIAL_ACHIEVEMENTS.size()], 16, Color("#5f594d"), HORIZONTAL_ALIGNMENT_CENTER))
-	var columns := HBoxContainer.new()
-	columns.add_theme_constant_override("separation", 16)
-	content.add_child(columns)
-	var special_column := VBoxContainer.new()
-	special_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	special_column.add_theme_constant_override("separation", 10)
-	columns.add_child(special_column)
-	special_column.add_child(label("ОСОБЫЕ ДОСТИЖЕНИЯ", 19, Color("#765f38")))
-	for achievement in SPECIAL_ACHIEVEMENTS:
-		var achievement_id := str(achievement.get("id", ""))
-		special_column.add_child(achievement_card(achievement, unlocked.has(achievement_id), str(unlocked.get(achievement_id, ""))))
-	var outcome_column := VBoxContainer.new()
-	outcome_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	outcome_column.add_theme_constant_override("separation", 10)
-	columns.add_child(outcome_column)
-	outcome_column.add_child(label("ИТОГ ПРАВЛЕНИЯ", 19, Color("#765f38")))
+	content.add_child(label("ИТОГ ПРАВЛЕНИЯ", 19, Color("#765f38")))
+	var outcomes := HBoxContainer.new()
+	outcomes.add_theme_constant_override("separation", 12)
+	content.add_child(outcomes)
 	for achievement in ENDING_ACHIEVEMENTS:
 		var achievement_id := str(achievement.get("id", ""))
-		outcome_column.add_child(achievement_card(achievement, unlocked.has(achievement_id), str(unlocked.get(achievement_id, ""))))
+		outcomes.add_child(achievement_card(achievement, unlocked.has(achievement_id), str(unlocked.get(achievement_id, ""))))
+	content.add_child(label("ОСОБЫЕ ДОСТИЖЕНИЯ", 19, Color("#765f38")))
+	var special_grid := GridContainer.new()
+	special_grid.columns = 2
+	special_grid.add_theme_constant_override("h_separation", 12)
+	special_grid.add_theme_constant_override("v_separation", 10)
+	content.add_child(special_grid)
+	for achievement in SPECIAL_ACHIEVEMENTS:
+		var achievement_id := str(achievement.get("id", ""))
+		special_grid.add_child(achievement_card(achievement, unlocked.has(achievement_id), str(unlocked.get(achievement_id, ""))))
 	var close := menu_button("ВЕРНУТЬСЯ")
 	close.pressed.connect(close_overlay)
 	content.add_child(close)
@@ -5086,12 +5116,10 @@ func convert_legacy_foreign_effects(effects: Dictionary) -> Dictionary:
 		converted.erase(key)
 	east_intent = signi(east_intent)
 	west_intent = signi(west_intent)
-	if bool(state.get("at_war", false)):
-		var war_enemy := str(state.get("war_enemy", ""))
-		if war_enemy == "east" and east_intent > 0:
-			east_intent = 0
-		elif war_enemy == "west" and west_intent > 0:
-			west_intent = 0
+	if at_war_with("east") and east_intent > 0:
+		east_intent = 0
+	if at_war_with("west") and west_intent > 0:
+		west_intent = 0
 	var east_can_improve := east_intent > 0 and projected_pending_value("east_relation") < 3
 	var west_can_improve := west_intent > 0 and projected_pending_value("west_relation") < 3
 	if east_intent > 0 and not east_can_improve:
@@ -5137,7 +5165,7 @@ func convert_legacy_population_effects(effects: Dictionary) -> Dictionary:
 func relation_shift_effect(side: String, direction: int) -> Dictionary:
 	if side not in ["east", "west"] or direction == 0:
 		return {}
-	if direction > 0 and bool(state.get("at_war", false)) and str(state.get("war_enemy", "")) == side:
+	if direction > 0 and at_war_with(side):
 		return {}
 	var current := projected_pending_value(side + "_relation")
 	if direction > 0:
@@ -5157,7 +5185,7 @@ func foreign_minister_alignment_effect(side: String) -> Dictionary:
 	# Министр всё равно публично выбирает сторону, даже если отношения с ней уже
 	# партнёрские: противоположный сосед воспринимает инициативу как потерю нейтралитета.
 	var opposite := "west" if side == "east" else "east"
-	if not (bool(state.get("at_war", false)) and str(state.get("war_enemy", "")) == side) and projected_pending_value(opposite + "_relation") > 0:
+	if not at_war_with(side) and projected_pending_value(opposite + "_relation") > 0:
 		return {opposite + "_relation": -1}
 	return {}
 
@@ -5176,12 +5204,10 @@ func block_war_enemy_relation_improvement(effects: Dictionary) -> Dictionary:
 	var protected_effects := effects.duplicate(true)
 	if not bool(state.get("at_war", false)):
 		return protected_effects
-	var enemy := str(state.get("war_enemy", ""))
-	if enemy not in ["east", "west"]:
-		return protected_effects
-	var relation_key := enemy + "_relation"
-	if int(protected_effects.get(relation_key, 0)) > 0:
-		protected_effects.erase(relation_key)
+	for side in ["east", "west"]:
+		var relation_key: String = str(side) + "_relation"
+		if at_war_with(side) and int(protected_effects.get(relation_key, 0)) > 0:
+			protected_effects.erase(relation_key)
 	return protected_effects
 
 
@@ -5244,7 +5270,7 @@ func normalize_loaded_state() -> void:
 		if state.has(key):
 			state[key] = float(state[key])
 	var loaded_defaults := {
-		"war_enemy": "", "war_started_week": 0, "war_weeks": 0, "war_casualties": 0,
+		"war_enemy": "", "war_second_enemy": "", "war_ever_started": bool(state.get("at_war", false)) or int(state.get("war_started_week", 0)) > 0 or int(state.get("war_weeks", 0)) > 0 or bool(state.get("war_armistice_signed", false)), "war_started_week": 0, "war_weeks": 0, "war_casualties": 0,
 		"war_crisis_pending": bool(state.get("at_war", false)), "war_crisis_shown": false,
 		"war_pressure_next_week": maxi(WAR_PRESSURE_INTERVAL, int(state.get("war_weeks", 0)) + WAR_PRESSURE_INTERVAL),
 		"war_frontline_reductions": 0, "war_frontline_pressure": 0, "war_armistice_signed": false, "war_ceasefire_until_week": 0, "war_ceasefire_enemy": "", "war_medical_priority_until_week": 0, "war_ammo_conservation_until_week": 0,
@@ -5451,7 +5477,7 @@ func start_game(mode: String, seed_value: int, show_opening_prologue := false) -
 		"population_total": 4250000, "population_workable": 2510000, "army_personnel": 50000,
 		"recruitment_model": "mixed", "army_equipment": 300, "army_aircraft": 12,
 		"metal_to_equipment": 2, "oil_to_army": 8, "at_war": false,
-		"war_enemy": "", "war_started_week": 0, "war_weeks": 0, "war_casualties": 0,
+		"war_enemy": "", "war_second_enemy": "", "war_ever_started": false, "war_started_week": 0, "war_weeks": 0, "war_casualties": 0,
 		"war_crisis_pending": false, "war_crisis_shown": false, "war_pressure_next_week": WAR_PRESSURE_INTERVAL,
 		"war_frontline_reductions": 0, "war_frontline_pressure": 0, "war_armistice_signed": false, "war_ceasefire_until_week": 0, "war_ceasefire_enemy": "", "war_medical_priority_until_week": 0, "war_ammo_conservation_until_week": 0,
 		"last_war_report": "Война не началась.", "foreign_action_week": 0,
@@ -6111,7 +6137,7 @@ func update_sidebar_summary() -> void:
 		var projected_band := neighbor_relation_band(side, true)
 		var relation_pending := current_band != projected_band
 		var relation_label: Label = sidebar_summary_labels[relation_key]
-		var war_suffix := " • ВОЙНА" if bool(state.get("at_war", false)) and str(state.get("war_enemy", "")) == side else ""
+		var war_suffix := (" • WAR" if language_code == "en" else " • ВОЙНА") if at_war_with(side) else ""
 		relation_label.text = projected_band.to_upper() + war_suffix
 		relation_label.add_theme_color_override("font_color", PENDING_BLUE if relation_pending else neighbor_relation_color(side))
 		relation_label.tooltip_text = (pending_value_tooltip(neighbor_title(side), current_band, projected_band) + "\n\n" + neighbor_relation_explanation(side, true)) if relation_pending else neighbor_relation_explanation(side)
@@ -8107,12 +8133,26 @@ func army_quality_effectiveness() -> int:
 	), 0, 100)
 
 
+func at_war_with(side: String) -> bool:
+	return bool(state.get("at_war", false)) and side in [str(state.get("war_enemy", "")), str(state.get("war_second_enemy", ""))]
+
+
+func two_front_war_active() -> bool:
+	return bool(state.get("at_war", false)) and str(state.get("war_second_enemy", "")) in ["east", "west"]
+
+
+func war_opponents_text() -> String:
+	var primary := str(state.get("war_enemy", "east"))
+	return "%s и %s" % [neighbor_title(primary), neighbor_title(str(state.get("war_second_enemy", "west")))] if two_front_war_active() else neighbor_title(primary)
+
+
 func frontline_required_personnel(quality := -1) -> int:
 	var effective_quality := army_quality_effectiveness() if quality < 0 else clampi(quality, 0, 100)
 	# Хорошо обученная и полностью оснащённая армия способна держать тот же фронт
 	# меньшим числом людей. Даже при идеальном качестве требуется минимум 35 тысяч.
 	var shortened_front := mini(3, maxi(0, int(state.get("war_frontline_reductions", 0)))) * WAR_SHORTENED_FRONT_REDUCTION
-	return maxi(35000, roundi(110000.0 - float(effective_quality) * 750.0) - shortened_front)
+	var single_front := maxi(35000, roundi(110000.0 - float(effective_quality) * 750.0) - shortened_front)
+	return roundi(float(single_front) * 1.45) if two_front_war_active() else single_front
 
 
 func army_effectiveness() -> int:
@@ -8508,7 +8548,7 @@ func build_foreign_minister_resignation_event() -> Dictionary:
 	var outgoing_id := str(state.get("resigning_foreign_minister", selected_ministers.get("foreign", "")))
 	var outgoing := minister_data("foreign", outgoing_id)
 	var outgoing_name := str(outgoing.get("name", "Министр иностранных дел"))
-	var enemy := str(state.get("war_enemy", "east"))
+	var enemy := "west" if outgoing_id == "varek" and at_war_with("west") else "east" if outgoing_id == "kres" and at_war_with("east") else str(state.get("war_enemy", "east"))
 	var body := "%s передаёт президенту заявление об отставке. Министр объясняет, что годами строил политическую карьеру на сближении с государством «%s» и теперь не может убедительно представлять правительство, которое ведёт с ним войну. Отставка добровольная, но дипломатическое ведомство нельзя оставить без руководителя: из двух оставшихся доступных кандидатов нужно немедленно назначить преемника." % [outgoing_name, neighbor_title(enemy)]
 	var candidates: Array[String] = []
 	for raw_candidate in MINISTER_CANDIDATES.get("foreign", []):
@@ -8582,6 +8622,12 @@ func build_war_crisis_event() -> Dictionary:
 	if neighbor_relation_band(other) in ["враждебные", "натянутые"]:
 		aid["unavailable"] = true
 		aid["hint"] = "НЕДОСТУПНО: отношения с государством «%s» слишком плохи для срочной военной помощи." % other_name
+	if two_front_war_active():
+		var second_body := "После вторжения государства «%s» границу пересекли и войска государства «%s». Республика воюет на двух фронтах. Генштабу теперь нужно не менее %s военнослужащих; в строю %s. Потери людей и техники на каждой неделе выросли. Нужно решить, где взять резерв для новой линии обороны." % [enemy_name, other_name, format_people(required), format_people(personnel)]
+		var second_crisis := event("СОВЕТ ОБОРОНЫ", "military", "#a9473f", "Второй фронт", second_body, mobilization, procurement,
+			option("Сократить линию обороны", "Армии потребуется меньше людей • поддержка, стабильность и приграничные регионы пострадают", {"support": -8, "stability": -6, "war_support": -4, "clan_regions": -12, "army": 3}, "Правительство приказало оставить несколько приграничных районов и сосредоточить части вокруг главных дорог. Фронт стал короче, но эвакуированные спрашивают, почему их дома не защищали.", {"war_frontline_retreat": true}))
+		second_crisis["body_en"] = "After the %s invaded, troops from the %s crossed the other border. The republic is fighting on two fronts. The army now needs at least %s troops; %s remain in service. Personnel and equipment losses rise each week. The General Staff demands a new reserve." % [neighbor_title_en(enemy), neighbor_title_en(other), format_people_en(required), format_people_en(personnel)]
+		return second_crisis
 	var crisis := event("СОВЕТ ОБОРОНЫ", "military", "#a9473f", "Вторжение", body, mobilization, procurement, aid)
 	crisis["body_en"] = body_en
 	return crisis
@@ -8593,8 +8639,9 @@ func build_war_pressure_event() -> Dictionary:
 	var other := "west" if enemy == "east" else "east"
 	var enemy_name := neighbor_title(enemy)
 	var other_name := neighbor_title(other)
-	var situation := "Идёт %d-я неделя войны с государством «%s». Боеспособность — %d%%, личный состав — %s, поддержка войны — %d%%.\n\n%s" % [war_week, enemy_name, army_effectiveness(), format_people(int(state.get("army_personnel", 0))), int(state.get("war_support", 0)), str(state.get("last_war_report", "Штаб уточняет потери."))]
-	var situation_en := "Week %d of the war with the %s. Combat readiness: %d%%; personnel: %s; war support: %d%%.\n\n%s" % [war_week, neighbor_title_en(enemy), army_effectiveness(), format_people_en(int(state.get("army_personnel", 0))), int(state.get("war_support", 0)), str(state.get("last_war_report_en", "The General Staff is assessing the latest losses."))]
+	var situation := "Идёт %d-я неделя войны. Противники: %s. Боеспособность — %d%%, личный состав — %s, поддержка войны — %d%%.\n\n%s" % [war_week, war_opponents_text(), army_effectiveness(), format_people(int(state.get("army_personnel", 0))), int(state.get("war_support", 0)), str(state.get("last_war_report", "Штаб уточняет потери."))]
+	var opponents_en := "%s and the %s" % [neighbor_title_en(enemy), neighbor_title_en(other)] if two_front_war_active() else neighbor_title_en(enemy)
+	var situation_en := "Week %d of the war with the %s. Combat readiness: %d%%; personnel: %s; war support: %d%%.\n\n%s" % [war_week, opponents_en, army_effectiveness(), format_people_en(int(state.get("army_personnel", 0))), int(state.get("war_support", 0)), str(state.get("last_war_report_en", "The General Staff is assessing the latest losses."))]
 	if war_week <= 3:
 		return war_pressure_event(situation_en, "The enemy is pressing three border towns at once. The General Staff can defend each town at the cost of equipment, shorten the front or arm territorial battalions.", event("СОВЕТ ОБОРОНЫ", "military", "#a9473f", "Тонкая линия", situation + "\n\nПротивник давит сразу на три приграничных города. Генштаб может удерживать каждый населённый пункт только ценой техники, сократить линию фронта либо раздать оружие территориальным батальонам.",
 			option("Удерживать все города", "Крупные расходы и потери техники • поддержка войны и приграничья укрепятся", {"money": -8, "army_equipment": -10, "war_support": 4, "clan_regions": 6, "army": 2}, "Резервы разошлись по трём дорогам. Города остались под флагом республики, но ремонтные роты уже разбирают последние исправные машины на запчасти."),
@@ -8606,6 +8653,11 @@ func build_war_pressure_event() -> Dictionary:
 			option("Отменить ротацию", "Казна и резерв сохранятся • армия и общественная готовность продолжать войну резко упадут", {"army": -8, "war_support": -5, "support": -3}, "Приказ о смене отменили за ночь. Части остались на позициях, а командиры начали скрывать число самовольных уходов, чтобы не получить обвинение в потере управления."),
 			option("Призвать десять тысяч резервистов", "Фронт получит людей • экономика, профсоюзы и поддержка войны пострадают • начнётся антивоенный протест", {"population_workable": -10000, "army_personnel": 10000, "support": -5, "war_support": -6, "clan_workers": -7, "stability": -2}, "Повестки отправили на заводы и в учебные центры. Новые батальоны закрыли ротацию, но рабочие комитеты объявили, что правительство заменяет военную стратегию бесконечным набором людей.", {"unrest": {"cause": "новая волна призыва резервистов", "kind": "antiwar", "base_level": 2, "reversible": false}})))
 	if war_week <= 11:
+		if two_front_war_active():
+			return war_pressure_event(situation_en, "Both fronts are running short of ammunition. Convert civilian plants to military orders, buy equipment through neutral intermediaries, or ration artillery fire.", event("ВОЕННО-ПРОМЫШЛЕННАЯ КОМИССИЯ", "official", "#8b6c4b", "Снарядный голод", situation + "\n\nОба фронта расходуют боеприпасы быстрее заводского выпуска. Можно перевести гражданские предприятия на военные заказы, закупить технику через нейтральных посредников либо приказать армии экономить огонь.",
+				option("Перевести заводы на военные рельсы", "Армия получит технику • рабочие ответят тяжёлой забастовкой", {"money": -7, "army_equipment": 22, "support": -4, "stability": -3, "clan_workers": -12}, "Заводы сняли гражданские заказы и отправили новые машины на оба фронта.", {"unrest": {"cause": "принудительный перевод заводов на военные рельсы", "kind": "labor", "labor": true, "base_level": 2, "reversible": false}}),
+				option("Купить через посредников", "Очень крупные расходы • техника и два самолёта без дипломатических уступок", {"money": -14, "army_equipment": 16, "army_aircraft": 2, "support": -3}, "Нейтральные посредники доставили технику без официальных переговоров с соседями."),
+				option("Ввести лимит боеприпасов", "На три недели потери техники уменьшатся • лояльность армии и поддержка войны упадут", {"army": -6, "war_support": -5}, "Оба фронта получили приказ беречь боеприпасы; пехота требует объяснить, как удержать позиции с новым лимитом.", {"war_ammo_conservation": true})))
 		var foreign_supply_effects := {"money": -11, "army_equipment": 16, "army_aircraft": 2, "support": -3}
 		merge_numeric_effects(foreign_supply_effects, relation_shift_effect(other, 1))
 		return war_pressure_event(situation_en, "Ammunition is leaving the depots faster than factories can replace it. Convert civilian plants to military orders, buy an urgent shipment from the %s or order the army to ration fire." % neighbor_title_en(other), event("ВОЕННО-ПРОМЫШЛЕННАЯ КОМИССИЯ", "official", "#8b6c4b", "Снарядный голод", situation + "\n\nСклады расходуют боеприпасы быстрее заводского выпуска. Можно перевести гражданские предприятия на военные заказы, купить срочную партию у государства «%s» либо приказать армии экономить огонь." % other_name,
@@ -8630,7 +8682,7 @@ func war_pressure_event(situation_en: String, detail_en: String, report_event: D
 
 func start_invasion_if_needed() -> String:
 	if bool(state.get("at_war", false)):
-		return ""
+		return open_second_front_if_needed()
 	if neighbor_relation_band("east") == "натянутые" or neighbor_relation_band("west") == "натянутые":
 		state.military_threat = true
 	var enemy := hostile_neighbor_for_invasion()
@@ -8650,8 +8702,10 @@ func start_invasion_if_needed() -> String:
 		state.last_foreign_action = "Кризисный канал сдерживает вторжение государства «%s». Отношения остаются враждебными; на дипломатический выход осталось %d нед." % [neighbor_title(enemy), action_weeks_left]
 		return "Лея Нарин удержала кризисный канал открытым и отложила вторжение государства «%s». На улучшение отношений осталось %d нед." % [neighbor_title(enemy), action_weeks_left]
 	state.at_war = true
+	state.war_ever_started = true
 	state.military_threat = true
 	state.war_enemy = enemy
+	state.war_second_enemy = ""
 	var rally_effects := apply_effects({"support": WAR_DEFENSIVE_RALLY_SUPPORT, "war_support": WAR_DEFENSIVE_RALLY_WAR_SUPPORT})
 	var rally_gain := int(rally_effects.get("support", 0))
 	var resistance_gain := int(rally_effects.get("war_support", 0))
@@ -8676,7 +8730,35 @@ func start_invasion_if_needed() -> String:
 		dependency_note = " Западный поставщик отозвал коды обслуживания: %d самолёта выведены из строя." % grounded_west
 	var rally_note := " Перед лицом вторжения общество сплотилось: поддержка власти +%d, поддержка войны +%d." % [rally_gain, resistance_gain] if rally_gain > 0 or resistance_gain > 0 else ""
 	state.last_war_report = "%s начал вторжение после перехода отношений во враждебное состояние.%s%s" % [neighbor_title(enemy), dependency_note, rally_note]
-	return "%s разорвал дипломатические гарантии и начал вторжение. Республика вступила в войну.%s%s" % [neighbor_title(enemy), dependency_note, rally_note]
+	var first_front_note := "%s разорвал дипломатические гарантии и начал вторжение. Республика вступила в войну.%s%s" % [neighbor_title(enemy), dependency_note, rally_note]
+	var second_front_note := open_second_front_if_needed()
+	return first_front_note + (" " + second_front_note if second_front_note != "" else "")
+
+
+func open_second_front_if_needed() -> String:
+	if not bool(state.get("at_war", false)) or two_front_war_active():
+		return ""
+	var primary := str(state.get("war_enemy", ""))
+	if primary not in ["east", "west"]:
+		return ""
+	var second := "west" if primary == "east" else "east"
+	if neighbor_relation_band(second) != "враждебные":
+		return ""
+	if str(state.get("war_ceasefire_enemy", "")) == second and int(state.get("week", 1)) <= int(state.get("war_ceasefire_until_week", 0)):
+		return ""
+	state.war_second_enemy = second
+	state.war_ever_started = true
+	schedule_foreign_minister_resignation_if_needed()
+	state.war_crisis_pending = true
+	state.war_crisis_shown = false
+	var shock := apply_effects({"support": -5, "stability": -5, "war_support": -4})
+	var note := "%s открыл второй фронт. Республика ведёт войну с обоими соседями; поддержка власти −%d, стабильность −%d, поддержка войны −%d." % [neighbor_title(second), absi(int(shock.get("support", 0))), absi(int(shock.get("stability", 0))), absi(int(shock.get("war_support", 0)))]
+	state.last_war_report = note
+	state.last_war_report_en = "The %s opened a second front. The republic is now at war with both neighbors." % neighbor_title_en(second)
+	if unlock_special_achievement("two_front_war"):
+		note += " Достижение открыто: «Между двух огней»."
+		state.last_war_report_en += " Achievement unlocked: Caught Between Two Fronts."
+	return note
 
 
 func process_war_week(defer_effects := false) -> Dictionary:
@@ -8693,16 +8775,19 @@ func process_war_week(defer_effects := false) -> Dictionary:
 	var duration_equipment_multiplier := war_equipment_attrition_multiplier(war_week)
 	var medical_multiplier := health_war_loss_multiplier() * temporary_war_medical_multiplier()
 	var personnel_loss_before_medicine := maxi(0, roundi(650.0 + float(100 - combat_effectiveness) * 22.0 + shortage_ratio * 2600.0))
-	var personnel_loss := mini(personnel_before, maxi(0, roundi(float(personnel_loss_before_medicine) * medical_multiplier * duration_personnel_multiplier)))
+	var fronts_multiplier := 1.45 if two_front_war_active() else 1.0
+	var personnel_loss := mini(personnel_before, maxi(0, roundi(float(personnel_loss_before_medicine) * medical_multiplier * duration_personnel_multiplier * fronts_multiplier)))
 	var equipment_before := int(state.get("army_equipment", 0))
 	var equipment_loss_base := 1.0 + float(100 - combat_effectiveness) / 22.0 + shortage_ratio * 4.0
-	var equipment_loss := mini(equipment_before, maxi(0, roundi(equipment_loss_base * duration_equipment_multiplier * temporary_ammo_conservation_multiplier())))
+	var equipment_loss := mini(equipment_before, maxi(0, roundi(equipment_loss_base * duration_equipment_multiplier * temporary_ammo_conservation_multiplier() * fronts_multiplier)))
 	state.war_weeks = war_week
 	var aircraft_before := int(state.get("army_aircraft", 0))
 	var aircraft_loss := 1 if aircraft_before > 0 else 0
 	if combat_effectiveness < 35 and aircraft_before - aircraft_loss > 0:
 		aircraft_loss += 1
 	if combat_effectiveness <= 10 and aircraft_before - aircraft_loss > 0:
+		aircraft_loss += 1
+	if two_front_war_active() and aircraft_before - aircraft_loss > 0:
 		aircraft_loss += 1
 	aircraft_loss = mini(aircraft_before, aircraft_loss)
 	state.army_personnel = personnel_before - personnel_loss
@@ -8713,7 +8798,7 @@ func process_war_week(defer_effects := false) -> Dictionary:
 	var fatigue_loss := war_fatigue_loss(war_week)
 	var support_before_battles := int(state.get("war_support", 0))
 	var stability_loss := war_stability_loss(support_before_battles)
-	var political_effects := {"war_support": -fatigue_loss, "stability": -stability_loss}
+	var political_effects := {"war_support": -fatigue_loss - (1 if two_front_war_active() else 0), "stability": -stability_loss - (1 if two_front_war_active() else 0)}
 	var casualty_support_loss := war_casualty_support_loss(personnel_loss, personnel_before)
 	if casualty_support_loss > 0:
 		political_effects["support"] = -casualty_support_loss
@@ -8741,16 +8826,22 @@ func process_war_week(defer_effects := false) -> Dictionary:
 	if not defer_effects:
 		apply_effects(political_effects)
 	var coverage_percent := clampi(roundi(float(personnel_before) / float(maxi(required, 1)) * 100.0), 0, 100)
-	var escalation_note := " Истощение войны: людские потери ×%.2f, потери техники ×%.2f, поддержка войны −%d. Поддержка войны перед боями %d%%: стабильность −%d%s." % [duration_personnel_multiplier, duration_equipment_multiplier * temporary_ammo_conservation_multiplier(), fatigue_loss, support_before_battles, stability_loss, "; нехватка людей на фронте добавила ещё −%d" % (absi(int(political_effects["stability"])) - stability_loss) if shortage_ratio > 0.0 else ""]
+	var shortage_stability_loss := absi(int(political_effects["stability"])) - stability_loss - (1 if two_front_war_active() else 0)
+	var escalation_note := " Истощение войны: людские потери ×%.2f, потери техники ×%.2f, поддержка войны −%d. Поддержка войны перед боями %d%%: стабильность −%d%s." % [duration_personnel_multiplier, duration_equipment_multiplier * temporary_ammo_conservation_multiplier(), fatigue_loss, support_before_battles, stability_loss, "; нехватка людей на фронте добавила ещё −%d" % shortage_stability_loss if shortage_ratio > 0.0 else ""]
+	if two_front_war_active():
+		escalation_note += " Второй фронт: потребность в людях и боевые потери ×1.45; поддержка войны и стабильность дополнительно −1."
 	var casualty_note := " Большие потери среди военнослужащих: поддержка власти −%d." % casualty_support_loss if casualty_support_loss > 0 else ""
 	var medicine_note := " Медицинское обеспечение: ×%.2f к людским потерям." % medical_multiplier
-	var report := "%s • неделя войны %d. Боеспособность перед боями: %d%%. Фронту требовалось %s, имелось %s (%d%%). Потери: %s военнослужащих, %d техники, %d авиации.%s%s%s%s%s" % [neighbor_title(enemy), int(state.get("war_weeks", 0)), combat_effectiveness, format_people(required), format_people(personnel_before), coverage_percent, format_people(personnel_loss), equipment_loss, aircraft_loss, escalation_note, casualty_note, medicine_note, high_support_note, pressure_note]
+	var report := "%s • неделя войны %d. Боеспособность перед боями: %d%%. Фронту требовалось %s, имелось %s (%d%%). Потери: %s военнослужащих, %d техники, %d авиации.%s%s%s%s%s" % [war_opponents_text(), int(state.get("war_weeks", 0)), combat_effectiveness, format_people(required), format_people(personnel_before), coverage_percent, format_people(personnel_loss), equipment_loss, aircraft_loss, escalation_note, casualty_note, medicine_note, high_support_note, pressure_note]
 	state.last_war_report = report
-	var report_en := "%s • war week %d. Readiness before battle: %d%%. The front needed %s troops; %s were available (%d%%). Losses: %s personnel, %d vehicles, %d aircraft. War attrition: personnel ×%.2f, vehicles ×%.2f. War support −%d; stability −%d." % [neighbor_title_en(enemy), int(state.get("war_weeks", 0)), combat_effectiveness, format_people_en(required), format_people_en(personnel_before), coverage_percent, format_people_en(personnel_loss), equipment_loss, aircraft_loss, duration_personnel_multiplier, duration_equipment_multiplier * temporary_ammo_conservation_multiplier(), fatigue_loss, absi(int(political_effects["stability"]))]
+	var report_enemy_en := "%s and the %s" % [neighbor_title_en(enemy), neighbor_title_en(str(state.get("war_second_enemy", "west")))] if two_front_war_active() else neighbor_title_en(enemy)
+	var report_en := "%s • war week %d. Readiness before battle: %d%%. The front needed %s troops; %s were available (%d%%). Losses: %s personnel, %d vehicles, %d aircraft. War attrition: personnel ×%.2f, vehicles ×%.2f. War support −%d; stability −%d." % [report_enemy_en, int(state.get("war_weeks", 0)), combat_effectiveness, format_people_en(required), format_people_en(personnel_before), coverage_percent, format_people_en(personnel_loss), equipment_loss, aircraft_loss, duration_personnel_multiplier, duration_equipment_multiplier * temporary_ammo_conservation_multiplier(), fatigue_loss, absi(int(political_effects["stability"]))]
 	if casualty_support_loss > 0:
 		report_en += " Heavy casualties reduced government support by %d." % casualty_support_loss
 	if pressure_note != "":
 		report_en += " Pressure on the front increased the economic burden."
+	if two_front_war_active():
+		report_en += " The second front increased troop requirements and multiplied personnel and vehicle losses by 1.45."
 	state.last_war_report_en = report_en
 	return {
 		"note": report,
@@ -10544,6 +10635,8 @@ func armistice_readiness() -> Dictionary:
 	var conditions: Array[String] = []
 	if int(state.get("war_weeks", 0)) < ARMISTICE_MIN_WAR_WEEKS:
 		conditions.append("Война: %d/%d недель" % [int(state.get("war_weeks", 0)), ARMISTICE_MIN_WAR_WEEKS])
+	if two_front_war_active():
+		conditions.append("Перемирие с одним соседом не завершит войну на втором фронте")
 	if effectiveness < ARMISTICE_MIN_EFFECTIVENESS:
 		conditions.append("Боеспособность: %d/%d%%" % [effectiveness, ARMISTICE_MIN_EFFECTIVENESS])
 	if personnel < required + ARMISTICE_PERSONNEL_RESERVE:
@@ -10589,9 +10682,12 @@ func show_foreign_policy() -> void:
 		var quality := army_quality_effectiveness()
 		var required := frontline_required_personnel(quality)
 		var personnel := int(state.get("army_personnel", 0))
-		war_box.add_child(label("ВОЙНА С %s" % neighbor_title(str(state.get("war_enemy", "east"))).to_upper(), 20, RED))
+		var war_heading := "WAR: %s" % ("%s AND %s" % [neighbor_title_en(str(state.get("war_enemy", "east"))), neighbor_title_en(str(state.get("war_second_enemy", "west")))] if two_front_war_active() else neighbor_title_en(str(state.get("war_enemy", "east")))) if language_code == "en" else "ВОЙНА: %s" % war_opponents_text().to_upper()
+		war_box.add_child(label(war_heading, 20, RED))
 		war_box.add_child(label("Неделя войны: %d • боеспособность фронта: %d%% • качество армии: %d%%" % [int(state.get("war_weeks", 0)), army_effectiveness(), quality], 16, INK))
 		war_box.add_child(label("Для удержания фронта нужно не меньше %s военнослужащих; сейчас %s. Чем выше подготовка, техника, авиация и снабжение, тем меньше людей требуется." % [format_people(required), format_people(personnel)], 15, RED if personnel < required else GREEN))
+		if two_front_war_active():
+			war_box.add_child(label("Два фронта: потребность в людях и еженедельные потери людей и техники ×1,45; поддержка войны и стабильность дополнительно −1 за неделю.", 14, RED))
 		var pressure_cost := float(int(state.get("war_frontline_pressure", 0))) * 0.45
 		war_box.add_child(label("Разорение прифронтовых районов: %.2f млн/нед. Боеспособность ниже 25%% усиливает ущерб; от 40%% он постепенно спадает." % pressure_cost, 14, RED if pressure_cost > 0.0 else Color("#5f594d")))
 		war_box.add_child(label("Общие военные потери: %s. Последний доклад: %s" % [format_people(int(state.get("war_casualties", 0))), str(state.get("last_war_report", ""))], 14, Color("#5f594d")))
@@ -10600,7 +10696,7 @@ func show_foreign_policy() -> void:
 		armistice.disabled = foreign_action_used_this_week() or int(state.get("influence", 0)) < 1 or not bool(armistice_status.get("ready", false))
 		var armistice_requirements := "Требуется: минимум 6 недель войны, боеспособность 65%, 5 тысяч человек сверх потребности фронта, оснащение техникой 70%, снабжение 90%, поддержка войны 35%. При текущих приказах фронт должен выдержать ещё 5 недель: боеспособность всё время не ниже 55%, людей хватает, поддержка войны не обнуляется."
 		var armistice_missing: Array[String] = armistice_status.get("missing", [])
-		armistice.tooltip_text = armistice_requirements + ("\n\nПока не выполнено:\n" + "\n".join(armistice_missing) if not armistice_missing.is_empty() else "\n\nУсловия выполнены.") + "\n\nПосле конца недели: война прекратится, отношения с противником станут натянутыми; казна −5 млн, поддержка −8, стабильность −4, лояльность армии −4. Компенсации и международный контроль будут стоить 0,60 млн в неделю до конца кампании. Договор удержит прежнего противника от нового вторжения на шесть недель; затем враждебные отношения снова приведут к войне."
+		armistice.tooltip_text = armistice_requirements + ("\n\nПока не выполнено:\n" + "\n".join(armistice_missing) if not armistice_missing.is_empty() else "\n\nУсловия выполнены.") + ("\n\nПеремирие с одним соседом не остановит войну на втором фронте." if two_front_war_active() else "\n\nПосле конца недели: война прекратится, отношения с противником станут натянутыми; казна −5 млн, поддержка −8, стабильность −4, лояльность армии −4. Компенсации и международный контроль будут стоить 0,60 млн в неделю до конца кампании. Договор удержит прежнего противника от нового вторжения на шесть недель; затем враждебные отношения снова приведут к войне.")
 		if not armistice_missing.is_empty():
 			war_box.add_child(label("Для переговоров пока не хватает: %s" % "; ".join(armistice_missing), 13, Color("#6f3e37")))
 		war_box.add_child(armistice)
@@ -10683,7 +10779,7 @@ func add_neighbor_policy_card(parent: Container, side: String) -> void:
 	relation_label.tooltip_text = neighbor_relation_explanation(side, true)
 	box.add_child(relation_label)
 	box.add_child(label("Недельные внешние издержки из-за текущих отношений: %.2f млн." % neighbor_response_cost(side, true), 14, Color("#5f594d")))
-	var enemy_at_war := bool(state.get("at_war", false)) and str(state.get("war_enemy", "")) == side
+	var enemy_at_war := at_war_with(side)
 	if enemy_at_war:
 		box.add_child(label("С этим государством идёт война. Обычные дипломатические действия недоступны.", 14, RED))
 	var narin_in_office := str(selected_ministers.get("foreign", "narin")) == "narin"
@@ -10729,7 +10825,7 @@ func perform_foreign_action(side: String, action: String) -> void:
 	if side not in ["east", "west"] or foreign_action_used_this_week() or int(state.get("influence", 0)) < 1:
 		show_notice("Внешнеполитическое действие на этой неделе недоступно.")
 		return
-	var enemy_at_war := bool(state.get("at_war", false)) and str(state.get("war_enemy", "")) == side
+	var enemy_at_war := at_war_with(side)
 	var effects: Dictionary = {}
 	var flags: Dictionary = {}
 	var description := ""
@@ -12466,7 +12562,7 @@ func add_debug_cheat_section(parent: VBoxContainer, title_text: String, fields: 
 		edit.add_theme_color_override("font_selected_color", INK)
 		edit.add_theme_stylebox_override("normal", style(Color("#f4eddd"), 6, Color("#98876b"), 1))
 		edit.add_theme_stylebox_override("focus", style(Color("#fff8e8"), 6, GOLD, 2))
-		if bool(state.get("at_war", false)) and key == str(state.get("war_enemy", "")) + "_relation":
+		if key in ["east_relation", "west_relation"] and at_war_with(key.trim_suffix("_relation")):
 			spin.editable = false
 			spin.tooltip_text = "Во время войны отношения с противником нельзя улучшить."
 		field_box.add_child(spin)
@@ -12477,7 +12573,7 @@ func apply_debug_cheats() -> void:
 	if not OS.is_debug_build() or not is_instance_valid(debug_cheat_panel) or state.is_empty():
 		return
 	for key in debug_cheat_fields:
-		if bool(state.get("at_war", false)) and key == str(state.get("war_enemy", "")) + "_relation":
+		if key in ["east_relation", "west_relation"] and at_war_with(key.trim_suffix("_relation")):
 			continue
 		var spin := debug_cheat_fields[key] as SpinBox
 		state[key] = snappedf(spin.value, 0.01) if key in ["money", "debt"] else roundi(spin.value)
@@ -12610,12 +12706,10 @@ func close_overlay(refresh_sidebar := true) -> void:
 
 func check_terminal_state() -> bool:
 	if bool(state.get("at_war", false)) and int(state.get("war_support", 0)) <= 0:
-		var surrender_enemy := str(state.get("war_enemy", "east"))
-		show_ending("КАПИТУЛЯЦИЯ", "Поддержка войны упала до нуля. Забастовали военные заводы, семьи перекрыли дороги к частям, резервисты отказались являться, а парламент потребовал принять любые условия государства «%s». Правительство подписало капитуляцию не после разгрома армии, а после исчезновения общественной воли продолжать войну." % neighbor_title(surrender_enemy))
+		show_ending("КАПИТУЛЯЦИЯ", "Поддержка войны упала до нуля. Забастовали военные заводы, семьи перекрыли дороги к частям, резервисты отказались являться, а парламент потребовал капитуляции. Противники: %s. Правительство подписало капитуляцию не после разгрома армии, а после исчезновения общественной воли продолжать войну." % war_opponents_text())
 		return true
 	if bool(state.get("at_war", false)) and army_effectiveness() <= 0:
-		var enemy := str(state.get("war_enemy", "east"))
-		show_ending("КАПИТУЛЯЦИЯ", "%s прорвал фронт после полного распада боеспособных частей. Правительство подписало капитуляцию, армия разоружена, а внешняя политика и ключевые государственные решения перешли под контроль победителя." % neighbor_title(enemy))
+		show_ending("КАПИТУЛЯЦИЯ", "Фронт рухнул после полного распада боеспособных частей. Противники: %s. Правительство подписало капитуляцию, армия разоружена, а внешняя политика и ключевые государственные решения перешли под контроль победителей." % war_opponents_text())
 		return true
 	if float(state.money) <= 0.0:
 		show_ending("ДЕФОЛТ", "Казна опустела. Выплаты остановились, а коалиция силовиков и парламентариев отстранила президента. Страна входит в следующий год с замороженными счетами и новым временным правительством.")
@@ -12634,7 +12728,7 @@ func check_terminal_state() -> bool:
 
 func election_external_legacy_text() -> String:
 	if bool(state.get("at_war", false)):
-		return "Голосование прошло на фоне войны с государством «%s»; новый политический мандат не отменяет фронтовых потерь и зависимости от снабжения." % neighbor_title(str(state.get("war_enemy", "east")))
+		return "Голосование прошло на фоне войны. Противники: %s. Новый политический мандат не отменяет фронтовых потерь и зависимости от снабжения." % war_opponents_text()
 	if int(state.get("east_relation", 2)) == 3 and int(state.get("west_relation", 2)) < 3:
 		return "К концу временного срока республика теснее связана с Восточным Союзом, а пространство для самостоятельного внешнего курса стало уже."
 	if int(state.get("west_relation", 2)) == 3 and int(state.get("east_relation", 2)) < 3:
@@ -12765,6 +12859,9 @@ func show_ending(forced_title := "", forced_text := "") -> void:
 	var earned_achievement_id := ending_achievement_id(president_title, survived_weeks) if forced_title == "" else ""
 	var ending_achievement := achievement_definition(earned_achievement_id)
 	var achievement_unlocked_now := false if ending_preview_active else unlock_ending_achievement(earned_achievement_id)
+	var peaceful_achievement_unlocked_now := false
+	if not ending_preview_active and peaceful_campaign_achievement_eligible(survived_weeks, forced_title):
+		peaceful_achievement_unlocked_now = unlock_special_achievement("peaceful_campaign")
 	if survived_weeks < DEMO_WEEKS:
 		president_text += "\n\nПравительство продержалось %s из 26." % week_count_text(survived_weeks)
 	var chapters: Array[Dictionary] = [
@@ -12849,6 +12946,11 @@ func show_ending(forced_title := "", forced_text := "") -> void:
 		achievement_notice.position = Vector2(240, viewport_size.y - 128)
 		achievement_notice.size = Vector2(viewport_size.x - 480, 24)
 		screen_layer.add_child(achievement_notice)
+	if peaceful_achievement_unlocked_now:
+		var peace_notice := label("ДОСТИЖЕНИЕ ОТКРЫТО: ДВАДЦАТЬ ШЕСТЬ НЕДЕЛЬ МИРА", 15, GREEN, HORIZONTAL_ALIGNMENT_CENTER)
+		peace_notice.position = Vector2(240, viewport_size.y - (105 if achievement_unlocked_now else 128))
+		peace_notice.size = Vector2(viewport_size.x - 480, 24)
+		screen_layer.add_child(peace_notice)
 	localize_visible_tree()
 
 
@@ -12875,7 +12977,7 @@ func ending_country_summary(ending_title: String, final_alignment: String) -> St
 	else:
 		paragraphs.append("Восточный Союз: %s. Западная Федерация: %s. Это положение досталось следующему правительству вместе с заключёнными договорами и неразрешёнными спорами." % [neighbor_relation_band("east"), neighbor_relation_band("west")])
 	if bool(state.get("at_war", false)) and ending_title != "КАПИТУЛЯЦИЯ":
-		paragraphs.append("Война с государством «%s» не закончилась вместе с правлением президента. Фронту по-прежнему нужны люди, техника и общественная поддержка." % neighbor_title(str(state.get("war_enemy", "east"))))
+		paragraphs.append("Война не закончилась вместе с правлением президента. Противники: %s. Фронту по-прежнему нужны люди, техника и общественная поддержка." % war_opponents_text())
 	elif ending_title != "КАПИТУЛЯЦИЯ":
 		paragraphs.append("Сейчас республика не ведёт войну. Сохранится ли мир, зависит от будущих решений и отношений с соседями.")
 	return "\n\n".join(paragraphs)
@@ -12890,6 +12992,13 @@ func run_ending_smoke_test() -> void:
 	state.west_relation = 3
 	state.east_relation = 1
 	state.west_investment_arbitration = true
+	if not peaceful_campaign_achievement_eligible(DEMO_WEEKS, "") or peaceful_campaign_achievement_eligible(DEMO_WEEKS - 1, "") or peaceful_campaign_achievement_eligible(DEMO_WEEKS, "ДЕФОЛТ"):
+		failures.append("Мирное достижение должно требовать всех 26 недель и обычного завершения кампании.")
+	state.war_ever_started = true
+	state.at_war = false
+	if peaceful_campaign_achievement_eligible(DEMO_WEEKS, ""):
+		failures.append("Перемирие не должно считаться прохождением без войн.")
+	state.war_ever_started = false
 	var election_title := str(election_ending_data().get("title", ""))
 	show_ending()
 	if not is_instance_valid(ending_track) or ending_track.get_child_count() != 5:
@@ -13748,11 +13857,19 @@ func event_peace_requirements(event_data: Dictionary) -> Array[String]:
 func event_blocked_by_current_war(event_data: Dictionary) -> bool:
 	if not bool(state.get("at_war", false)):
 		return false
-	return str(state.get("war_enemy", "")) in event_peace_requirements(event_data)
+	for side in event_peace_requirements(event_data):
+		if at_war_with(side):
+			return true
+	return false
 
 
 func build_wartime_replacement_event(blocked_event: Dictionary) -> Dictionary:
-	var enemy := neighbor_title(str(state.get("war_enemy", "east")))
+	var blocked_enemy := str(state.get("war_enemy", "east"))
+	for side in event_peace_requirements(blocked_event):
+		if at_war_with(side):
+			blocked_enemy = side
+			break
+	var enemy := neighbor_title(blocked_enemy)
 	var original_title := str(blocked_event.get("title", "внешнеполитический доклад"))
 	var variant := posmod(original_title.hash(), 3)
 	var replacement: Dictionary
