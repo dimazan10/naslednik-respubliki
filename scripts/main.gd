@@ -203,7 +203,8 @@ const ENDING_ACHIEVEMENTS := [
 	{"ending": "НАСЛЕДСТВО ОТЦА", "title": "Достойный наследник", "description": "Сохранить и укрепить семейную авторитарную систему."}
 ]
 const SPECIAL_ACHIEVEMENTS := [
-	{"id": "bills_without_rescuers", "title": "Счета без спасателей", "description": "Отказаться от печати денег и кредита в кризисе «Счета к оплате», затем прожить четыре игровые недели без дефолта."}
+	{"id": "bills_without_rescuers", "title": "Счета без спасателей", "description": "Отказаться от печати денег и кредита в кризисе «Счета к оплате», затем прожить четыре игровые недели без дефолта."},
+	{"id": "armistice_signed", "title": "Тишина на фронте", "description": "Заключить перемирие после затяжной войны, сохранив достаточно сильную армию для продолжения обороны."}
 ]
 
 
@@ -1550,8 +1551,27 @@ func run_foreign_smoke_test() -> void:
 	var converted_passport_effects := convert_legacy_foreign_effects(neutral_passport_effects)
 	if passports_event.is_empty() or converted_passport_effects.has("east_relation") or converted_passport_effects.has("west_relation"):
 		failures.append("Независимый учёт в событии «Два паспорта» должен сохранять отношения с обоими соседями.")
+	start_game("Сид: 1991", 1991)
+	selected_ministers.foreign = "narin"
+	state.money = 500.0
+	state.at_war = true
+	state.war_enemy = "east"
+	state.war_weeks = 6
+	state.east_relation = 0
+	if armistice_took_effect_this_week(true, false):
+		failures.append("Достижение за перемирие появляется до вступления договора в силу.")
+	queue_week_change("Тест перемирия", {"money": -5}, {"at_war": false, "war_armistice_signed": true, "war_ceasefire_until_week": 7, "war_ceasefire_enemy": "east", "east_relation": 1})
+	event_resolved = true
+	events_resolved_this_week = EVENTS_PER_WEEK
+	events_required_this_week = EVENTS_PER_WEEK
+	weekly_event_queue.clear()
+	advance_week()
+	if not armistice_took_effect_this_week(true, false) or bool(state.get("at_war", true)) or not bool(state.get("war_armistice_signed", false)):
+		failures.append("Перемирие не вступило в силу при закрытии недели.")
+	if armistice_took_effect_this_week(true, true) or armistice_took_effect_this_week(false, false):
+		failures.append("Повторное или довоенное состояние ошибочно открывает достижение за перемирие.")
 	if failures.is_empty():
-		print("FOREIGN_SMOKE_TEST: OK | relation=%s | front_high=%d | front_low=%d | losses=%d/%d" % [neighbor_relation_band("east", true), frontline_required_personnel(80), frontline_required_personnel(25), int(war_result.get("personnel_loss", 0)), int(war_result.get("equipment_loss", 0))])
+		print("FOREIGN_SMOKE_TEST: OK | relation=%s | front_high=%d | front_low=%d | losses=%d/%d | armistice_achievement=week_end" % [neighbor_relation_band("east", true), frontline_required_personnel(80), frontline_required_personnel(25), int(war_result.get("personnel_loss", 0)), int(war_result.get("equipment_loss", 0))])
 		get_tree().quit(0)
 	else:
 		for failure in failures:
@@ -2655,7 +2675,7 @@ func run_financial_crisis_smoke_test() -> void:
 		if (node as Label).text.contains("Счета без спасателей"):
 			special_card_found = true
 			break
-	if not special_card_found or SPECIAL_ACHIEVEMENTS.size() != 1:
+	if not special_card_found or SPECIAL_ACHIEVEMENTS.size() != 2:
 		failures.append("Особое достижение не отображается отдельно от концовок.")
 	if failures.is_empty():
 		print("FINANCIAL_CRISIS_SMOKE_TEST: OK | refusal_cooldown=4 | achievement_survival=4 | special_card=yes")
@@ -6756,6 +6776,10 @@ func financial_rescue_survived_four_weeks() -> bool:
 	)
 
 
+func armistice_took_effect_this_week(was_at_war: bool, was_signed: bool) -> bool:
+	return was_at_war and not was_signed and bool(state.get("war_armistice_signed", false)) and not bool(state.get("at_war", false))
+
+
 func should_trigger_creditor_review() -> bool:
 	var final_story_resolved := (
 		event_resolved
@@ -9421,6 +9445,8 @@ func advance_week() -> void:
 		return
 	close_overlay()
 	var closed_week := int(state.get("week", 1))
+	var was_at_war := bool(state.get("at_war", false))
+	var armistice_was_signed := bool(state.get("war_armistice_signed", false))
 	var opening_snapshot := weekly_report_snapshot()
 	var opening_money := float(state.get("money", 0.0))
 	var opening_population := total_population()
@@ -9543,6 +9569,11 @@ func advance_week() -> void:
 		state.financial_crisis_survival_pending = false
 		if unlock_special_achievement("bills_without_rescuers"):
 			add_weekly_report_note(consequence_notes, report_sections, "decisions", "Достижение открыто: «Счета без спасателей». Четыре недели после отказа от экстренной помощи страна прожила без дефолта.")
+			state.last_weekly_report["consequences"] = consequence_notes
+			state.last_weekly_report["sections"] = report_sections
+	if armistice_took_effect_this_week(was_at_war, armistice_was_signed):
+		if unlock_special_achievement("armistice_signed"):
+			add_weekly_report_note(consequence_notes, report_sections, "foreign", "Достижение открыто: «Тишина на фронте». Перемирие вступило в силу после завершения недели.")
 			state.last_weekly_report["consequences"] = consequence_notes
 			state.last_weekly_report["sections"] = report_sections
 	if int(state.get("week", 1)) <= DEMO_WEEKS:
