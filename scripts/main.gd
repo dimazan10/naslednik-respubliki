@@ -182,25 +182,8 @@ const ACHIEVEMENTS_PATH := "user://ending_achievements.json"
 # Keeping the player at unity gain makes the slider predictable and audible.
 const MUSIC_BASE_VOLUME_DB := -2.0
 const ENDING_ACHIEVEMENTS := [
-	{"ending": "КАПИТУЛЯЦИЯ", "title": "Белый флаг", "description": "Завершить правление капитуляцией после распада фронта или исчезновения воли к сопротивлению."},
-	{"ending": "ДЕФОЛТ", "title": "Казна сказала «нет»", "description": "Допустить государственный дефолт и остановку обязательных выплат."},
-	{"ending": "СВЕРЖЕНИЕ", "title": "Ноль процентов", "description": "Потерять последнюю общественную опору и быть свергнутым улицей."},
-	{"ending": "ВОЕННЫЙ ПЕРЕВОРОТ", "title": "Семейный совет", "description": "Потерять лояльность армии и уступить власть военному руководству."},
-	{"ending": "РАСКОЛ", "title": "Каждый сам за себя", "description": "Довести государственную стабильность до полного распада страны."},
-	{"ending": "ИЗБРАННЫЙ ПРЕЗИДЕНТ", "title": "Собственный мандат", "description": "Победить на проверяемых досрочных выборах."},
-	{"ending": "МИРНАЯ ПЕРЕДАЧА ВЛАСТИ", "title": "Уйти вовремя", "description": "Проиграть честные выборы и добровольно передать власть."},
-	{"ending": "АППАРАТ НЕ СПАС", "title": "Даже аппарат не всесилен", "description": "Проиграть выборы несмотря на управляемый подсчёт."},
-	{"ending": "УПРАВЛЯЕМАЯ ПОБЕДА", "title": "Демократия с инструкцией", "description": "Получить признанный мандат при помощи административного ресурса."},
-	{"ending": "ВЫБОРЫ БЕЗ ПРИЗНАНИЯ", "title": "Победа, которую никто не признал", "description": "Выиграть управляемый подсчёт, но потерять общественное признание результата."},
-	{"ending": "ПОБЕДА ПО ПРОТОКОЛУ", "title": "Главное — протокол", "description": "Удержать власть после заранее объявленного результата выборов."},
-	{"ending": "ИЗБИРАТЕЛЬНЫЙ КРИЗИС", "title": "Два президента", "description": "Завершить кампанию двумя конкурирующими центрами власти."},
-	{"ending": "ОТЛОЖЕННЫЙ МАНДАТ", "title": "После войны", "description": "Перенести выборы во время войны и сохранить достаточное общественное принятие."},
-	{"ending": "ПРОСРОЧЕННЫЙ МАНДАТ", "title": "Временно навсегда", "description": "Отменить выборы, не убедив страну в законности продления полномочий."},
-	{"ending": "ДОСРОЧНЫЕ ВЫБОРЫ", "title": "Срок истёк", "description": "Довести временный срок до конца без признанного порядка передачи власти."},
-	{"ending": "ВОСТОЧНЫЙ КУРС", "title": "Снова вместе", "description": "Завершить кампанию в политической орбите Восточного Союза."},
-	{"ending": "ЗАПАДНЫЙ КУРС", "title": "Открытые двери", "description": "Завершить кампанию в системе договоров Западной Федерации."},
-	{"ending": "ХРУПКИЙ НЕЙТРАЛИТЕТ", "title": "Между двух стульев", "description": "Сохранить промежуточное положение между двумя соседями."},
-	{"ending": "НАСЛЕДСТВО ОТЦА", "title": "Достойный наследник", "description": "Сохранить и укрепить семейную авторитарную систему."}
+	{"id": "power_retained", "title": "Удержать власть", "description": "Завершить 26 недель у власти с признанным мандатом или принятым переносом выборов."},
+	{"id": "power_transferred", "title": "Передать власть", "description": "Завершить 26 недель и передать президентский пост победителю выборов."}
 ]
 const SPECIAL_ACHIEVEMENTS := [
 	{"id": "bills_without_rescuers", "title": "Счета без спасателей", "description": "Отказаться от печати денег и кредита в кризисе «Счета к оплате», затем прожить четыре игровые недели без дефолта."},
@@ -405,6 +388,7 @@ var sidebar_number_tween: Tween
 var sidebar_number_flush_pending := false
 var sidebar_refresh_pending := false
 var overlay: Control
+var achievements_menu_button: Button
 var overlay_can_cancel := false
 var active_overlay_scroll: ScrollContainer
 var debug_cheat_panel: Control
@@ -936,18 +920,23 @@ func run_logic_smoke_test() -> void:
 	if strike_income_with_agreements <= strike_income_without_agreements:
 		failures.append("Закон Милы Сорец о коллективных договорах не смягчает экономический ущерб крупной забастовки.")
 	state.collective_bargaining_law = false
-	var achievement_endings := {}
+	var achievement_ids := {}
 	for achievement in ENDING_ACHIEVEMENTS:
-		var achievement_ending := str(achievement.get("ending", ""))
-		if achievement_ending == "" or achievement_endings.has(achievement_ending):
-			failures.append("Каталог достижений содержит пустую или повторяющуюся концовку.")
+		var achievement_id := str(achievement.get("id", ""))
+		if achievement_id == "" or achievement_ids.has(achievement_id):
+			failures.append("Каталог достижений содержит пустой или повторяющийся итог правления.")
 			break
-		achievement_endings[achievement_ending] = true
-	if achievement_endings.size() != 19:
-		failures.append("Каждая из 19 доступных концовок должна иметь отдельное достижение.")
-	for required_ending in ["КАПИТУЛЯЦИЯ", "ДЕФОЛТ", "СВЕРЖЕНИЕ", "ВОЕННЫЙ ПЕРЕВОРОТ", "РАСКОЛ", "ИЗБРАННЫЙ ПРЕЗИДЕНТ", "МИРНАЯ ПЕРЕДАЧА ВЛАСТИ", "УПРАВЛЯЕМАЯ ПОБЕДА", "ИЗБИРАТЕЛЬНЫЙ КРИЗИС"]:
-		if not achievement_endings.has(required_ending):
-			failures.append("Для концовки «%s» не создано достижение." % required_ending)
+		achievement_ids[achievement_id] = true
+	if achievement_ids.size() != 2 or not achievement_ids.has("power_retained") or not achievement_ids.has("power_transferred"):
+		failures.append("За итог правления должны выдаваться только два достижения: удержание и передача власти.")
+	for held_result in ["ИЗБРАННЫЙ ПРЕЗИДЕНТ", "УПРАВЛЯЕМАЯ ПОБЕДА", "ПОБЕДА ПО ПРОТОКОЛУ", "ОТЛОЖЕННЫЙ МАНДАТ"]:
+		if ending_achievement_id(held_result, DEMO_WEEKS) != "power_retained":
+			failures.append("Удержание власти не определяется по результату «%s»." % held_result)
+	for transferred_result in ["МИРНАЯ ПЕРЕДАЧА ВЛАСТИ", "АППАРАТ НЕ СПАС"]:
+		if ending_achievement_id(transferred_result, DEMO_WEEKS) != "power_transferred":
+			failures.append("Передача власти не определяется по результату «%s»." % transferred_result)
+	if ending_achievement_id("ИЗБРАННЫЙ ПРЕЗИДЕНТ", DEMO_WEEKS - 1) != "" or ending_achievement_id("КАПИТУЛЯЦИЯ", DEMO_WEEKS) != "" or ending_achievement_id("ИЗБИРАТЕЛЬНЫЙ КРИЗИС", DEMO_WEEKS) != "":
+		failures.append("Досрочные и спорные финалы не должны открывать достижения за итог власти.")
 	if week_count_text(1) != "1 неделю" or week_count_text(2) != "2 недели" or week_count_text(11) != "11 недель":
 		failures.append("Финальный экран неверно склоняет количество прожитых недель.")
 	if story_event_pool.size() != 55:
@@ -2944,6 +2933,13 @@ func run_settings_smoke_test() -> void:
 			main_menu_buttons.append(menu_control.text)
 	if main_menu_buttons != ["НОВАЯ ИГРА", "ПРОДОЛЖИТЬ", "ДОСТИЖЕНИЯ", "НАСТРОЙКИ", "АВТОРЫ", "ВЫХОД"]:
 		failures.append("В главном меню должны быть шесть заданных кнопок.")
+	style_achievements_menu_button(true)
+	var achievement_button_style := achievements_menu_button.get_theme_stylebox("normal") as StyleBoxFlat
+	if not achievements_menu_button.text.contains("НОВОЕ") or achievement_button_style == null or achievement_button_style.bg_color != GOLD:
+		failures.append("Новое достижение должно подсветить кнопку главного меню.")
+	style_achievements_menu_button(false)
+	if achievements_menu_button.text != "ДОСТИЖЕНИЯ":
+		failures.append("После просмотра достижения подсветка кнопки должна исчезнуть.")
 	show_credits()
 	if overlay.find_children("*", "Label", true, false).filter(func(node: Node): return (node as Label).text == "dimazan10").is_empty():
 		failures.append("На экране авторов отсутствует ник автора проекта.")
@@ -3899,6 +3895,7 @@ func budget_draft_cost() -> int:
 
 
 func clear_screen() -> void:
+	achievements_menu_button = null
 	if is_instance_valid(ending_transition):
 		ending_transition.kill()
 	ending_transition = null
@@ -3953,6 +3950,21 @@ func menu_button(text_value: String) -> Button:
 	button.add_theme_stylebox_override("hover", style(Color("#34414a"), 14, GOLD, 1))
 	button.add_theme_stylebox_override("pressed", style(Color("#1d2429"), 14, GOLD, 2))
 	return button
+
+
+func style_achievements_menu_button(has_new: bool) -> void:
+	if not is_instance_valid(achievements_menu_button):
+		return
+	achievements_menu_button.text = "ДОСТИЖЕНИЯ • НОВОЕ" if has_new else "ДОСТИЖЕНИЯ"
+	if has_new:
+		achievements_menu_button.add_theme_color_override("font_color", Color("#1d2429"))
+		achievements_menu_button.add_theme_stylebox_override("normal", style(GOLD, 14, CREAM, 2))
+		achievements_menu_button.add_theme_stylebox_override("hover", style(CREAM, 14, GOLD, 3))
+	else:
+		achievements_menu_button.add_theme_color_override("font_color", CREAM)
+		achievements_menu_button.add_theme_stylebox_override("normal", style(Color("#283139"), 14, Color("#4c5c66"), 1))
+		achievements_menu_button.add_theme_stylebox_override("hover", style(Color("#34414a"), 14, GOLD, 1))
+	localize_property(achievements_menu_button, "text", "localized_text")
 
 
 func highlighted_new_week_button(text_value: String, danger := false) -> Button:
@@ -4020,9 +4032,10 @@ func show_start_screen() -> void:
 		continue_button.tooltip_text = "%s • week %d • treasury %.2f M • saved %s" % [game_localization.text(str(saved_campaign.get("game_mode", "Кампания"))), int(saved_state.get("week", 1)), float(saved_state.get("money", 0.0)), str(saved_campaign.get("saved_at", "date unknown"))] if language_code == "en" else "%s • неделя %d • казна %.2f млн • сохранено %s" % [str(saved_campaign.get("game_mode", "Кампания")), int(saved_state.get("week", 1)), float(saved_state.get("money", 0.0)), str(saved_campaign.get("saved_at", "дата неизвестна"))]
 		continue_button.pressed.connect(load_campaign)
 	column.add_child(continue_button)
-	var achievements_button := menu_button("ДОСТИЖЕНИЯ")
-	achievements_button.pressed.connect(show_achievements)
-	column.add_child(achievements_button)
+	achievements_menu_button = menu_button("ДОСТИЖЕНИЯ")
+	style_achievements_menu_button(not read_unseen_achievements().is_empty())
+	achievements_menu_button.pressed.connect(show_achievements)
+	column.add_child(achievements_menu_button)
 	var settings_button := menu_button("НАСТРОЙКИ")
 	settings_button.pressed.connect(show_settings)
 	column.add_child(settings_button)
@@ -4690,14 +4703,24 @@ func persistence_allowed() -> bool:
 	return true
 
 
-func achievement_definition(ending_title: String) -> Dictionary:
+func achievement_definition(achievement_id: String) -> Dictionary:
 	for achievement in ENDING_ACHIEVEMENTS:
-		if str(achievement.get("ending", "")) == ending_title:
+		if str(achievement.get("id", "")) == achievement_id:
 			return (achievement as Dictionary).duplicate(true)
 	return {}
 
 
-func read_unlocked_achievements() -> Dictionary:
+func ending_achievement_id(president_title: String, survived_weeks: int) -> String:
+	if survived_weeks < DEMO_WEEKS:
+		return ""
+	if president_title in ["ИЗБРАННЫЙ ПРЕЗИДЕНТ", "УПРАВЛЯЕМАЯ ПОБЕДА", "ПОБЕДА ПО ПРОТОКОЛУ", "ОТЛОЖЕННЫЙ МАНДАТ"]:
+		return "power_retained"
+	if president_title in ["МИРНАЯ ПЕРЕДАЧА ВЛАСТИ", "АППАРАТ НЕ СПАС"]:
+		return "power_transferred"
+	return ""
+
+
+func read_achievement_record() -> Dictionary:
 	if not persistence_allowed() or not FileAccess.file_exists(ACHIEVEMENTS_PATH):
 		return {}
 	var file := FileAccess.open(ACHIEVEMENTS_PATH, FileAccess.READ)
@@ -4706,29 +4729,62 @@ func read_unlocked_achievements() -> Dictionary:
 	var parsed: Variant = JSON.parse_string(file.get_as_text())
 	if not parsed is Dictionary:
 		return {}
-	var stored: Variant = (parsed as Dictionary).get("unlocked", {})
-	return (stored as Dictionary).duplicate(true) if stored is Dictionary else {}
+	return (parsed as Dictionary).duplicate(true)
 
 
-func save_unlocked_achievements(unlocked: Dictionary) -> bool:
+func read_unlocked_achievements() -> Dictionary:
+	var stored: Variant = read_achievement_record().get("unlocked", {})
+	var unlocked := (stored as Dictionary).duplicate(true) if stored is Dictionary else {}
+	# Old saves used individual ending titles as keys. Keep their earned dates where
+	# the old result unambiguously describes retaining or transferring power.
+	for achievement in ENDING_ACHIEVEMENTS:
+		var achievement_id := str(achievement.get("id", ""))
+		if unlocked.has(achievement_id):
+			continue
+		var legacy_titles: Array = ["ИЗБРАННЫЙ ПРЕЗИДЕНТ", "УПРАВЛЯЕМАЯ ПОБЕДА", "ПОБЕДА ПО ПРОТОКОЛУ", "ОТЛОЖЕННЫЙ МАНДАТ"] if achievement_id == "power_retained" else ["МИРНАЯ ПЕРЕДАЧА ВЛАСТИ", "АППАРАТ НЕ СПАС"]
+		for old_title in legacy_titles:
+			if unlocked.has(old_title):
+				unlocked[achievement_id] = unlocked[old_title]
+				break
+	return unlocked
+
+
+func read_unseen_achievements() -> Array:
+	var stored: Variant = read_achievement_record().get("unseen", [])
+	var unseen: Array = (stored as Array).duplicate() if stored is Array else []
+	var valid: Array = []
+	for achievement_id in unseen:
+		if not achievement_definition(str(achievement_id)).is_empty():
+			valid.append(achievement_id)
+			continue
+		for achievement in SPECIAL_ACHIEVEMENTS:
+			if str(achievement.get("id", "")) == str(achievement_id):
+				valid.append(achievement_id)
+				break
+	return valid
+
+
+func save_unlocked_achievements(unlocked: Dictionary, unseen: Array) -> bool:
 	if not persistence_allowed():
 		return false
 	var file := FileAccess.open(ACHIEVEMENTS_PATH, FileAccess.WRITE)
 	if file == null:
 		return false
-	file.store_string(JSON.stringify({"version": 1, "unlocked": unlocked}, "\t"))
+	file.store_string(JSON.stringify({"version": 2, "unlocked": unlocked, "unseen": unseen}, "\t"))
 	file.flush()
 	return true
 
 
-func unlock_ending_achievement(ending_title: String) -> bool:
-	if achievement_definition(ending_title).is_empty() or not persistence_allowed():
+func unlock_ending_achievement(achievement_id: String) -> bool:
+	if achievement_definition(achievement_id).is_empty() or not persistence_allowed():
 		return false
 	var unlocked := read_unlocked_achievements()
-	if unlocked.has(ending_title):
+	if unlocked.has(achievement_id):
 		return false
-	unlocked[ending_title] = Time.get_datetime_string_from_system(false, true)
-	return save_unlocked_achievements(unlocked)
+	unlocked[achievement_id] = Time.get_datetime_string_from_system(false, true)
+	var unseen := read_unseen_achievements()
+	unseen.append(achievement_id)
+	return save_unlocked_achievements(unlocked, unseen)
 
 
 func unlock_special_achievement(achievement_id: String) -> bool:
@@ -4745,14 +4801,16 @@ func unlock_special_achievement(achievement_id: String) -> bool:
 	if unlocked.has(achievement_id):
 		return false
 	unlocked[achievement_id] = Time.get_datetime_string_from_system(false, true)
-	return save_unlocked_achievements(unlocked)
+	var unseen := read_unseen_achievements()
+	unseen.append(achievement_id)
+	return save_unlocked_achievements(unlocked, unseen)
 
 
 func unlocked_achievement_count() -> int:
 	var unlocked := read_unlocked_achievements()
 	var count := 0
 	for achievement in ENDING_ACHIEVEMENTS:
-		if unlocked.has(str(achievement.get("ending", ""))):
+		if unlocked.has(str(achievement.get("id", ""))):
 			count += 1
 	for achievement in SPECIAL_ACHIEVEMENTS:
 		if unlocked.has(str(achievement.get("id", ""))):
@@ -4762,59 +4820,58 @@ func unlocked_achievement_count() -> int:
 
 func show_achievements() -> void:
 	var unlocked := read_unlocked_achievements()
-	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(760, 650)
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	var unseen := read_unseen_achievements()
+	if unseen.is_empty() or save_unlocked_achievements(unlocked, []):
+		style_achievements_menu_button(false)
 	var content := VBoxContainer.new()
+	content.custom_minimum_size = Vector2(850, 0)
 	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	content.add_theme_constant_override("separation", 12)
-	scroll.add_child(content)
+	content.add_theme_constant_override("separation", 16)
 	content.add_child(label("ДОСТИЖЕНИЯ", 30, INK, HORIZONTAL_ALIGNMENT_CENTER))
-	content.add_child(label("Открыто %d из %d. Есть достижения за концовки и особые решения." % [unlocked_achievement_count(), ENDING_ACHIEVEMENTS.size() + SPECIAL_ACHIEVEMENTS.size()], 16, Color("#5f594d"), HORIZONTAL_ALIGNMENT_CENTER))
-	content.add_child(label("ОСОБЫЕ ДОСТИЖЕНИЯ", 19, Color("#765f38")))
+	content.add_child(label("Открыто %d из %d. Два исхода власти и особые достижения." % [unlocked_achievement_count(), ENDING_ACHIEVEMENTS.size() + SPECIAL_ACHIEVEMENTS.size()], 16, Color("#5f594d"), HORIZONTAL_ALIGNMENT_CENTER))
+	var columns := HBoxContainer.new()
+	columns.add_theme_constant_override("separation", 16)
+	content.add_child(columns)
+	var special_column := VBoxContainer.new()
+	special_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	special_column.add_theme_constant_override("separation", 10)
+	columns.add_child(special_column)
+	special_column.add_child(label("ОСОБЫЕ ДОСТИЖЕНИЯ", 19, Color("#765f38")))
 	for achievement in SPECIAL_ACHIEVEMENTS:
 		var achievement_id := str(achievement.get("id", ""))
-		var is_unlocked := unlocked.has(achievement_id)
-		var card := PanelContainer.new()
-		card.add_theme_stylebox_override("panel", style(Color("#ded4bf") if is_unlocked else Color("#d2c9b7"), 12, GOLD if is_unlocked else Color("#938a7b"), 2 if is_unlocked else 1))
-		content.add_child(card)
-		var card_margin := MarginContainer.new()
-		for side in ["left", "right"]:
-			card_margin.add_theme_constant_override("margin_" + side, 16)
-		for side in ["top", "bottom"]:
-			card_margin.add_theme_constant_override("margin_" + side, 12)
-		card.add_child(card_margin)
-		var card_box := VBoxContainer.new()
-		card_box.add_theme_constant_override("separation", 4)
-		card_margin.add_child(card_box)
-		card_box.add_child(label(("ОТКРЫТО • " if is_unlocked else "ЗАКРЫТО • ") + str(achievement.get("title", "Достижение")), 18, GREEN if is_unlocked else MUTED))
-		card_box.add_child(label(str(achievement.get("description", "")), 15, INK if is_unlocked else Color("#625e56")))
-		if is_unlocked:
-			card_box.add_child(label("Получено %s" % str(unlocked.get(achievement_id, "дата неизвестна")), 13, Color("#6f6557")))
-	content.add_child(label("КОНЦОВКИ", 19, Color("#765f38")))
+		special_column.add_child(achievement_card(achievement, unlocked.has(achievement_id), str(unlocked.get(achievement_id, ""))))
+	var outcome_column := VBoxContainer.new()
+	outcome_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	outcome_column.add_theme_constant_override("separation", 10)
+	columns.add_child(outcome_column)
+	outcome_column.add_child(label("ИТОГ ПРАВЛЕНИЯ", 19, Color("#765f38")))
 	for achievement in ENDING_ACHIEVEMENTS:
-		var ending_title := str(achievement.get("ending", ""))
-		var is_unlocked := unlocked.has(ending_title)
-		var card := PanelContainer.new()
-		card.add_theme_stylebox_override("panel", style(Color("#ded4bf") if is_unlocked else Color("#d2c9b7"), 12, GOLD if is_unlocked else Color("#938a7b"), 2 if is_unlocked else 1))
-		content.add_child(card)
-		var card_margin := MarginContainer.new()
-		card_margin.add_theme_constant_override("margin_left", 16)
-		card_margin.add_theme_constant_override("margin_right", 16)
-		card_margin.add_theme_constant_override("margin_top", 12)
-		card_margin.add_theme_constant_override("margin_bottom", 12)
-		card.add_child(card_margin)
-		var card_box := VBoxContainer.new()
-		card_box.add_theme_constant_override("separation", 4)
-		card_margin.add_child(card_box)
-		card_box.add_child(label(("ОТКРЫТО • " if is_unlocked else "ЗАКРЫТО • ") + str(achievement.get("title", "Достижение")), 18, GREEN if is_unlocked else MUTED))
-		card_box.add_child(label(str(achievement.get("description", "")), 15, INK if is_unlocked else Color("#625e56")))
-		if is_unlocked:
-			card_box.add_child(label("Концовка: %s • получено %s" % [ending_title.capitalize(), str(unlocked.get(ending_title, "дата неизвестна"))], 13, Color("#6f6557")))
+		var achievement_id := str(achievement.get("id", ""))
+		outcome_column.add_child(achievement_card(achievement, unlocked.has(achievement_id), str(unlocked.get(achievement_id, ""))))
 	var close := menu_button("ВЕРНУТЬСЯ")
 	close.pressed.connect(close_overlay)
 	content.add_child(close)
-	show_overlay(scroll, PAPER, true, 840)
+	show_overlay(content, PAPER, true, 910)
+
+
+func achievement_card(achievement: Dictionary, is_unlocked: bool, earned_at: String) -> PanelContainer:
+	var card := PanelContainer.new()
+	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	card.add_theme_stylebox_override("panel", style(Color("#ded4bf") if is_unlocked else Color("#d2c9b7"), 12, GOLD if is_unlocked else Color("#938a7b"), 2 if is_unlocked else 1))
+	var card_margin := MarginContainer.new()
+	for side in ["left", "right"]:
+		card_margin.add_theme_constant_override("margin_" + side, 14)
+	for side in ["top", "bottom"]:
+		card_margin.add_theme_constant_override("margin_" + side, 11)
+	card.add_child(card_margin)
+	var card_box := VBoxContainer.new()
+	card_box.add_theme_constant_override("separation", 4)
+	card_margin.add_child(card_box)
+	card_box.add_child(label(("ОТКРЫТО • " if is_unlocked else "ЗАКРЫТО • ") + str(achievement.get("title", "Достижение")), 17, GREEN if is_unlocked else MUTED))
+	card_box.add_child(label(str(achievement.get("description", "")), 14, INK if is_unlocked else Color("#625e56")))
+	if is_unlocked:
+		card_box.add_child(label("Получено %s" % earned_at, 13, Color("#6f6557")))
+	return card
 
 
 func load_display_settings() -> void:
@@ -12699,14 +12756,15 @@ func show_ending(forced_title := "", forced_text := "") -> void:
 	if not ending_preview_active:
 		state.last_ending_title = ending_title
 	var survived_weeks: int = maxi(0, int(state.get("week", 1)) - 1)
-	var ending_achievement := achievement_definition(ending_title)
-	var achievement_unlocked_now := false if ending_preview_active else unlock_ending_achievement(ending_title)
 	var president_title := ending_title
 	var president_text := forced_text if forced_title != "" else ending_text
 	if forced_title == "" and final_alignment != "unresolved" and str(state.get("election_method", "")) != "":
 		var election_result := election_ending_data()
 		president_title = str(election_result.get("title", ending_title))
 		president_text = str(election_result.get("text", "")).split("\n\n")[0]
+	var earned_achievement_id := ending_achievement_id(president_title, survived_weeks) if forced_title == "" else ""
+	var ending_achievement := achievement_definition(earned_achievement_id)
+	var achievement_unlocked_now := false if ending_preview_active else unlock_ending_achievement(earned_achievement_id)
 	if survived_weeks < DEMO_WEEKS:
 		president_text += "\n\nПравительство продержалось %s из 26." % week_count_text(survived_weeks)
 	var chapters: Array[Dictionary] = [
