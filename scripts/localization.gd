@@ -47,7 +47,17 @@ func _init() -> void:
 				markers.append(hit.get_string())
 			templates.append({"source": source_parts, "target": target_parts, "markers": markers})
 	templates.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
-		return str((a["source"] as Array)[0]).length() > str((b["source"] as Array)[0]).length()
+		var a_source: Array = a["source"]
+		var b_source: Array = b["source"]
+		if str(a_source[0]).length() != str(b_source[0]).length():
+			return str(a_source[0]).length() > str(b_source[0]).length()
+		var a_literals := 0
+		var b_literals := 0
+		for part in a_source:
+			a_literals += str(part).length()
+		for part in b_source:
+			b_literals += str(part).length()
+		return a_literals > b_literals
 	)
 
 
@@ -149,6 +159,11 @@ func match_template(value: String, item: Dictionary) -> String:
 	var source: Array = item["source"]
 	var target: Array = item["target"]
 	var markers: Array = item["markers"]
+	# This short connector is useful for names, but must not consume whole
+	# sentences or multi-line reports before a more precise template can act.
+	if source.size() == 3 and str(source[0]) == "" and str(source[1]) == " и " and str(source[2]) == "":
+		if value.length() > 80 or value.contains("\n") or value.contains(":") or value.contains("."):
+			return ""
 	if source.size() < 2 or not value.begins_with(str(source[0])):
 		return ""
 	var captures: Array[String] = []

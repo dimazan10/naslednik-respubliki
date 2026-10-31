@@ -10,6 +10,7 @@ const GOLD := Color("#c7a96b")
 const RED := Color("#a9473f")
 const BLUE := Color("#536f82")
 const PENDING_BLUE := Color("#58a9d1")
+const ROUTINE_TRANSLATION := preload("res://scripts/routine_translation.gd")
 const CHANGE_UP_COLOR := Color("#8ed69a")
 const CHANGE_DOWN_COLOR := Color("#ef8279")
 const GREEN := Color("#668269")
@@ -34,7 +35,7 @@ const WAR_DEFENSIVE_RALLY_WAR_SUPPORT := 6
 const WAR_SHORTENED_FRONT_REDUCTION := 8000
 const FINANCIAL_CRISIS_RESERVE := 2.0
 const DEMO_WEEKS := 26
-const GAME_VERSION := "0.9.3"
+const GAME_VERSION := "0.9.4"
 const DISCORD_INVITE_URL := "https://discord.gg/CTdHbNfZJR"
 const EVENTS_PER_WEEK := 3
 const PROLOGUE_MANDATE_TEXT := "Незадолго до смерти отец провёл ваше назначение вице-президентом через спорное голосование. Теперь вы временно исполняете обязанности главы государства. Через 26 недель должны состояться досрочные выборы."
@@ -3337,6 +3338,19 @@ func run_localization_smoke_test() -> void:
 		failures.append("The main menu did not switch to English: %s" % str(buttons))
 	if game_localization.text("Счета к оплате") != "Bills due":
 		failures.append("A story event did not use its English catalog entry.")
+	var budget_change := "Образование и медицина: базовый → сокращённый"
+	var vote_message := "%d за, %d против. Новые уровни бюджета зафиксированы; денежный расчёт и реакция групп произойдут при переходе к следующей неделе.\n\n%s" % [87, 33, budget_change]
+	show_parliament_vote_result("ПОПРАВКА ПРИНЯТА", vote_message, "", "economy")
+	var translated_vote := ""
+	for node in overlay.find_children("*", "Label", true, false):
+		var line := (node as Label).text
+		if line.contains("87"):
+			translated_vote = line
+		if game_localization.contains_russian(line):
+			failures.append("The English parliamentary vote contains Russian text: " + line)
+	if not translated_vote.contains("87 for, 33 against") or not translated_vote.contains("Education and medicine: basic → shortened"):
+		failures.append("The budget vote did not translate its totals and changed budget line: " + translated_vote)
+	close_overlay(false)
 	show_settings()
 	localize_visible_tree()
 	var saved_effect_volume := audio_volume_percent
@@ -3682,7 +3696,9 @@ func localize_property(node: Object, property_name: String, metadata_name: Strin
 		source = current
 	var rendered := source if language_code == "ru" else game_localization.text(source)
 	if language_code == "en" and property_name == "text" and not current_event.is_empty():
-		if node == body_label and current_event.has("body_en"):
+		if node == title_label and current_event.has("title_en"):
+			rendered = str(current_event["title_en"]).to_upper()
+		elif node == body_label and current_event.has("body_en"):
 			rendered = str(current_event["body_en"])
 		elif node == third_button and current_event.has("third") and (current_event["third"] as Dictionary).has("label_en"):
 			rendered = str(current_event["third"]["label_en"])
@@ -5553,6 +5569,19 @@ func normalize_event_population_effects(event_data: Dictionary) -> Dictionary:
 			var updated_option := (option_data as Dictionary).duplicate(true)
 			updated_option["effects"] = convert_legacy_population_effects(updated_option.get("effects", {}))
 			normalized[side] = updated_option
+	var family := str(normalized.get("_family", ""))
+	if ROUTINE_TRANSLATION.REPORTS.has(family) and (not normalized.has("title_en") or not normalized.has("body_en")):
+		var location: Dictionary = ROUTINE_TRANSLATION.russian_location_from_key(str(normalized.get("_generation_key", "")))
+		if not location.is_empty():
+			var english_context := ""
+			for variant in range(4):
+				var context_template := recurring_event_context(family, variant)
+				if context_template == "" or not str(normalized.get("body", "")).ends_with(format_routine_text(context_template, location)):
+					continue
+				english_context = str(game_localization.catalog.get(context_template, ""))
+				break
+			normalized["title_en"] = ROUTINE_TRANSLATION.title(family, location)
+			normalized["body_en"] = ROUTINE_TRANSLATION.body(family, location, english_context)
 	return normalized
 
 
@@ -14220,7 +14249,8 @@ func build_recurring_event_database() -> void:
 		var right_data: Dictionary = template["right"]
 		var body_template := str(template["body"])
 		var contextual_body := format_routine_text(body_template, location)
-		var context_note := format_routine_text(recurring_event_context(family, int(location["region_index"])), location)
+		var context_template := recurring_event_context(family, int(location["region_index"]))
+		var context_note := format_routine_text(context_template, location)
 		if context_note != "":
 			contextual_body += " " + context_note
 		var routine_title := str(template["title"])
@@ -14237,6 +14267,12 @@ func build_recurring_event_database() -> void:
 		)
 		routine["_family"] = family
 		routine["_generation_key"] = str(location["generation_key"])
+		if ROUTINE_TRANSLATION.REPORTS.has(family):
+			var english_context := str(game_localization.catalog.get(context_template, "")) if context_template != "" else ""
+			if context_template != "" and english_context == "":
+				push_error("Missing English context for routine event: %s" % family)
+			routine["title_en"] = ROUTINE_TRANSLATION.title(family, location)
+			routine["body_en"] = ROUTINE_TRANSLATION.body(family, location, english_context)
 		recurring_events.append(routine)
 		used_variants[str(location["generation_key"])] = true
 
