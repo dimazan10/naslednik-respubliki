@@ -505,6 +505,9 @@ func capture_preview_if_requested() -> void:
 	if "--settings-smoke-test" in args:
 		run_settings_smoke_test()
 		return
+	if "--menu-layout-smoke-test" in args:
+		await run_menu_layout_smoke_test()
+		return
 	if "--tooltip-smoke-test" in args:
 		run_tooltip_smoke_test()
 		return
@@ -3249,6 +3252,50 @@ func run_settings_smoke_test() -> void:
 		get_tree().quit(1)
 
 
+func run_menu_layout_smoke_test() -> void:
+	var failures: Array[String] = []
+	var measurements: Dictionary = {}
+	for locale in ["en", "ru"]:
+		language_code = locale
+		game_localization.set_language(locale)
+		show_new_game_menu()
+		await get_tree().process_frame
+		var panel := overlay.get_child(1).get_child(0) as PanelContainer
+		measurements[locale + "_tutorial"] = panel.size
+		for mode in ["ИГРА С СИДОМ", "СЛУЧАЙНАЯ ИГРА", "РЕЖИМ КИБОРГА", "ОБУЧЕНИЕ"]:
+			for node in overlay.find_children("*", "Button", true, false):
+				var button := node as Button
+				if str(button.get_meta("localized_text_source", "")) == mode:
+					button.pressed.emit()
+					break
+			await get_tree().process_frame
+			measurements[locale + "_" + mode] = panel.size
+			if panel.size != measurements[locale + "_tutorial"]:
+				failures.append("New game panel changed size for %s / %s: %s -> %s" % [locale, mode, measurements[locale + "_tutorial"], panel.size])
+		show_settings()
+		await get_tree().process_frame
+		panel = overlay.get_child(1).get_child(0) as PanelContainer
+		measurements[locale + "_settings"] = panel.size
+		for toggle_caption in [fullscreen_toggle_button_text(), audio_toggle_button_text(), music_toggle_button_text(), event_choice_hints_toggle_button_text()]:
+			for node in overlay.find_children("*", "Button", true, false):
+				var button := node as Button
+				if str(button.get_meta("localized_text_source", "")) == toggle_caption:
+					for press_index in range(2):
+						button.pressed.emit()
+						await get_tree().process_frame
+						if panel.size != measurements[locale + "_settings"]:
+							failures.append("Settings panel changed size for %s / %s: %s -> %s" % [locale, toggle_caption, measurements[locale + "_settings"], panel.size])
+					break
+	print("MENU_LAYOUT_MEASUREMENTS: ", measurements)
+	if failures.is_empty():
+		print("MENU_LAYOUT_SMOKE_TEST: OK")
+		get_tree().quit(0)
+	else:
+		for failure in failures:
+			push_error("MENU_LAYOUT_SMOKE_TEST: " + failure)
+		get_tree().quit(1)
+
+
 func run_localization_smoke_test() -> void:
 	var failures: Array[String] = []
 	var original_language := language_code
@@ -4320,7 +4367,8 @@ func show_start_screen() -> void:
 
 func show_new_game_menu() -> void:
 	var content := VBoxContainer.new()
-	content.custom_minimum_size = Vector2(880, 0)
+	# Reserve the seed field's space for every mode so the dialog never jumps.
+	content.custom_minimum_size = Vector2(880, 584)
 	content.add_theme_constant_override("separation", 18)
 	content.add_child(label("НОВАЯ ИГРА", 30, INK, HORIZONTAL_ALIGNMENT_CENTER))
 	var columns := HBoxContainer.new()
@@ -4440,6 +4488,7 @@ func update_new_game_selection(mode: String, mode_buttons: Dictionary, title_lab
 		button.add_theme_stylebox_override("normal", style(GOLD if selected else Color("#283139"), 14, Color("#8b744b") if selected else Color("#4c5c66"), 1))
 		button.add_theme_stylebox_override("hover", style(CREAM if selected else Color("#34414a"), 14, GOLD, 1))
 		button.add_theme_stylebox_override("pressed", style(Color("#ad915b") if selected else Color("#1d2429"), 14, GOLD, 2))
+	localize_visible_tree()
 
 
 func start_selected_new_game(start_button: Button, seed_input: LineEdit) -> void:
@@ -4608,7 +4657,8 @@ func show_credits() -> void:
 
 func show_settings() -> void:
 	var content := VBoxContainer.new()
-	content.custom_minimum_size = Vector2(880, 0)
+	# Leave room for the longest toggle captions in both languages.
+	content.custom_minimum_size = Vector2(920, 0)
 	content.add_theme_constant_override("separation", 16)
 	content.add_child(label("НАСТРОЙКИ", 30, INK, HORIZONTAL_ALIGNMENT_CENTER))
 	var columns := HBoxContainer.new()
