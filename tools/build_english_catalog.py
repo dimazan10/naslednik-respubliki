@@ -16,7 +16,7 @@ import sentencepiece
 
 ROOT = Path(__file__).resolve().parents[1]
 MODEL = Path(os.environ.get("ARGOS_RU_EN_MODEL", str(ROOT.parent / "translation-model" / "translate-ru_en-1_9")))
-SOURCES = [ROOT / "scripts" / "main.gd", ROOT / "scripts" / "political_dispatches.gd"]
+SOURCES = [ROOT / "scripts" / "main.gd", ROOT / "scripts" / "political_dispatches.gd", ROOT / "scripts" / "campaign_arcs.gd"]
 OUTPUT = ROOT / "localization" / "en.json"
 CYRILLIC = re.compile(r"[А-Яа-яЁё]")
 LITERAL = re.compile(r'"(?:\\.|[^"\\])*"')

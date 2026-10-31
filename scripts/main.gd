@@ -516,6 +516,9 @@ func capture_preview_if_requested() -> void:
 	if "--logic-smoke-test" in args:
 		run_logic_smoke_test()
 		return
+	if "--arc-smoke-test" in args:
+		run_arc_smoke_test()
+		return
 	if "--parliament-smoke-test" in args:
 		run_parliament_smoke_test()
 		return
@@ -555,7 +558,7 @@ func capture_preview_if_requested() -> void:
 	if "--unrest-smoke-test" in args:
 		run_unrest_smoke_test()
 		return
-	var game_captures := ["--capture-main-menu", "--capture-achievements", "--capture-new-game-menu", "--capture-new-game-seed", "--capture-new-game-cyborg", "--capture-settings", "--capture-credits", "--capture-prologue", "--capture-game", "--capture-tutorial", "--capture-guide", "--capture-week-two", "--capture-week-briefing", "--capture-clans", "--capture-economy", "--capture-tooltip-economy", "--capture-budget-icons", "--capture-budget-levels", "--capture-budget-vote", "--capture-army", "--capture-government", "--capture-candidates", "--capture-minister-vote", "--capture-laws", "--capture-foreign", "--capture-war", "--capture-war-crisis", "--capture-weekly", "--capture-routine", "--capture-result", "--capture-new-week", "--capture-crisis", "--capture-creditor", "--capture-protest", "--capture-unrest", "--capture-debug-cheats", "--capture-ending-fate", "--capture-ending-country", "--capture-ending-legacy", "--capture-ending-metrics", "--capture-ending-statistics", "--capture-ending-russian", "--capture-ending-russian-metrics", "--capture-ending-russian-statistics"]
+	var game_captures := ["--capture-main-menu", "--capture-achievements", "--capture-new-game-menu", "--capture-new-game-seed", "--capture-new-game-cyborg", "--capture-settings", "--capture-credits", "--capture-prologue", "--capture-game", "--capture-tutorial", "--capture-guide", "--capture-week-two", "--capture-week-briefing", "--capture-clans", "--capture-economy", "--capture-tooltip-economy", "--capture-budget-icons", "--capture-budget-levels", "--capture-budget-vote", "--capture-army", "--capture-government", "--capture-candidates", "--capture-minister-vote", "--capture-laws", "--capture-foreign", "--capture-war", "--capture-war-crisis", "--capture-weekly", "--capture-routine", "--capture-arc-factory", "--capture-arc-broadcast", "--capture-result", "--capture-new-week", "--capture-crisis", "--capture-creditor", "--capture-protest", "--capture-unrest", "--capture-debug-cheats", "--capture-ending-fate", "--capture-ending-country", "--capture-ending-legacy", "--capture-ending-metrics", "--capture-ending-statistics", "--capture-ending-russian", "--capture-ending-russian-metrics", "--capture-ending-russian-statistics"]
 	var requested_capture := ""
 	for capture_arg in game_captures:
 		if capture_arg in args:
@@ -667,6 +670,13 @@ func capture_preview_if_requested() -> void:
 			event_resolved = true
 			events_resolved_this_week = 1
 			next_event()
+		elif requested_capture in ["--capture-arc-factory", "--capture-arc-broadcast"]:
+			state.week = 6
+			state.campaign_arc = "factory" if requested_capture == "--capture-arc-factory" else "broadcast"
+			current_event = campaign_arc_event_for_week()
+			current_event["_kind"] = "routine"
+			event_resolved = false
+			display_current_event()
 		elif requested_capture == "--capture-result":
 			choose_option("left")
 			await get_tree().create_timer(0.20).timeout
@@ -719,6 +729,8 @@ func capture_preview_if_requested() -> void:
 			state.east_relation = 1
 			state.west_investment_arbitration = true
 			state.media_restricted = true
+			if requested_capture == "--capture-ending-legacy":
+				state.campaign_arc_legacy = "broadcast_independent"
 			if requested_capture.ends_with("statistics"):
 				state.campaign_income = 242.6
 				state.campaign_expenses = 259.3
@@ -762,6 +774,10 @@ func capture_preview_if_requested() -> void:
 		output_path = "res://preview_prologue.png"
 	elif requested_capture == "--capture-game":
 		output_path = "res://preview_game.png"
+	elif requested_capture == "--capture-arc-factory":
+		output_path = "res://preview_arc_factory.png"
+	elif requested_capture == "--capture-arc-broadcast":
+		output_path = "res://preview_arc_broadcast.png"
 	elif requested_capture == "--capture-tutorial":
 		output_path = "res://preview_tutorial.png"
 	elif requested_capture == "--capture-guide":
@@ -1696,6 +1712,105 @@ func run_election_smoke_test() -> void:
 		get_tree().quit(1)
 
 
+func run_arc_smoke_test() -> void:
+	var failures: Array[String] = []
+	start_game("Сид: 1992", 1992)
+	if str(state.get("campaign_arc", "")) != "factory":
+		failures.append("Чётный сид не выбрал историю завода.")
+	state.week = 6
+	if str(campaign_arc_event_for_week().get("title", "")) != "Ведомость за закрытой дверью":
+		failures.append("Заводская история не начинается на шестой неделе.")
+	state.week = 7
+	if not campaign_arc_event_for_week().is_empty():
+		failures.append("Продолжение пришло без первого решения.")
+	state.campaign_arc_started = true
+	state.factory_advance = true
+	if not str(campaign_arc_event_for_week().get("body", "")).contains("выдали заводу аванс"):
+		failures.append("Второй доклад не помнит выданный аванс.")
+	state.factory_advance = false
+	if not str(campaign_arc_event_for_week().get("body", "")).contains("самостоятельно"):
+		failures.append("Второй доклад не помнит отказ от аванса.")
+	state.week = 9
+	state.factory_public_audit = true
+	if not campaign_arc_event_for_week().has("third"):
+		failures.append("Открытая проверка не открыла парламентский вариант.")
+	state.factory_public_audit = false
+	if campaign_arc_event_for_week().has("third"):
+		failures.append("Парламентский вариант доступен без открытой проверки.")
+	state.week = 11
+	state.factory_worker_committee = true
+	state.factory_advance = false
+	if not str(campaign_arc_event_for_week().get("body", "")).contains("снижение цены"):
+		failures.append("Финальный контракт обещает вернуть аванс, которого не было.")
+	if not str(campaign_arc_event_for_week().get("body_en", "")).contains("cut the cost"):
+		failures.append("Составной финальный доклад завода не переведён на английский.")
+	state.campaign_arc_legacy = "factory_council"
+	var accepted_council := election_acceptance_score()
+	var votes_with_council := election_honest_score(false)
+	state.campaign_arc_legacy = "factory_director"
+	if accepted_council - election_acceptance_score() != 6:
+		failures.append("Заводская развязка не меняет признание выборов.")
+	if votes_with_council - election_honest_score(false) != 3:
+		failures.append("Заводская развязка не меняет число честных голосов.")
+	start_game("Сид: 1991", 1991)
+	if str(state.get("campaign_arc", "")) != "broadcast":
+		failures.append("Нечётный сид не выбрал историю телеканала.")
+	state.campaign_arc_started = true
+	state.week = 11
+	state.broadcast_editor_protected = true
+	state.broadcast_open_air = true
+	if str(campaign_arc_event_for_week().get("third", {}).get("label", "")) != "Передать эфир комиссии":
+		failures.append("Защищённая редакция и открытые частоты не открыли независимый эфир.")
+	state.broadcast_open_air = false
+	if campaign_arc_event_for_week().has("third"):
+		failures.append("Независимый эфир доступен после надзора за частотами.")
+	state.campaign_arc_legacy = "broadcast_independent"
+	var independent_acceptance := election_acceptance_score()
+	var independent_votes := election_honest_score(false)
+	state.campaign_arc_legacy = "broadcast_managed"
+	if independent_acceptance - election_acceptance_score() != 10:
+		failures.append("История телеканала не меняет признание выборов.")
+	if independent_votes - election_honest_score(false) != 5:
+		failures.append("История телеканала не меняет число честных голосов.")
+	var managed_bonus := election_effective_score(false, "managed") - election_honest_score(false)
+	state.campaign_arc_legacy = "broadcast_open"
+	if managed_bonus - (election_effective_score(false, "managed") - election_honest_score(false)) != 3:
+		failures.append("Управляемый эфир не влияет на официальный подсчёт.")
+	state.campaign_arc_legacy = "broadcast_independent"
+	current_event = election_event_template()
+	customize_event_for_ministers()
+	if not str(current_event.get("body", "")).contains("Нина Белецкая") or not str(current_event.get("body_en", "")).contains("Nina Beletskaya"):
+		failures.append("Финальный доклад не вспоминает историю канала на обоих языках.")
+	if not ending_decision_legacy().contains("Предвыборную сетку государственного канала"):
+		failures.append("Глава последствий концовки не вспоминает выбранную развязку.")
+	game_localization.set_language("en")
+	for arc_name in ["factory", "broadcast"]:
+		for stage in [1, 2, 3, 4]:
+			for branch in [false, true]:
+				var sample_state := {
+					"factory_advance": branch, "factory_public_audit": branch, "factory_worker_committee": branch,
+					"factory_parliament_hearing": branch, "broadcast_contract_open": branch,
+					"broadcast_editor_protected": branch, "broadcast_open_air": branch
+				}
+				var sample: Dictionary = preload("res://scripts/campaign_arcs.gd").build(arc_name, stage, sample_state)
+				var translated_body := str(sample.get("body_en", game_localization.text(str(sample.get("body", "")))))
+				if game_localization.contains_russian(translated_body):
+					failures.append("Английский текст не переведён: %s, часть %d." % [arc_name, stage])
+				for side in ["left", "right", "third"]:
+					if not sample.has(side):
+						continue
+					for field in ["label", "hint", "result"]:
+						if game_localization.contains_russian(game_localization.text(str(sample[side].get(field, "")))):
+							failures.append("Не переведён %s в варианте %s истории %s." % [field, side, arc_name])
+	if failures.is_empty():
+		print("ARC_SMOKE_TEST: OK | factory=4 reports | broadcast=4 reports | election_memory=yes")
+		get_tree().quit(0)
+	else:
+		for failure in failures:
+			push_error("ARC_SMOKE_TEST: " + failure)
+		get_tree().quit(1)
+
+
 func run_parliament_smoke_test() -> void:
 	var failures: Array[String] = []
 	start_game("Сид: 1991", 1991)
@@ -2292,7 +2407,11 @@ func adaptive_side(event_data: Dictionary) -> String:
 
 
 func run_campaign_smoke_test() -> void:
-	start_game("Сид: 1991", 1991)
+	var test_seed := 1991
+	for argument in OS.get_cmdline_user_args():
+		if str(argument).begins_with("--test-seed="):
+			test_seed = str(argument).trim_prefix("--test-seed=").to_int()
+	start_game("Сид: %d" % test_seed, test_seed)
 	# Этот тест проверяет структуру 26-недельной очереди, а не сложность.
 	# Запас исключает случайное поражение и оставляет баланс отдельному тесту.
 	state.money = 500.0
@@ -2372,7 +2491,7 @@ func run_campaign_smoke_test() -> void:
 		and float(state.get("campaign_expenses", 0.0)) > 0.0
 	)
 	if survived:
-		print("CAMPAIGN_SMOKE_TEST: OK | resolved=%d | core=%d | routine=%d | urgent=%d | min_week=%d | money=%.2f | support=%d | stability=%d" % [resolved_events, int(resolved_by_kind["core"]), int(resolved_by_kind["routine"]), urgent_events, minimum_events_in_week, float(state.get("money", 0.0)), int(state.get("support", 0)), int(state.get("stability", 0))])
+		print("CAMPAIGN_SMOKE_TEST: OK | seed=%d | resolved=%d | core=%d | routine=%d | urgent=%d | min_week=%d | money=%.2f | support=%d | stability=%d" % [test_seed, resolved_events, int(resolved_by_kind["core"]), int(resolved_by_kind["routine"]), urgent_events, minimum_events_in_week, float(state.get("money", 0.0)), int(state.get("support", 0)), int(state.get("stability", 0))])
 		get_tree().quit(0)
 	else:
 		push_error("CAMPAIGN_SMOKE_TEST: stopped after %d events on week %d | core=%d routine=%d urgent=%d closed=%d last=%s" % [resolved_events, int(state.get("week", 0)), int(resolved_by_kind["core"]), int(resolved_by_kind["routine"]), urgent_events, closed_weeks, last_resolved_title])
@@ -3564,6 +3683,12 @@ func election_honest_score(projected := true) -> int:
 			score += 3.0 if bool(state.get("parliament_free", false)) else 1.0
 		"independent":
 			score += 1.0
+	match str(state.get("campaign_arc_legacy", "")):
+		"factory_council", "broadcast_open": score += 2.0
+		"factory_settlement": score += 1.0
+		"broadcast_independent": score += 3.0
+		"factory_director": score -= 1.0
+		"factory_security", "broadcast_managed": score -= 2.0
 	return clampi(roundi(score), 5, 85)
 
 
@@ -3574,6 +3699,8 @@ func election_effective_score(projected := true, rules_override := "") -> int:
 		score += 2
 	elif rules == "managed":
 		score += 8
+		if str(state.get("campaign_arc_legacy", "")) == "broadcast_managed":
+			score += 3
 		if bool(state.get("media_restricted", false)):
 			score += 6
 		score += mini(6, int(state.get("authoritarian", 0)) * 2)
@@ -3589,12 +3716,19 @@ func election_acceptance_score() -> int:
 		+ int(state.get("clan_workers", 50))
 		+ int(state.get("clan_regions", 50))
 	) / 4.0
-	return clampi(roundi(
+	var score := roundi(
 		float(state.get("stability", 0)) * 0.40
 		+ float(state.get("support", 0)) * 0.20
 		+ float(state.get("army", 0)) * 0.15
 		+ clan_average * 0.25
-	), 0, 100)
+	)
+	match str(state.get("campaign_arc_legacy", "")):
+		"factory_council", "factory_settlement": score += 3
+		"factory_director", "factory_security": score -= 3
+		"broadcast_open": score += 4
+		"broadcast_independent": score += 6
+		"broadcast_managed": score -= 4
+	return clampi(score, 0, 100)
 
 
 func election_forecast_label(projected := true) -> String:
@@ -3628,6 +3762,13 @@ func election_forecast_tooltip(projected := true) -> String:
 		text += "\n\nA loyal election commission raises the official result. Media restrictions, authoritarian policies and oligarch support strengthen administrative control but do not raise genuine support. The result may go unrecognized." if language_code == "en" else "\n\nЛояльная комиссия повышает официальный результат. Ограничение СМИ, авторитарный курс и поддержка олигархов усиливают административный ресурс, но не повышают реальную поддержку и могут сделать итог непризнанным."
 	else:
 		text += "\n\nThe exact vote share will be revealed after the campaign." if language_code == "en" else "\n\nТочная доля голосов будет раскрыта только после завершения кампании."
+	var arc_legacy := str(state.get("campaign_arc_legacy", ""))
+	if arc_legacy in ["factory_council", "factory_settlement", "broadcast_open", "broadcast_independent"]:
+		text += "\n\nThe way you settled a long-running public dispute adds votes and trust to the final election result." if language_code == "en" else "\n\nВаше решение в затяжном общественном конфликте добавляет голоса и повышает доверие к итогам выборов."
+	elif arc_legacy in ["factory_director", "factory_security", "broadcast_managed"]:
+		text += "\n\nThe way you settled a long-running public dispute costs votes and makes the final result harder to accept." if language_code == "en" else "\n\nВаше решение в затяжном общественном конфликте отнимает голоса и осложняет признание итогов выборов."
+	if arc_legacy == "broadcast_managed":
+		text += " Managed counting also gains 3 official points from the coordinated broadcast." if language_code == "en" else " При управляемом подсчёте согласованный эфир дополнительно даёт 3 официальных пункта."
 	return text
 
 
@@ -5284,6 +5425,7 @@ func normalize_loaded_state() -> void:
 		"creditor_budget_lock_level": -1, "creditor_budget_lock_until_week": 0,
 		"east_energy_discount_until_week": 0, "west_market_access_until_week": 0,
 		"double_standards_until_week": 0, "foreign_followups": [], "story_followups": [], "unrest_queue": [],
+		"campaign_arc": "", "campaign_arc_started": false, "campaign_arc_legacy": "",
 		"active_unrest_level": 0, "active_unrest_weeks": 0, "active_unrest_cause": "",
 		"active_unrest_kind": "", "active_unrest_labor": false, "active_unrest_reversible": false,
 		"active_unrest_reversal": "",
@@ -5493,6 +5635,7 @@ func start_game(mode: String, seed_value: int, show_opening_prologue := false) -
 		"east_energy_discount_until_week": 0, "west_market_access_until_week": 0,
 		"kres_fuel_supply_until_week": 0,
 		"double_standards_until_week": 0, "foreign_followups": [], "story_followups": [],
+		"campaign_arc": "factory" if tutorial_enabled or posmod(seed_value, 2) == 0 else "broadcast", "campaign_arc_started": false, "campaign_arc_legacy": "",
 		"unrest_queue": [], "active_unrest_level": 0, "active_unrest_weeks": 0,
 		"active_unrest_cause": "", "active_unrest_kind": "", "active_unrest_labor": false,
 		"active_unrest_reversible": false, "active_unrest_reversal": "",
@@ -5616,6 +5759,9 @@ func prepare_week_event_queue() -> void:
 	var second_routine: Dictionary = recurring_event_queue.pop_front().duplicate(true)
 	first_routine = defer_tutorial_neighbor_event(first_routine, recurring_event_queue)
 	second_routine = defer_tutorial_neighbor_event(second_routine, recurring_event_queue)
+	var arc_event := campaign_arc_event_for_week()
+	if not arc_event.is_empty():
+		first_routine = arc_event
 	first_routine["_kind"] = "routine"
 	second_routine["_kind"] = "routine"
 	if int(state.get("week", 1)) == DEMO_WEEKS:
@@ -5626,6 +5772,19 @@ func prepare_week_event_queue() -> void:
 		weekly_event_queue.append(core_event)
 		weekly_event_queue.append(first_routine)
 		weekly_event_queue.append(second_routine)
+
+
+func campaign_arc_event_for_week() -> Dictionary:
+	var stage: int = {6: 1, 7: 2, 9: 3, 11: 4}.get(int(state.get("week", 1)), 0)
+	if stage == 0 or (stage > 1 and not bool(state.get("campaign_arc_started", false))):
+		return {}
+	var arc := str(state.get("campaign_arc", ""))
+	if arc not in ["factory", "broadcast"]:
+		return {}
+	var report: Dictionary = preload("res://scripts/campaign_arcs.gd").build(arc, stage, state)
+	if not report.is_empty():
+		report["_family"] = arc + "_arc_" + str(stage)
+	return report
 
 
 func defer_tutorial_neighbor_event(candidate: Dictionary, source_queue: Array[Dictionary]) -> Dictionary:
@@ -7133,6 +7292,11 @@ func customize_event_for_ministers() -> void:
 			rules = "fair"
 		var forecast := election_forecast_label(true)
 		current_event["body"] = "Двадцать шесть недель временного президентства закончились. Вы шли на выборы как «%s», подсчёт подготовлен по модели «%s». Текущий прогноз — %s, но точная доля голосов станет известна только после закрытия участков. Последний выбор определит, какой результат республика назовёт законным." % [election_campaign_name(str(state.get("election_campaign", ""))), election_rules_name(rules), forecast]
+		current_event["body_en"] = "Twenty-six weeks of acting as president are over. You entered the election as %s, with the count prepared under %s rules. The current forecast is %s, but the final vote share will only be known after the polls close. Your last decision will determine which result the republic recognizes as legitimate." % [game_localization.text(election_campaign_name(str(state.get("election_campaign", "")))), game_localization.text(election_rules_name(rules)), game_localization.text(forecast)]
+		var election_memory: Dictionary = preload("res://scripts/campaign_arcs.gd").election_memory(str(state.get("campaign_arc_legacy", "")))
+		if not election_memory.is_empty():
+			current_event["body"] += "\n\n" + str(election_memory["ru"])
+			current_event["body_en"] += "\n\n" + str(election_memory["en"])
 		current_event["left"] = option("Признать итог комиссии", "Подсчёт пройдёт по ранее выбранным правилам • прогноз: %s • поражение приведёт к мирной передаче власти" % forecast, {}, "Президент приказал не вмешиваться в передачу протоколов и публично обязался признать итог комиссии.", {"election_method": rules})
 		current_event["right"] = option("Использовать весь аппарат", "Административный ресурс повысит официальный результат • поддержка и доверие к процедуре снизятся • итог могут не признать", {"support": -5, "stability": -4, "clan_oligarchs": 6, "authoritarian": 1}, "Администрации получили целевые показатели явки, государственные каналы — единую сетку эфира, а председатели комиссий — звонки из президентской канцелярии.", {"election_method": "managed"})
 		if bool(state.get("at_war", false)) and emergency_powers_override_active():
@@ -13040,6 +13204,9 @@ func ending_decision_legacy() -> String:
 	var memories: Array[String] = []
 	if int(state.get("war_casualties", 0)) > 0:
 		memories.append("Война унесла %s военнослужащих. Для семей погибших смена власти не завершает историю фронта." % format_people(int(state.get("war_casualties", 0))))
+	var arc_memory: String = preload("res://scripts/campaign_arcs.gd").ending_memory(str(state.get("campaign_arc_legacy", "")))
+	if arc_memory != "":
+		memories.append(arc_memory)
 	if bool(state.get("east_border_oil_concession", false)):
 		memories.append("Восточный Союз получил право добывать приграничную нефть. Подпись под соглашением продолжит действовать и после ухода президента.")
 	if bool(state.get("west_investment_arbitration", false)):
