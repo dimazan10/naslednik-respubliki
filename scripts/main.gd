@@ -32,7 +32,7 @@ const WAR_DEFENSIVE_RALLY_WAR_SUPPORT := 6
 const WAR_SHORTENED_FRONT_REDUCTION := 8000
 const FINANCIAL_CRISIS_RESERVE := 2.0
 const DEMO_WEEKS := 26
-const GAME_VERSION := "0.9.2"
+const GAME_VERSION := "0.9.3"
 const DISCORD_INVITE_URL := "https://discord.gg/CTdHbNfZJR"
 const EVENTS_PER_WEEK := 3
 const PROLOGUE_MANDATE_TEXT := "Незадолго до смерти отец провёл ваше назначение вице-президентом через спорное голосование. Теперь вы временно исполняете обязанности главы государства. Через 26 недель должны состояться досрочные выборы."
@@ -3280,11 +3280,33 @@ func run_localization_smoke_test() -> void:
 	else:
 		change_audio_volume(47.0, effect_label)
 		change_music_volume(63.0, music_label)
-		localize_visible_tree()
 		if language_code != "en" or effect_label.text != "Effects volume: 47%" or music_label.text != "Music volume: 63%":
-			failures.append("Moving volume sliders changed the English interface language.")
+			failures.append("Moving volume sliders immediately showed the wrong language.")
+		localize_visible_tree()
+		if effect_label.text != "Effects volume: 47%" or music_label.text != "Music volume: 63%":
+			failures.append("The English volume labels changed after refreshing localization.")
 		change_audio_volume(saved_effect_volume, effect_label)
 		change_music_volume(saved_music_volume, music_label)
+	for toggle_source in [fullscreen_toggle_button_text(), audio_toggle_button_text(), music_toggle_button_text(), event_choice_hints_toggle_button_text()]:
+		var toggle_button: Button = null
+		var caption := game_localization.text(toggle_source)
+		for node in overlay.find_children("*", "Button", true, false):
+			if (node as Button).text == caption:
+				toggle_button = node as Button
+				break
+		if not is_instance_valid(toggle_button):
+			failures.append("Settings toggle is missing: " + caption)
+			continue
+		for press_index in range(2):
+			toggle_button.pressed.emit()
+			var untranslated: Array[String] = []
+			for node in overlay.find_children("*", "Control", true, false):
+				if node is Label or node is BaseButton:
+					var visible_text := str(node.get("text"))
+					if game_localization.contains_russian(visible_text):
+						untranslated.append(visible_text)
+			if not untranslated.is_empty():
+				failures.append("A settings toggle briefly showed Russian text in English mode: " + str(untranslated))
 	var language_buttons: Array[Button] = []
 	for node in overlay.find_children("*", "Button", true, false):
 		if (node as Button).text in ["ENGLISH", "RUSSIAN"]:
@@ -4688,6 +4710,7 @@ func toggle_fullscreen_from_settings(toggle_button: Button, status_label: Label)
 	toggle_fullscreen()
 	toggle_button.text = fullscreen_toggle_button_text()
 	status_label.text = fullscreen_status_text()
+	localize_settings_toggle(toggle_button, status_label)
 
 
 func toggle_audio_from_settings(toggle_button: Button, status_label: Label) -> void:
@@ -4695,6 +4718,7 @@ func toggle_audio_from_settings(toggle_button: Button, status_label: Label) -> v
 	save_display_settings()
 	toggle_button.text = audio_toggle_button_text()
 	status_label.text = audio_status_text()
+	localize_settings_toggle(toggle_button, status_label)
 	if audio_enabled:
 		play_game_sound("decision")
 
@@ -4704,7 +4728,13 @@ func toggle_music_from_settings(toggle_button: Button, status_label: Label) -> v
 	save_display_settings()
 	toggle_button.text = music_toggle_button_text()
 	status_label.text = music_status_text()
+	localize_settings_toggle(toggle_button, status_label)
 	update_background_music()
+
+
+func localize_settings_toggle(toggle_button: Button, status_label: Label) -> void:
+	localize_property(toggle_button, "text", "localized_text")
+	localize_property(status_label, "text", "localized_text")
 
 
 func change_audio_volume(value: float, value_label: Label) -> void:
@@ -4739,6 +4769,7 @@ func toggle_event_choice_hints_from_settings(toggle_button: Button, status_label
 	save_display_settings()
 	toggle_button.text = event_choice_hints_toggle_button_text()
 	status_label.text = event_choice_hints_status_text()
+	localize_settings_toggle(toggle_button, status_label)
 	update_event_choice_hint_visibility()
 
 
