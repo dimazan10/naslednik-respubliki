@@ -50,6 +50,9 @@
 
 ## Начало войны
 
+- **ALRMMisc_Air Raid Siren In Time Of War_KVV AUDIO_FREE**, автор KVV_Audio — CC0 1.0. Полевую запись сирены воздушной тревоги автор сделал в Сумах (Украина).
+- Источник: https://freesound.org/people/KVV_Audio/sounds/727588/
+- `audio/cc0/war_siren_sumy.wav` — пятисекундный фрагмент начала звучания из публичного высококачественного превью записи. Частоты вне основного сигнала приглушены, в начале короткое нарастание, в конце — плавное затухание. Рецепт обработки: `tools/prepare_war_siren.py`. Звучит одновременно со взрывом при первом кризисном докладе о новом вторжении; при последующих военных неделях остаётся только взрыв.
 - **Muffled Distant Explosion**, автор NenadSimic — CC0 1.0.
 - Источник: https://opengameart.org/content/muffled-distant-explosion
 - Производный файл: `war_01.wav`.
