@@ -10,6 +10,8 @@ const GOLD := Color("#c7a96b")
 const RED := Color("#a9473f")
 const BLUE := Color("#536f82")
 const PENDING_BLUE := Color("#58a9d1")
+const CHANGE_UP_COLOR := Color("#8ed69a")
+const CHANGE_DOWN_COLOR := Color("#ef8279")
 const GREEN := Color("#668269")
 const MUTED := Color("#8c887d")
 const CORRUPTION_LABELS := ["минимальная", "низкая", "средняя", "повсеместная", "парализующая"]
@@ -385,6 +387,7 @@ var influence_label: Label
 var stat_labels: Dictionary = {}
 var stat_caption_labels: Dictionary = {}
 var sidebar_summary_labels: Dictionary = {}
+var sidebar_change_arrows: Dictionary = {}
 var sidebar_number_values: Dictionary = {}
 var sidebar_number_targets: Dictionary = {}
 var sidebar_number_tween: Tween
@@ -562,7 +565,7 @@ func capture_preview_if_requested() -> void:
 	if "--unrest-smoke-test" in args:
 		run_unrest_smoke_test()
 		return
-	var game_captures := ["--capture-main-menu", "--capture-achievements", "--capture-new-game-menu", "--capture-new-game-seed", "--capture-new-game-cyborg", "--capture-settings", "--capture-credits", "--capture-prologue", "--capture-game", "--capture-tutorial", "--capture-guide", "--capture-week-two", "--capture-week-briefing", "--capture-clans", "--capture-economy", "--capture-tooltip-economy", "--capture-budget-icons", "--capture-budget-levels", "--capture-budget-vote", "--capture-army", "--capture-government", "--capture-candidates", "--capture-minister-vote", "--capture-laws", "--capture-foreign", "--capture-war", "--capture-war-crisis", "--capture-weekly", "--capture-weekly-law", "--capture-weekly-law-ru", "--capture-weekly-decisions-ru", "--capture-routine", "--capture-arc-factory", "--capture-arc-broadcast", "--capture-result", "--capture-new-week", "--capture-crisis", "--capture-creditor", "--capture-protest", "--capture-unrest", "--capture-debug-cheats", "--capture-ending-fate", "--capture-ending-country", "--capture-ending-legacy", "--capture-ending-metrics", "--capture-ending-statistics", "--capture-ending-thanks", "--capture-ending-russian", "--capture-ending-russian-metrics", "--capture-ending-russian-statistics", "--capture-ending-russian-thanks"]
+	var game_captures := ["--capture-main-menu", "--capture-achievements", "--capture-new-game-menu", "--capture-new-game-seed", "--capture-new-game-cyborg", "--capture-settings", "--capture-credits", "--capture-prologue", "--capture-game", "--capture-sidebar-arrows", "--capture-tutorial", "--capture-guide", "--capture-week-two", "--capture-week-briefing", "--capture-clans", "--capture-economy", "--capture-tooltip-economy", "--capture-budget-icons", "--capture-budget-levels", "--capture-budget-vote", "--capture-army", "--capture-government", "--capture-candidates", "--capture-minister-vote", "--capture-laws", "--capture-foreign", "--capture-war", "--capture-war-crisis", "--capture-weekly", "--capture-weekly-law", "--capture-weekly-law-ru", "--capture-weekly-decisions-ru", "--capture-routine", "--capture-arc-factory", "--capture-arc-broadcast", "--capture-result", "--capture-new-week", "--capture-crisis", "--capture-creditor", "--capture-protest", "--capture-unrest", "--capture-debug-cheats", "--capture-ending-fate", "--capture-ending-country", "--capture-ending-legacy", "--capture-ending-metrics", "--capture-ending-statistics", "--capture-ending-thanks", "--capture-ending-russian", "--capture-ending-russian-metrics", "--capture-ending-russian-statistics", "--capture-ending-russian-thanks"]
 	var requested_capture := ""
 	for capture_arg in game_captures:
 		if capture_arg in args:
@@ -701,6 +704,9 @@ func capture_preview_if_requested() -> void:
 		elif requested_capture == "--capture-result":
 			choose_option("left")
 			await get_tree().create_timer(0.20).timeout
+		elif requested_capture == "--capture-sidebar-arrows":
+			queue_week_change("Sidebar preview", {"support": 6, "stability": -4, "clan_oligarchs": -6, "army_equipment": 10, "army_aircraft": -1})
+			update_interface()
 		elif requested_capture == "--capture-new-week":
 			event_resolved = true
 			events_resolved_this_week = events_required_this_week
@@ -797,6 +803,8 @@ func capture_preview_if_requested() -> void:
 		output_path = "res://preview_prologue.png"
 	elif requested_capture == "--capture-game":
 		output_path = "res://preview_game.png"
+	elif requested_capture == "--capture-sidebar-arrows":
+		output_path = "res://preview_sidebar_arrows.png"
 	elif requested_capture == "--capture-arc-factory":
 		output_path = "res://preview_arc_factory.png"
 	elif requested_capture == "--capture-arc-broadcast":
@@ -2221,6 +2229,15 @@ func run_consequence_smoke_test() -> void:
 	var projected_support_label: Label = stat_labels.get("support")
 	if not is_instance_valid(projected_support_label) or projected_support_label.text != "45%" or not projected_support_label.get_theme_color("font_color").is_equal_approx(PENDING_BLUE):
 		failures.append("Ожидаемая поддержка до конца недели не показана голубым цветом.")
+	var support_arrow: Label = sidebar_change_arrows.get("support")
+	if not is_instance_valid(support_arrow) or support_arrow.text != "↓" or not support_arrow.get_theme_color("font_color").is_equal_approx(CHANGE_DOWN_COLOR):
+		failures.append("Падение поддержки не обозначено красной стрелкой вниз.")
+	queue_week_change("Тест роста прогноза", {"support": 10})
+	update_interface()
+	if support_arrow.text != "↑" or not support_arrow.get_theme_color("font_color").is_equal_approx(CHANGE_UP_COLOR):
+		failures.append("Рост ожидаемой поддержки не обозначен зелёной стрелкой вверх.")
+	pending_week_changes.pop_back()
+	update_interface()
 	event_resolved = true
 	events_resolved_this_week = events_required_this_week
 	weekly_event_queue.clear()
@@ -2228,6 +2245,15 @@ func run_consequence_smoke_test() -> void:
 	advance_week()
 	if int(state.get("support", 0)) != 45 or not bool(state.get("deferred_test_flag", false)) or not pending_week_changes.is_empty():
 		failures.append("Отложенные последствия не применились при переходе недели.")
+	if is_instance_valid(support_arrow) and support_arrow.text != "":
+		failures.append("После завершения недели стрелка прогноза не исчезла.")
+	start_game("Сид: 1991", 1991)
+	queue_week_change("Тест раздельных стрелок армии", {"army_equipment": 10, "army_aircraft": -1})
+	update_interface()
+	var equipment_arrow: Label = sidebar_change_arrows.get("army_equipment")
+	var aircraft_arrow: Label = sidebar_change_arrows.get("army_aircraft")
+	if not is_instance_valid(equipment_arrow) or equipment_arrow.text != "↑" or not is_instance_valid(aircraft_arrow) or aircraft_arrow.text != "↓":
+		failures.append("Техника и авиация не показывают независимые направления изменения.")
 	start_game("Сид: 1991", 1991)
 	begin_law("Антикоррупционное бюро", 3, 2)
 	var spent_influence_after_law_start := int(state.get("influence", 0))
@@ -4207,6 +4233,7 @@ func clear_screen() -> void:
 	stop_sidebar_number_animation()
 	sidebar_number_values.clear()
 	sidebar_number_targets.clear()
+	sidebar_change_arrows.clear()
 	sidebar_number_flush_pending = false
 	sidebar_refresh_pending = false
 	for child in get_children():
@@ -6070,7 +6097,8 @@ func build_game_screen() -> void:
 	add_sidebar_summary_row(army_section, "army_effectiveness", "Боеспособность", "%d%%" % army_effectiveness())
 	add_sidebar_summary_row(army_section, "army_supply", "Снабжение", "%d%%" % army_supply())
 	add_sidebar_summary_row(army_section, "army_personnel", "Личный состав", format_people(int(state.get("army_personnel", 0))))
-	add_sidebar_summary_row(army_section, "army_assets", "Техника / авиация", "%d / %d" % [int(state.get("army_equipment", 0)), int(state.get("army_aircraft", 0))])
+	add_sidebar_summary_row(army_section, "army_equipment", "Техника", "%d" % int(state.get("army_equipment", 0)))
+	add_sidebar_summary_row(army_section, "army_aircraft", "Авиация", "%d" % int(state.get("army_aircraft", 0)))
 
 	var center_column := VBoxContainer.new()
 	center_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -6283,8 +6311,14 @@ func add_stat(parent: Container, key: String, caption: String, value: String, co
 	var caption_label := label(caption, 11, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 	box.add_child(caption_label)
 	var value_label := label(value, 19 if key == "money" else 21, CREAM, HORIZONTAL_ALIGNMENT_CENTER)
+	value_label.autowrap_mode = TextServer.AUTOWRAP_OFF
 	value_label.mouse_filter = Control.MOUSE_FILTER_STOP
-	box.add_child(value_label)
+	var value_row := HBoxContainer.new()
+	value_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	value_row.add_theme_constant_override("separation", 2)
+	box.add_child(value_row)
+	value_row.add_child(value_label)
+	add_sidebar_change_arrow(value_row, key, 16)
 	panel.tooltip_text = compact_tooltip(main_stat_tooltip(key))
 	stat_labels[key] = value_label
 	stat_caption_labels[key] = caption_label
@@ -6303,14 +6337,31 @@ func add_sidebar_summary_row(parent: Container, key: String, caption: String, va
 	value_label.autowrap_mode = TextServer.AUTOWRAP_OFF
 	value_label.mouse_filter = Control.MOUSE_FILTER_STOP
 	row.add_child(value_label)
+	if key not in ["unrest_status", "election_status"]:
+		add_sidebar_change_arrow(row, key, 13)
 	sidebar_summary_labels[key] = value_label
+
+
+func add_sidebar_change_arrow(parent: Container, key: String, font_size: int) -> void:
+	var arrow := label("", font_size, CHANGE_UP_COLOR, HORIZONTAL_ALIGNMENT_CENTER)
+	arrow.custom_minimum_size.x = 12
+	arrow.autowrap_mode = TextServer.AUTOWRAP_OFF
+	arrow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(arrow)
+	sidebar_change_arrows[key] = arrow
+
+
+func update_sidebar_change_arrow(key: String, current: float, projected: float) -> void:
+	var arrow: Label = sidebar_change_arrows.get(key)
+	if not is_instance_valid(arrow):
+		return
+	arrow.text = "" if is_equal_approx(current, projected) else "↑" if projected > current else "↓"
+	arrow.add_theme_color_override("font_color", CHANGE_UP_COLOR if projected > current else CHANGE_DOWN_COLOR)
 
 
 func sidebar_number_label(metric_key: String) -> Label:
 	if stat_labels.has(metric_key):
 		return stat_labels[metric_key] as Label
-	if metric_key in ["army_equipment", "army_aircraft"]:
-		return sidebar_summary_labels.get("army_assets") as Label
 	return sidebar_summary_labels.get(metric_key) as Label
 
 
@@ -6323,10 +6374,7 @@ func render_sidebar_number(metric_key: String) -> void:
 	elif metric_key == "army_personnel":
 		value_label.text = format_people(roundi(float(sidebar_number_values.get(metric_key, 0.0))))
 	elif metric_key in ["army_equipment", "army_aircraft"]:
-		value_label.text = "%d / %d" % [
-			roundi(float(sidebar_number_values.get("army_equipment", 0.0))),
-			roundi(float(sidebar_number_values.get("army_aircraft", 0.0)))
-		]
+		value_label.text = "%d" % roundi(float(sidebar_number_values.get(metric_key, 0.0)))
 	else:
 		value_label.text = "%d%%" % roundi(float(sidebar_number_values.get(metric_key, 0.0)))
 	localize_property(value_label, "text", "localized_text")
@@ -6446,6 +6494,7 @@ func update_sidebar_summary() -> void:
 		var pending := value != current_value
 		var value_label: Label = sidebar_summary_labels[key]
 		queue_sidebar_number(str(key), value)
+		update_sidebar_change_arrow(str(key), current_value, value)
 		value_label.add_theme_color_override("font_color", PENDING_BLUE if pending else GREEN if value >= CLAN_HIGH_SUPPORT else RED if value <= CLAN_LOW_SUPPORT else CREAM)
 		value_label.tooltip_text = clan_support_levels_tooltip(str(key), str(clan_titles[key]), current_value, value)
 		value_label.mouse_default_cursor_shape = Control.CURSOR_HELP
@@ -6457,6 +6506,7 @@ func update_sidebar_summary() -> void:
 		var relation_label: Label = sidebar_summary_labels[relation_key]
 		var war_suffix := (" • WAR" if language_code == "en" else " • ВОЙНА") if at_war_with(side) else ""
 		relation_label.text = projected_band.to_upper() + war_suffix
+		update_sidebar_change_arrow(relation_key, int(state.get(relation_key, 0)), projected_pending_value(relation_key))
 		relation_label.add_theme_color_override("font_color", PENDING_BLUE if relation_pending else neighbor_relation_color(side))
 		relation_label.tooltip_text = (pending_value_tooltip(neighbor_title(side), current_band, projected_band) + "\n\n" + neighbor_relation_explanation(side, true)) if relation_pending else neighbor_relation_explanation(side)
 		relation_label.mouse_default_cursor_shape = Control.CURSOR_HELP
@@ -6465,6 +6515,7 @@ func update_sidebar_summary() -> void:
 	var loyalty_pending := loyalty != current_loyalty
 	var loyalty_label: Label = sidebar_summary_labels["army_loyalty"]
 	queue_sidebar_number("army_loyalty", loyalty)
+	update_sidebar_change_arrow("army_loyalty", current_loyalty, loyalty)
 	loyalty_label.add_theme_color_override("font_color", PENDING_BLUE if loyalty_pending else GREEN if loyalty >= 65 else RED if loyalty <= 40 else CREAM)
 	loyalty_label.tooltip_text = army_loyalty_levels_tooltip(current_loyalty, loyalty)
 	loyalty_label.mouse_default_cursor_shape = Control.CURSOR_HELP
@@ -6474,6 +6525,7 @@ func update_sidebar_summary() -> void:
 	var effectiveness_pending := effectiveness != current_effectiveness
 	var effectiveness_label: Label = sidebar_summary_labels["army_effectiveness"]
 	queue_sidebar_number("army_effectiveness", effectiveness)
+	update_sidebar_change_arrow("army_effectiveness", current_effectiveness, effectiveness)
 	effectiveness_label.add_theme_color_override("font_color", PENDING_BLUE if effectiveness_pending else GREEN if effectiveness >= 70 else RED if effectiveness < 45 else CREAM)
 	var effectiveness_detail := "Сводный показатель подготовки, обеспеченности техникой и авиацией, снабжения и морали."
 	if bool(state.get("at_war", false)):
@@ -6485,6 +6537,7 @@ func update_sidebar_summary() -> void:
 	var supply_pending := supply != current_supply
 	var supply_label: Label = sidebar_summary_labels["army_supply"]
 	queue_sidebar_number("army_supply", supply)
+	update_sidebar_change_arrow("army_supply", current_supply, supply)
 	supply_label.add_theme_color_override("font_color", PENDING_BLUE if supply_pending else GREEN if supply >= 75 else RED if supply < 50 else CREAM)
 	supply_label.tooltip_text = (pending_value_tooltip("Снабжение армии", "%d%%" % current_supply, "%d%%" % supply) + "\n\nЗависит от доли недельной добычи нефти, направленной армии.") if supply_pending else "Зависит от доли недельной добычи нефти, направленной армии. Ниже 75% падает лояльность, ниже 50% дополнительно страдает стабильность."
 	supply_label.mouse_default_cursor_shape = Control.CURSOR_HELP
@@ -6492,6 +6545,7 @@ func update_sidebar_summary() -> void:
 	var projected_personnel := int(projected_army["personnel"])
 	var personnel_label: Label = sidebar_summary_labels["army_personnel"]
 	queue_sidebar_number("army_personnel", projected_personnel)
+	update_sidebar_change_arrow("army_personnel", current_personnel, projected_personnel)
 	personnel_label.add_theme_color_override("font_color", PENDING_BLUE if projected_personnel != current_personnel else CREAM)
 	personnel_label.tooltip_text = (pending_value_tooltip("Военнослужащие", format_people(current_personnel), format_people(projected_personnel)) + "\n\nЦель выбранной модели: %s." % format_people(recruitment_target())) if projected_personnel != current_personnel else "Текущее число военнослужащих. Цель выбранной модели комплектования: %s." % format_people(recruitment_target())
 	personnel_label.mouse_default_cursor_shape = Control.CURSOR_HELP
@@ -6499,13 +6553,18 @@ func update_sidebar_summary() -> void:
 	var current_aircraft := int(state.get("army_aircraft", 0))
 	var projected_equipment := int(projected_army["equipment"])
 	var projected_aircraft := int(projected_army["aircraft"])
-	var assets_pending := projected_equipment != current_equipment or projected_aircraft != current_aircraft
-	var assets_label: Label = sidebar_summary_labels["army_assets"]
 	queue_sidebar_number("army_equipment", projected_equipment)
 	queue_sidebar_number("army_aircraft", projected_aircraft)
-	assets_label.add_theme_color_override("font_color", PENDING_BLUE if assets_pending else CREAM)
-	assets_label.tooltip_text = (pending_value_tooltip("Техника / авиация", "%d / %d" % [current_equipment, current_aircraft], "%d / %d" % [projected_equipment, projected_aircraft]) + "\n\nПотребность ожидаемой армии: %d / %d. Авиацию республика не производит." % [int(projected_army["required_equipment"]), int(projected_army["required_aircraft"])]) if assets_pending else "Наземная техника / авиация. Потребность текущей армии: %d / %d. Авиацию республика не производит." % [army_required_equipment(), army_required_aircraft()]
-	assets_label.mouse_default_cursor_shape = Control.CURSOR_HELP
+	update_sidebar_change_arrow("army_equipment", current_equipment, projected_equipment)
+	update_sidebar_change_arrow("army_aircraft", current_aircraft, projected_aircraft)
+	var equipment_label: Label = sidebar_summary_labels["army_equipment"]
+	equipment_label.add_theme_color_override("font_color", PENDING_BLUE if projected_equipment != current_equipment else CREAM)
+	equipment_label.tooltip_text = (pending_value_tooltip("Наземная техника", str(current_equipment), str(projected_equipment)) + "\n\n" if projected_equipment != current_equipment else "") + "Потребность армии: %d единиц." % int(projected_army["required_equipment"])
+	equipment_label.mouse_default_cursor_shape = Control.CURSOR_HELP
+	var aircraft_label: Label = sidebar_summary_labels["army_aircraft"]
+	aircraft_label.add_theme_color_override("font_color", PENDING_BLUE if projected_aircraft != current_aircraft else CREAM)
+	aircraft_label.tooltip_text = (pending_value_tooltip("Авиация", str(current_aircraft), str(projected_aircraft)) + "\n\n" if projected_aircraft != current_aircraft else "") + "Потребность армии: %d самолётов. Авиацию республика не производит." % int(projected_army["required_aircraft"])
+	aircraft_label.mouse_default_cursor_shape = Control.CURSOR_HELP
 	for summary_label in sidebar_summary_labels.values():
 		if is_instance_valid(summary_label):
 			summary_label.tooltip_text = compact_tooltip(summary_label.tooltip_text)
@@ -10496,6 +10555,7 @@ func update_projected_main_stat(key: String, title: String, is_money := false) -
 		var projected_money := projected_pending_float(key)
 		var changed := not is_equal_approx(current_money, projected_money)
 		queue_sidebar_number(key, projected_money)
+		update_sidebar_change_arrow(key, current_money, projected_money)
 		value_label.add_theme_color_override("font_color", PENDING_BLUE if changed else CREAM)
 		value_label.tooltip_text = compact_tooltip((pending_value_tooltip(title, "%.2f млн" % current_money, "%.2f млн" % projected_money) + "\n\n" if changed else "") + main_stat_tooltip(key))
 	else:
@@ -10503,6 +10563,7 @@ func update_projected_main_stat(key: String, title: String, is_money := false) -
 		var projected_value := projected_pending_value(key)
 		var changed := current_value != projected_value
 		queue_sidebar_number(key, projected_value)
+		update_sidebar_change_arrow(key, current_value, projected_value)
 		value_label.add_theme_color_override("font_color", PENDING_BLUE if changed else CREAM)
 		value_label.tooltip_text = compact_tooltip((pending_value_tooltip(title, "%d%%" % current_value, "%d%%" % projected_value) + "\n\n" if changed else "") + main_stat_tooltip(key))
 	value_label.mouse_default_cursor_shape = Control.CURSOR_HELP if value_label.tooltip_text != "" else Control.CURSOR_ARROW
