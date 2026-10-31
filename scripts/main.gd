@@ -32,7 +32,7 @@ const WAR_DEFENSIVE_RALLY_WAR_SUPPORT := 6
 const WAR_SHORTENED_FRONT_REDUCTION := 8000
 const FINANCIAL_CRISIS_RESERVE := 2.0
 const DEMO_WEEKS := 26
-const GAME_VERSION := "0.9.1"
+const GAME_VERSION := "0.9.2"
 const DISCORD_INVITE_URL := "https://discord.gg/CTdHbNfZJR"
 const EVENTS_PER_WEEK := 3
 const PROLOGUE_MANDATE_TEXT := "Незадолго до смерти отец провёл ваше назначение вице-президентом через спорное голосование. Теперь вы временно исполняете обязанности главы государства. Через 26 недель должны состояться досрочные выборы."
@@ -433,7 +433,7 @@ var music_watchdog_elapsed := 0.0
 
 
 func _ready() -> void:
-	DisplayServer.window_set_title("Наследник Республики • v%s" % GAME_VERSION)
+	DisplayServer.window_set_title("Heir to the Republic • v%s" % GAME_VERSION)
 	theme = build_interface_theme()
 	get_tree().node_added.connect(attach_wrapped_tooltip)
 	load_display_settings()
