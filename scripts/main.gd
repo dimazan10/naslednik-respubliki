@@ -37,7 +37,7 @@ const FINANCIAL_CRISIS_RESERVE := 2.0
 const DEMO_WEEKS := 26
 const ELECTION_OPEN_COURSE_MAX := 1
 const ELECTION_HARD_COURSE_MIN := 3
-const GAME_VERSION := "0.9.5"
+const GAME_VERSION := "0.9.6"
 const DISCORD_INVITE_URL := "https://discord.gg/CTdHbNfZJR"
 const EVENTS_PER_WEEK := 3
 const PROLOGUE_MANDATE_TEXT := "Незадолго до смерти отец провёл ваше назначение вице-президентом через спорное голосование. Теперь вы временно исполняете обязанности главы государства. Через 26 недель должны состояться досрочные выборы."
@@ -3433,7 +3433,7 @@ func run_localization_smoke_test() -> void:
 			translated_vote = line
 		if game_localization.contains_russian(line):
 			failures.append("The English parliamentary vote contains Russian text: " + line)
-	if not translated_vote.contains("87 for, 33 against") or not translated_vote.contains("Education and medicine: basic → shortened"):
+	if not translated_vote.contains("87 for, 33 against") or not translated_vote.contains("Education and medicine: standard → reduced"):
 		failures.append("The budget vote did not translate its totals and changed budget line: " + translated_vote)
 	close_overlay(false)
 	show_settings()
@@ -12061,11 +12061,11 @@ func add_budget_icon_card(parent: Container, item: Dictionary, corruption_tier: 
 	icon.set_meta("uses_custom_art", custom_icon != null)
 	box.add_child(icon)
 	box.add_child(label(str(item["title"]).to_upper(), 13, Color("#5b4038"), HORIZONTAL_ALIGNMENT_CENTER))
-	var level_caption: String = str(BUDGET_LEVEL_NAMES[draft_level]).to_upper()
+	var level_caption: String = game_localization.text(str(BUDGET_LEVEL_NAMES[draft_level])).to_upper()
 	if draft_level != current_level:
-		level_caption = "%s  →  %s" % [BUDGET_LEVEL_NAMES[current_level].to_upper(), level_caption]
+		level_caption = "%s  →  %s" % [game_localization.text(str(BUDGET_LEVEL_NAMES[current_level])).to_upper(), level_caption]
 	box.add_child(label(level_caption, 12, RED if draft_level != current_level else Color("#5f594d"), HORIZONTAL_ALIGNMENT_CENTER))
-	box.add_child(label("%.2f МЛН / НЕД." % draft_amount, 16, INK, HORIZONTAL_ALIGNMENT_CENTER))
+	box.add_child(label("%.2f M / WEEK" % draft_amount if language_code == "en" else "%.2f МЛН / НЕД." % draft_amount, 16, INK, HORIZONTAL_ALIGNMENT_CENTER))
 
 
 func budget_reaction_preview(key: String, delta: int) -> String:
@@ -12082,8 +12082,8 @@ func budget_reaction_preview(key: String, delta: int) -> String:
 	var parts: Array[String] = []
 	for effect_key in reaction.keys():
 		var value := int(reaction[effect_key])
-		parts.append("%s %s%d" % [str(names.get(effect_key, effect_key)), "+" if value > 0 else "−", absi(value)])
-	return "Немедленно после принятия: " + ", ".join(parts) + "."
+		parts.append("%s %s%d" % [game_localization.text(str(names.get(effect_key, effect_key))), "+" if value > 0 else "−", absi(value)])
+	return ("Immediately after adoption: " if language_code == "en" else "Немедленно после принятия: ") + ", ".join(parts) + "."
 
 
 func budget_parliament_preview(key: String, delta: int) -> String:
@@ -12098,8 +12098,8 @@ func budget_parliament_preview(key: String, delta: int) -> String:
 	for faction_key in ["center", "guard", "regions", "civic"]:
 		var value := int(modifiers.get(faction_key, 0)) * absi(delta)
 		if value != 0:
-			parts.append("%s %s%d" % [str(faction_names[faction_key]), "+" if value > 0 else "−", absi(value)])
-	return "Сдвиг позиций фракций: " + (", ".join(parts) if not parts.is_empty() else "нейтрально") + "."
+			parts.append("%s %s%d" % [game_localization.text(str(faction_names[faction_key])), "+" if value > 0 else "−", absi(value)])
+	return ("Factional shift: " if language_code == "en" else "Сдвиг позиций фракций: ") + (", ".join(parts) if not parts.is_empty() else ("none" if language_code == "en" else "нейтрально")) + "."
 
 
 func show_budget_level_selector(key: String, economy_scroll_position := 0) -> void:
@@ -12159,9 +12159,9 @@ func add_budget_level_choice(parent: Container, item: Dictionary, level: int, co
 		status_parts.append("ДЕЙСТВУЮЩИЙ")
 	if level == selected_level:
 		status_parts.append("В ЧЕРНОВИКЕ")
-	box.add_child(label(BUDGET_LEVEL_NAMES[level].to_upper(), 17, Color("#6f3e37"), HORIZONTAL_ALIGNMENT_CENTER))
+	box.add_child(label(game_localization.text(str(BUDGET_LEVEL_NAMES[level])).to_upper(), 17, Color("#6f3e37"), HORIZONTAL_ALIGNMENT_CENTER))
 	box.add_child(label(" • ".join(status_parts) if not status_parts.is_empty() else " ", 11, accent, HORIZONTAL_ALIGNMENT_CENTER))
-	box.add_child(label("%.2f МЛН В НЕДЕЛЮ" % amount, 18, INK, HORIZONTAL_ALIGNMENT_CENTER))
+	box.add_child(label("%.2f M PER WEEK" % amount if language_code == "en" else "%.2f МЛН В НЕДЕЛЮ" % amount, 18, INK, HORIZONTAL_ALIGNMENT_CENTER))
 	var amount_delta := amount - current_amount
 	var delta_text := "Расход не изменится."
 	if amount_delta > 0.001:
@@ -12220,9 +12220,9 @@ func add_budget_card(parent: Container, item: Dictionary, corruption_tier: int) 
 	var title_text := label(str(item["title"]).to_upper(), 14, Color("#6f3e37"))
 	add_hover_detail(title_text, detail)
 	box.add_child(title_text)
-	var amount_caption := "%s • %.2f млн/нед." % [BUDGET_LEVEL_NAMES[current_level], actual_amount]
+	var amount_caption := "%s • %.2f M/week" % [game_localization.text(str(BUDGET_LEVEL_NAMES[current_level])), actual_amount] if language_code == "en" else "%s • %.2f млн/нед." % [BUDGET_LEVEL_NAMES[current_level], actual_amount]
 	if level != current_level:
-		amount_caption += "  →  %s • %.2f млн/нед." % [BUDGET_LEVEL_NAMES[level], draft_amount]
+		amount_caption += "  →  %s • %.2f M/week" % [game_localization.text(str(BUDGET_LEVEL_NAMES[level])), draft_amount] if language_code == "en" else "  →  %s • %.2f млн/нед." % [BUDGET_LEVEL_NAMES[level], draft_amount]
 	var amount_text := label(amount_caption + " ⓘ", 16, INK)
 	add_hover_detail(amount_text, detail)
 	box.add_child(amount_text)

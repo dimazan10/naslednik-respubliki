@@ -53,6 +53,22 @@ func audit() -> void:
 	check_screen("mobilization_economy", game.overlay)
 	game.close_overlay(false)
 	game.budget_draft["budget_health"] = 0
+	game.budget_draft["budget_debt"] = 0
+	game.show_economy()
+	check_screen("budget_draft", game.overlay)
+	for budget_key in ["budget_health", "budget_debt"]:
+		var card: Control = game.overlay.find_child("BudgetIcon_" + budget_key, true, false)
+		var card_text := ""
+		if card != null:
+			for card_label in card.find_children("*", "Label", true, false):
+				card_text += " " + str(card_label.text)
+		if not card_text.contains("STANDARD  →  REDUCED") or not card_text.contains("M / WEEK"):
+			untranslated_count += 1
+			push_error("BUDGET_CARD_TRANSLATION %s: %s" % [budget_key, card_text])
+	game.close_overlay(false)
+	game.show_budget_level_selector("budget_health")
+	check_screen("budget_level_selector", game.overlay)
+	game.close_overlay(false)
 	var forecast: Dictionary = game.parliament_vote_forecast("budget")
 	var vote_message := "%d за, %d против. Новые уровни бюджета зафиксированы; денежный расчёт и реакция групп произойдут при переходе к следующей неделе.\n\nОбразование и медицина: базовый → сокращённый" % [int(forecast.get("yes", 0)), int(forecast.get("no", 0))]
 	game.show_parliament_vote_result("ПОПРАВКА ПРИНЯТА", vote_message, str(forecast.get("detail", "")), "economy")

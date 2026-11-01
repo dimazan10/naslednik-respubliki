@@ -1,4 +1,12 @@
 {
+  "базовый": "standard",
+  "сокращённый": "reduced",
+  "приоритетный": "priority",
+  "лояльность армии": "army loyalty",
+  "Гражданская коалиция": "Civic Coalition",
+  "Региональный список": "Regional List",
+  "%.2f МЛН / НЕД.": "%.2f M / WEEK",
+  "%.2f МЛН В НЕДЕЛЮ": "%.2f M PER WEEK",
   "Ведомость за закрытой дверью": "The Hidden Payroll",
   "Вторая платёжка": "A Second Payment",
   "Пустая проходная": "The Empty Factory Gate",
