@@ -25,6 +25,16 @@ func audit() -> void:
 	game.localize_visible_tree()
 	check_event_catalog(game)
 	check_screen("first_report", game.screen_layer)
+	game.queue_week_change("translation audit", {"support": -3, "stability": -2, "war_support": -4, "money": -1.0})
+	game.update_interface()
+	check_screen("pending_main_stats", game.screen_layer)
+	for stat_key in ["money", "support", "stability", "war_support"]:
+		var stat_tip := str((game.stat_labels[stat_key] as Label).tooltip_text)
+		if not stat_tip.contains("Current:") or not stat_tip.contains("After decisions at week end:") or stat_tip.split("\n").size() < 7:
+			untranslated_count += 1
+			push_error("MAIN_STAT_TOOLTIP_TRANSLATION %s: %s" % [stat_key, stat_tip])
+	game.pending_week_changes.clear()
+	game.update_interface()
 	game.show_prologue()
 	check_screen("prologue", game.overlay)
 	game.close_overlay(false)

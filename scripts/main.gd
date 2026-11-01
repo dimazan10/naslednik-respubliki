@@ -37,7 +37,7 @@ const FINANCIAL_CRISIS_RESERVE := 2.0
 const DEMO_WEEKS := 26
 const ELECTION_OPEN_COURSE_MAX := 1
 const ELECTION_HARD_COURSE_MIN := 3
-const GAME_VERSION := "0.9.7"
+const GAME_VERSION := "0.9.8"
 const DISCORD_INVITE_URL := "https://discord.gg/CTdHbNfZJR"
 const EVENTS_PER_WEEK := 3
 const PROLOGUE_MANDATE_TEXT := "Незадолго до смерти отец провёл ваше назначение вице-президентом через спорное голосование. Теперь вы временно исполняете обязанности главы государства. Через 26 недель должны состояться досрочные выборы."
@@ -3198,12 +3198,16 @@ func run_tooltip_smoke_test() -> void:
 			if control.get_script() != WRAPPED_TOOLTIP_SCRIPT:
 				failures.append("Во вкладке %s осталась стандартная подсказка: %s." % [tab, control.name])
 				continue
-			var tooltip := control.call("_make_custom_tooltip", control.tooltip_text) as Label
+			var tooltip := control.call("_make_custom_tooltip", control.tooltip_text) as PanelContainer
 			if tooltip == null:
 				failures.append("Во вкладке %s подсказка %s не создалась." % [tab, control.name])
 				continue
-			if tooltip.autowrap_mode == TextServer.AUTOWRAP_OFF or tooltip.custom_minimum_size.x > 520.0 or tooltip.custom_maximum_size.x > 520.0:
+			var tooltip_label := tooltip.get_child(0) as Label
+			var tooltip_background := tooltip.get_theme_stylebox("panel") as StyleBoxFlat
+			if tooltip_label == null or tooltip_label.autowrap_mode == TextServer.AUTOWRAP_OFF or tooltip.custom_minimum_size.x > 520.0:
 				failures.append("Во вкладке %s подсказка %s не ограничена по ширине." % [tab, control.name])
+			if tooltip_background == null or tooltip_background.bg_color.a < 0.95 or tooltip_background.content_margin_left < 10.0:
+				failures.append("Во вкладке %s подсказка %s не имеет плотной подложки и отступов." % [tab, control.name])
 			tooltip.free()
 		close_overlay(false)
 	if checked < 50:
@@ -3800,23 +3804,23 @@ func add_hover_detail(control: Control, detail: String) -> void:
 	control.mouse_default_cursor_shape = Control.CURSOR_HELP
 
 
-func compact_tooltip(text_value: String, max_line_length := 46) -> String:
+func compact_tooltip(text_value: String) -> String:
 	if language_code == "en":
 		text_value = game_localization.text(text_value)
-	var wrapped_lines: Array[String] = []
-	for paragraph in text_value.split("\n", true):
-		var line := ""
-		for word in paragraph.split(" ", false):
-			if line != "" and line.length() + word.length() + 1 > max_line_length:
-				wrapped_lines.append(line)
-				line = word
-			else:
-				line += (" " if line != "" else "") + word
-		wrapped_lines.append(line)
-	return "\n".join(wrapped_lines)
+	return text_value
 
 
 func main_stat_tooltip(key: String) -> String:
+	if language_code == "en":
+		match key:
+			"money":
+				return "TREASURY\n\nCritical: if the treasury cannot cover next week's payments, the government defaults.\nLow reserve: up to two weeks of expenses; the label turns red.\nNormal reserve: between two and six weeks of expenses.\nHigh reserve: at least six weeks of expenses; the label turns green."
+			"support":
+				return "GOVERNMENT SUPPORT\n\n0%: the president is overthrown.\n1–40%: the label turns red; unpopular decisions may trigger protests.\n41–50%: unpopular decisions may still trigger protests.\n51–69%: no weekly bonus.\n70–100%: stability +1 each week."
+			"stability":
+				return "STABILITY\n\n0%: the state fractures.\n1–30%: −1 decision point; new protests start one level stronger.\n31–69%: no weekly bonus.\n70–100%: +1 decision point; new protests start one level weaker."
+			"war_support":
+				return "WAR SUPPORT\n\n0% during war: capitulation.\n1–30%: recruitment slows; evaders and deserters appear. Expanding conscription causes protests. War costs 4 stability each week.\n31–64%: normal recruitment. War costs 2 stability each week.\n65–100%: faster recruitment and greater army loyalty. War costs 1 stability each week.\nA shortage of troops at the front causes additional stability loss."
 	match key:
 		"money":
 			return "КАЗНА\nКритично: денег не хватит после следующей недели — дефолт.\nНизкий запас: до двух недель расходов — название красное.\nОбычный запас: между двумя и шестью неделями расходов.\nВысокий запас: от шести недель расходов — название зелёное."
@@ -7962,6 +7966,8 @@ func has_pending_float_change(key: String) -> bool:
 
 
 func pending_value_tooltip(title: String, current_value: String, projected_value: String) -> String:
+	if language_code == "en":
+		return "%s\nCurrent: %s\nAfter decisions at week end: %s\n\nThe blue value is pending." % [game_localization.text(title), current_value.replace("млн", "M"), projected_value.replace("млн", "M")]
 	return "%s\nСейчас: %s\nПосле уже принятых решений в конце недели: %s\n\nГолубое значение ещё не применено." % [title, current_value, projected_value]
 
 
