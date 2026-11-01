@@ -6511,15 +6511,19 @@ func add_sidebar_summary_row(parent: Container, key: String, caption: String, va
 	caption_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	row.add_child(caption_label)
 	var value_label := label(value, 12 if relation_row else 14, CREAM, HORIZONTAL_ALIGNMENT_LEFT if relation_row else HORIZONTAL_ALIGNMENT_RIGHT)
-	if relation_row:
-		# Both relationship values start at the same position. Reserve enough room for
-		# the longer translated status and the pending-change arrow.
-		value_label.custom_minimum_size.x = 106
+	# Reserve a stable value column for every sidebar row. The right-hand inset
+	# keeps late translated values such as "strike" inside the panel.
+	value_label.custom_minimum_size.x = 106 if relation_row else 100
 	value_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	value_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	value_label.mouse_filter = Control.MOUSE_FILTER_STOP
 	row.add_child(value_label)
 	if key not in ["unrest_status", "election_status"]:
 		add_sidebar_change_arrow(row, key, 13)
+	var right_inset := Control.new()
+	right_inset.custom_minimum_size.x = 8
+	right_inset.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(right_inset)
 	sidebar_summary_labels[key] = value_label
 
 
