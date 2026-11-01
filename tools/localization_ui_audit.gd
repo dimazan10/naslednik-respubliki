@@ -141,6 +141,26 @@ func audit() -> void:
 	await process_frame
 	check_screen("election_final_recount", game.screen_layer)
 	check_choice_bounds("election_final_recount", game)
+	var early_endings: Array[Dictionary] = [
+		{"title": "КАПИТУЛЯЦИЯ", "body": "Фронт рухнул после полного распада боеспособных частей. Противники: Восточный Союз. Правительство подписало капитуляцию, армия разоружена, а внешняя политика и ключевые государственные решения перешли под контроль победителей."},
+		{"title": "ДЕФОЛТ", "body": "Казна опустела. Выплаты остановились, а коалиция силовиков и парламентариев отстранила президента. Страна входит в следующий год с замороженными счетами и новым временным правительством."},
+		{"title": "СВЕРЖЕНИЕ", "body": "Президент утратил последнюю общественную опору. Протестующие заняли правительственный квартал, а армия отказалась защищать дворец."},
+		{"title": "ВОЕННЫЙ ПЕРЕВОРОТ", "body": "Командование отказалось признавать власть президента. На рассвете армия заняла правительственный квартал, а старший брат объявил о создании временного Совета национального спасения."},
+		{"title": "РАСКОЛ", "body": "Центральная власть перестала исполнять решения в регионах. Соседи объявили о защите своих граждан, и страна вступила в гражданскую войну."}
+	]
+	for ending in early_endings:
+		game.start_game("Без сохранений", 1991)
+		game.state.week = 11
+		game.show_ending(str(ending.title), str(ending.body))
+		check_screen("early_ending_" + str(ending.title), game.screen_layer)
+	game.start_game("Без сохранений", 1991)
+	game.state.week = 27
+	game.state.election_method = "fair"
+	game.state.final_alignment = "west"
+	game.state.west_relation = 3
+	game.state.east_relation = 1
+	game.show_ending()
+	check_screen("full_ending", game.screen_layer)
 	game.start_game("Без сохранений", 1991)
 	for report in game.recurring_events:
 		if not report.has("body_en") or not report.has("title_en"):

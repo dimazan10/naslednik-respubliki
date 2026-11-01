@@ -13676,7 +13676,7 @@ func show_ending(forced_title := "", forced_text := "") -> void:
 	if not ending_preview_active and peaceful_campaign_achievement_eligible(survived_weeks, forced_title):
 		peaceful_achievement_unlocked_now = unlock_special_achievement("peaceful_campaign")
 	if survived_weeks < DEMO_WEEKS:
-		president_text += "\n\nПравительство продержалось %s из 26." % week_count_text(survived_weeks)
+		president_text += "\n\nYou remained in office for %d of %d weeks." % [survived_weeks, DEMO_WEEKS] if language_code == "en" else "\n\nПравительство продержалось %s из 26." % week_count_text(survived_weeks)
 	var chapters: Array[Dictionary] = [
 		{"eyebrow": "ГЛАВА I  •  СУДЬБА ПРЕЗИДЕНТА", "title": president_title, "body": president_text, "accent": GOLD},
 		{"eyebrow": "ГЛАВА II  •  СУДЬБА РЕСПУБЛИКИ", "title": "СТРАНА ПОСЛЕ ВАС", "body": ending_country_summary(ending_title, final_alignment), "accent": BLUE},
