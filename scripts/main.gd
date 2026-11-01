@@ -37,7 +37,7 @@ const FINANCIAL_CRISIS_RESERVE := 2.0
 const DEMO_WEEKS := 26
 const ELECTION_OPEN_COURSE_MAX := 1
 const ELECTION_HARD_COURSE_MIN := 3
-const GAME_VERSION := "0.9.6"
+const GAME_VERSION := "0.9.7"
 const DISCORD_INVITE_URL := "https://discord.gg/CTdHbNfZJR"
 const EVENTS_PER_WEEK := 3
 const PROLOGUE_MANDATE_TEXT := "Незадолго до смерти отец провёл ваше назначение вице-президентом через спорное голосование. Теперь вы временно исполняете обязанности главы государства. Через 26 недель должны состояться досрочные выборы."
@@ -6643,7 +6643,9 @@ func update_sidebar_summary() -> void:
 			var labor := bool(state.get("active_unrest_labor", false))
 			unrest_label.text = ("забастовка" if labor else "массовые" if unrest_level == 2 else "локальные" if unrest_level == 1 else "общенац.")
 			unrest_label.add_theme_color_override("font_color", RED)
-			unrest_label.tooltip_text = "%s\nПричина: %s\nКаждую неделю стабильность −%d.%s%s" % [unrest_level_title(unrest_level, labor).capitalize(), str(state.get("active_unrest_cause", "")), unrest_stability_loss(unrest_level, labor), " Забастовка также уменьшает доходы от труда и производства." if labor else "", " Региональные комиссии уменьшают потерю стабильности на 1." if bool(state.get("regional_commissions_law", false)) and not labor else ""]
+			var unrest_name := game_localization.text(unrest_level_title(unrest_level, labor)).capitalize() if language_code == "en" else unrest_level_title(unrest_level, labor).capitalize()
+			var unrest_cause := game_localization.text(str(state.get("active_unrest_cause", ""))) if language_code == "en" else str(state.get("active_unrest_cause", ""))
+			unrest_label.tooltip_text = "%s\nCause: %s\nStability −%d each week.%s%s" % [unrest_name, unrest_cause, unrest_stability_loss(unrest_level, labor), " A strike also reduces labour tax and production income." if labor else "", " Regional commissions reduce the stability loss by 1." if bool(state.get("regional_commissions_law", false)) and not labor else ""] if language_code == "en" else "%s\nПричина: %s\nКаждую неделю стабильность −%d.%s%s" % [unrest_name, unrest_cause, unrest_stability_loss(unrest_level, labor), " Забастовка также уменьшает доходы от труда и производства." if labor else "", " Региональные комиссии уменьшают потерю стабильности на 1." if bool(state.get("regional_commissions_law", false)) and not labor else ""]
 		unrest_label.mouse_default_cursor_shape = Control.CURSOR_HELP
 	var election_label: Label = sidebar_summary_labels.get("election_status")
 	if is_instance_valid(election_label):
@@ -11869,7 +11871,9 @@ func show_economy(scroll_position := 0) -> void:
 	var unrest_level := int(state.get("active_unrest_level", 0))
 	if unrest_level > 0:
 		var labor_unrest := bool(state.get("active_unrest_labor", false))
-		var unrest_info := label("%s: стабильность −%d за неделю%s  ⓘ" % [unrest_level_title(unrest_level, labor_unrest).capitalize(), unrest_stability_loss(unrest_level), " • доходы сокращены" if labor_unrest else ""], 16, RED)
+		var unrest_name := game_localization.text(unrest_level_title(unrest_level, labor_unrest)).capitalize() if language_code == "en" else unrest_level_title(unrest_level, labor_unrest).capitalize()
+		var unrest_info_text := "%s: stability −%d per week%s  ⓘ" % [unrest_name, unrest_stability_loss(unrest_level, labor_unrest), " • income reduced" if labor_unrest else ""] if language_code == "en" else "%s: стабильность −%d за неделю%s  ⓘ" % [unrest_name, unrest_stability_loss(unrest_level, labor_unrest), " • доходы сокращены" if labor_unrest else ""]
+		var unrest_info := label(unrest_info_text, 16, RED)
 		unrest_info.tooltip_text = "Причина: %s. Последствия рассчитываются при завершении недели.%s" % [str(state.get("active_unrest_cause", "")), " Участники забастовки временно не считаются вышедшими на работу: точный итог уже учтён в карточках недельных доходов ниже." if labor_unrest else ""]
 		summary_box.add_child(unrest_info)
 	var balance_line := label("ИТОГО ЗА НЕДЕЛЮ: доходы %.2f млн • расходы %.2f млн • баланс %+.2f млн ⓘ" % [actual_income, actual_expenses, weekly_delta], 17, Color("#6f3e37"))

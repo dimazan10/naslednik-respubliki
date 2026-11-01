@@ -20,5 +20,5 @@ def package(platform, executable, output):
 
 
 if __name__ == "__main__":
-    package("windows", "Heir to the Republic.exe", "Heir_to_the_Republic_Beta_0.9.6_Windows.zip")
-    package("linux", "HeirToTheRepublic.x86_64", "Heir_to_the_Republic_Beta_0.9.6_Linux.zip")
+    package("windows", "Heir to the Republic.exe", "Heir_to_the_Republic_Beta_0.9.7_Windows.zip")
+    package("linux", "HeirToTheRepublic.x86_64", "Heir_to_the_Republic_Beta_0.9.7_Linux.zip")

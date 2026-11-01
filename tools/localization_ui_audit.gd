@@ -35,6 +35,21 @@ func audit() -> void:
 		game.call(screen)
 		check_screen(screen, game.overlay)
 		game.close_overlay(false)
+	for labor_unrest in [false, true]:
+		for unrest_level in range(1, 4):
+			game.state.active_unrest_level = unrest_level
+			game.state.active_unrest_labor = labor_unrest
+			game.state.active_unrest_cause = "Счета к оплате"
+			game.update_interface()
+			game.show_economy()
+			var unrest_screen := "strike_" if labor_unrest else "protest_"
+			check_screen(unrest_screen + str(unrest_level), game.overlay)
+			check_screen(unrest_screen + str(unrest_level) + "_sidebar", game.screen_layer)
+			game.close_overlay(false)
+	game.state.active_unrest_level = 0
+	game.state.active_unrest_labor = false
+	game.state.active_unrest_cause = ""
+	game.update_interface()
 	game.state.recruitment_model = "contract"
 	game.show_army()
 	check_screen("contract_army", game.overlay)
