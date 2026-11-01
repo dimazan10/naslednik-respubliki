@@ -599,6 +599,8 @@
   "Временно навсегда": "Forever.",
   "Временно подключить шахту": "Temporarily connect the mine",
   "Временное военное расширение армии за счёт экономики и поддержки войны.": "Temporary military expansion of the army at the expense of the economy and support of the war.",
+  "Срочный набор до потребности фронта; кадровые части сохраняют подготовку.": "Emergency recruitment to meet frontline needs; regular troops retain their training.",
+  "Затяжная массовая мобилизация при низкой поддержке войны: стабильность −1.": "Prolonged mobilization with low war support: stability −1.",
   "Временный президент получил %d%% голосов и признал поражение. Через двадцать шесть недель после смерти отца республика передала власть избранному сопернику без переворота и наследования должности.": "The interim president received %d% of the vote and conceded defeat. Twenty-six weeks after his father's death, the republic handed power to an elected rival without coup or inheriting office.",
   "Временный срок закончился, но государственные органы не смогли установить признанный порядок передачи власти.": "The interim term has expired, but the state authorities have been unable to establish a recognized procedure for the transfer of power.",
   "Временный срок закончился. Отказ президента заранее признать порядок передачи власти сорвал согласование результатов: парламент, комиссия и правительство объявили разные версии законного исхода.": "The interim deadline is over, and the president’s refusal to acknowledge the transition of power has thwarted the consensus, with parliament, commission and government announcing different versions of the legal outcome.",
@@ -1525,6 +1527,7 @@
   "Международный фонд перечислил чрезвычайный транш. Республика получила деньги на ближайшие выплаты, признала новый долг и согласилась на проверку условий кредитной линии.": "The International Fund transferred an emergency tranche, the Republic received the money for the next payments, recognized the new debt and agreed to check the terms of the credit line.",
   "Меньше денег • без нового долга и внешних условий • шестинедельный инфляционный шок": "Less money – no new debt and external conditions – six-week inflation shock",
   "Меньше людей, высокая подготовка и цена содержания.": "Fewer people, high training and the cost of maintenance.",
+  "Высокая подготовка и цена содержания; запас добровольцев ограничен.": "High training and upkeep costs; the volunteer pool is limited.",
   "Меньше расходов • производство оживёт • коррупция усилится": "Fewer expenditures; production will revive; corruption will increase",
   "Местные пекарни используют северную рожь, но просят гарантировать закупки до конца зимы.": "Local bakeries use northern rye, but are asked to guarantee purchases until the end of winter.",
   "Местные станции вышли в эфир с прогнозом для фермеров. На установку дальнего передатчика пришлось выделить отдельные деньги.": "Local stations went on the air with a forecast for farmers, and the installation of a long-distance transmitter had to be allocated some money.",
@@ -3931,5 +3934,15 @@
   "— Я уже третий раз разогреваю ужин, — говорит жена, закрывая папку с вашей новой речью. — Страна переживёт один вечер без президента. Вопрос только в том, переживёшь ли ты вечер без страны.": "This is the third time I've warmed up dinner,\" says my wife, closing the folder with your new speech. \"The country will survive one night without a president. The only question is whether you can survive an evening without a country.",
   "— Я хотела забрать племянницу без камер, — говорит жена, показывая телефон. — Но к школе приехали три машины охраны, перекрыли улицу и не пропустили скорую. Теперь весь город обсуждает не ребёнка, а нашу колонну.": "\"I wanted to pick up my niece without cameras,\" says the wife, showing the phone. \"But three security cars came to the school, blocked the street and didn't miss the ambulance, and now the whole city is discussing not the child, but our convoy.\"",
   "−1.60 млн в неделю": "-1.60 million a week",
-  "● ЗАКРЫТЫЙ ДОКЛАД": "● CLOSED REPORT"
+  "● ЗАКРЫТЫЙ ДОКЛАД": "● CLOSED REPORT",
+  "НЕДОСТУПНО: сначала нужно смягчить авторитарный курс до уровня 2 или ниже.": "UNAVAILABLE: the authoritarian course must first fall to level 2 or below.",
+  "НЕДОСТУПНО: для лояльной комиссии нужен авторитаризм уровня 2 или выше.": "UNAVAILABLE: a loyal commission requires authoritarianism level 2 or higher.",
+  "НЕДОСТУПНО: после жёсткого курса честный подсчёт нельзя восстановить одним решением.": "UNAVAILABLE: a fair count cannot be restored with one decision after a hardline course.",
+  "НЕДОСТУПНО: для управления подсчётом нужны лояльная комиссия и авторитаризм не ниже 2.": "UNAVAILABLE: a managed count requires a loyal commission and authoritarianism level 2 or higher.",
+  "НЕДОСТУПНО: объявить победу до подсчёта можно только после длительного авторитарного курса.": "UNAVAILABLE: claiming victory before the count requires a sustained authoritarian course.",
+  "Передать подсчёт наблюдателям": "Hand the count to observers",
+  "Признать официальный результат": "Accept the official result",
+  "После смягчения курса лояльная комиссия больше не может скрыть параллельные протоколы • результат решат проверяемые голоса": "After reforms, the loyal commission can no longer hide parallel tallies • verifiable votes decide the result",
+  "Президент разрешил наблюдателям сверить все протоколы с копиями из участков. Комиссия отца уступила контроль над итоговым подсчётом межпартийному совету.": "The president allowed observers to check every tally against copies from polling stations. His father's commission ceded control of the final count to a cross-party council.",
+  "Потребуются деньги и переговоры • регионы и профсоюзы получат контроль • авторитарный курс смягчится": "Money and negotiations are needed • regions and unions gain oversight • the authoritarian course eases"
 }

@@ -35,7 +35,9 @@ const WAR_DEFENSIVE_RALLY_WAR_SUPPORT := 6
 const WAR_SHORTENED_FRONT_REDUCTION := 8000
 const FINANCIAL_CRISIS_RESERVE := 2.0
 const DEMO_WEEKS := 26
-const GAME_VERSION := "0.9.4"
+const ELECTION_OPEN_COURSE_MAX := 1
+const ELECTION_HARD_COURSE_MIN := 3
+const GAME_VERSION := "0.9.5"
 const DISCORD_INVITE_URL := "https://discord.gg/CTdHbNfZJR"
 const EVENTS_PER_WEEK := 3
 const PROLOGUE_MANDATE_TEXT := "Незадолго до смерти отец провёл ваше назначение вице-президентом через спорное голосование. Теперь вы временно исполняете обязанности главы государства. Через 26 недель должны состояться досрочные выборы."
@@ -156,11 +158,17 @@ const MINISTER_CANDIDATES := {
 	]
 }
 const RECRUITMENT_MODELS := {
-	"contract": {"title": "Контрактная", "training": 75, "rate": 0.026, "speed": 3000, "description": "Меньше людей, высокая подготовка и цена содержания."},
+	"contract": {"title": "Контрактная", "training": 75, "rate": 0.026, "speed": 3000, "description": "Высокая подготовка и цена содержания; запас добровольцев ограничен."},
 	"mixed": {"title": "Смешанная", "training": 60, "rate": 0.014, "speed": 6000, "description": "Профессиональное ядро и ограниченный ежегодный призыв."},
 	"universal": {"title": "Всеобщая обязанность", "training": 50, "rate": 0.009, "speed": 10000, "description": "Большой резерв, но слабее подготовка и выше политическая цена потерь."},
-	"mobilization": {"title": "Мобилизация", "training": 40, "rate": 0.007, "speed": 25000, "description": "Временное военное расширение армии за счёт экономики и поддержки войны."}
+	"mobilization": {"title": "Мобилизация", "training": 40, "rate": 0.007, "speed": 12000, "description": "Срочный набор до потребности фронта; кадровые части сохраняют подготовку."}
 }
+const CONTRACT_VOLUNTEER_POOL_CAP := 16000
+const CONTRACT_VOLUNTEER_REGEN_PEACE := 600
+const CONTRACT_VOLUNTEER_REGEN_WAR := 250
+const MOBILIZATION_FRONT_RESERVE := 8000
+const MOBILIZATION_LOGISTICS_PER_THOUSAND := 0.008
+const MOBILIZATION_OUTPUT_LOSS_PER_100K := 0.08
 const OIL_OUTPUT := 12
 const METAL_OUTPUT := 8
 const ARMISTICE_MIN_WAR_WEEKS := 6
@@ -1704,6 +1712,27 @@ func run_election_smoke_test() -> void:
 	var rules_event := build_next_election_milestone_event()
 	if str(rules_event.get("title", "")) != "Кто будет считать" or not bool(state.get("election_rules_shown", false)) or not rules_event.has("third"):
 		failures.append("На восемнадцатой неделе не создаётся событие о правилах подсчёта.")
+	current_event = rules_event.duplicate(true)
+	state.authoritarian = 0
+	refresh_election_choice_constraints()
+	if bool(current_event["left"].get("unavailable", false)) or not bool(current_event["right"].get("unavailable", false)) or bool(current_event["third"].get("unavailable", false)):
+		failures.append("Открытый курс должен разрешать независимую и межпартийную комиссию, но блокировать лояльную.")
+	state.authoritarian = 2
+	refresh_election_choice_constraints()
+	if bool(current_event["left"].get("unavailable", false)) or bool(current_event["right"].get("unavailable", false)):
+		failures.append("Переходный курс должен оставлять выбор состава комиссии.")
+	state.authoritarian = 3
+	refresh_election_choice_constraints()
+	if not bool(current_event["left"].get("unavailable", false)) or bool(current_event["right"].get("unavailable", false)) or bool(current_event["third"].get("unavailable", false)):
+		failures.append("Жёсткий курс должен требовать постепенной реформы перед независимой комиссией.")
+	apply_effects({"authoritarian": -1})
+	refresh_election_choice_constraints()
+	if bool(current_event["left"].get("unavailable", false)):
+		failures.append("Смягчение курса не открывает независимую комиссию.")
+	state.authoritarian = 0
+	apply_effects({"authoritarian": -1})
+	if int(state.authoritarian) != 0:
+		failures.append("Реформы опустили авторитаризм ниже нуля.")
 	state.support = 48
 	state.stability = 50
 	state.clan_workers = 50
@@ -1719,6 +1748,38 @@ func run_election_smoke_test() -> void:
 	var final_event := election_event_template()
 	if str(final_event.get("title", "")) != "Досрочные выборы" or not event_peace_requirements(final_event).is_empty():
 		failures.append("Финальное голосование отсутствует или ошибочно блокируется войной.")
+	state.election_rules = "fair"
+	state.authoritarian = 0
+	current_event = final_event.duplicate(true)
+	customize_event_for_ministers()
+	refresh_election_choice_constraints()
+	if bool(current_event["left"].get("unavailable", false)) or not bool(current_event["right"].get("unavailable", false)) or not bool(current_event["third"].get("unavailable", false)):
+		failures.append("При низком авторитаризме нельзя внезапно управлять итогом или объявить победу заранее.")
+	state.authoritarian = 3
+	current_event = final_event.duplicate(true)
+	customize_event_for_ministers()
+	refresh_election_choice_constraints()
+	if not bool(current_event["left"].get("unavailable", false)) or not bool(current_event["right"].get("unavailable", false)) or bool(current_event["third"].get("unavailable", false)):
+		failures.append("Жёсткий курс с независимой комиссией не должен внезапно дать честный или управляемый подсчёт.")
+	event_resolved = false
+	choose_option("left")
+	if event_resolved:
+		failures.append("Закрытый честный подсчёт всё ещё можно выбрать напрямую.")
+	state.election_rules = "managed"
+	state.authoritarian = 0
+	current_event = final_event.duplicate(true)
+	customize_event_for_ministers()
+	refresh_election_choice_constraints()
+	if str(current_event["left"].get("set", {}).get("election_method", "")) != "negotiated" or bool(current_event["left"].get("unavailable", false)) or not bool(current_event["right"].get("unavailable", false)):
+		failures.append("Старое сохранение с лояльной комиссией и смягчённым курсом не получило проверяемый пересчёт.")
+	if election_effective_score(false) != election_effective_score(false, "negotiated"):
+		failures.append("Прогноз не учитывает обязательный проверяемый пересчёт после смягчения курса.")
+	state.authoritarian = 2
+	current_event = final_event.duplicate(true)
+	customize_event_for_ministers()
+	refresh_election_choice_constraints()
+	if bool(current_event["right"].get("unavailable", false)) or not bool(current_event["third"].get("unavailable", false)):
+		failures.append("Переходный курс с лояльной комиссией должен допускать управление подсчётом, но не досрочное объявление победы.")
 	state.at_war = true
 	state.war_enemy = "west"
 	state.enacted_laws = ["Чрезвычайные полномочия"]
@@ -1726,6 +1787,20 @@ func run_election_smoke_test() -> void:
 	customize_event_for_ministers()
 	if str(current_event.get("third", {}).get("set", {}).get("election_method", "")) != "postponed":
 		failures.append("Война и чрезвычайные полномочия не открывают перенос выборов.")
+	state.at_war = false
+	state.week = DEMO_WEEKS
+	state.election_rules = "fair"
+	state.authoritarian = 3
+	current_event = final_event.duplicate(true)
+	customize_event_for_ministers()
+	refresh_election_choice_constraints()
+	save_path_override = "user://election_smoke_test.json"
+	var election_save_path := ProjectSettings.globalize_path(campaign_save_path())
+	if not save_campaign(false) or not load_campaign() or not bool(current_event.get("left", {}).get("unavailable", false)):
+		failures.append("Загрузка сохранённого финального доклада открыла честный подсчёт при жёстком курсе.")
+	if FileAccess.file_exists(campaign_save_path()):
+		DirAccess.remove_absolute(election_save_path)
+	save_path_override = ""
 	state.at_war = false
 	state.support = 70
 	state.stability = 65
@@ -1745,7 +1820,7 @@ func run_election_smoke_test() -> void:
 	if str(election_ending_data().get("title", "")) != "МИРНАЯ ПЕРЕДАЧА ВЛАСТИ":
 		failures.append("Честное поражение не приводит к мирной передаче власти.")
 	if failures.is_empty():
-		print("ELECTION_SMOKE_TEST: OK | fair=%d | managed=%d | milestones=2 | wartime_postponement=yes" % [fair_score, managed_score])
+		print("ELECTION_SMOKE_TEST: OK | fair=%d | managed=%d | milestones=2 | course_gates=yes | save_reload=yes | wartime_postponement=yes" % [fair_score, managed_score])
 		get_tree().quit(0)
 	else:
 		for failure in failures:
@@ -3029,6 +3104,10 @@ func run_save_smoke_test() -> void:
 	state.support = 73
 	state.debt_weekly_interest_rate = 0.00525
 	state.health_funding_balance = 2
+	state.contract_volunteer_pool = 1234
+	state.army_mobilized_personnel = 12000
+	state.mobilization_core_training = 75
+	state.mobilization_core_rate = 0.026
 	selected_ministers.economy = "grad"
 	active_law = "Антикоррупционное бюро"
 	law_progress = 1
@@ -3045,6 +3124,10 @@ func run_save_smoke_test() -> void:
 	state.support = 1
 	state.debt_weekly_interest_rate = 0.02
 	state.health_funding_balance = 0
+	state.contract_volunteer_pool = 0
+	state.army_mobilized_personnel = 0
+	state.mobilization_core_training = 40
+	state.mobilization_core_rate = 0.007
 	selected_ministers.economy = "radan"
 	active_law = ""
 	event_queue.clear()
@@ -3057,6 +3140,8 @@ func run_save_smoke_test() -> void:
 			failures.append("Основные показатели восстановлены неверно.")
 		if int(state.get("health_funding_balance", 0)) != 2:
 			failures.append("Накопленный месячный эффект школ и больниц потерян при загрузке.")
+		if int(state.get("contract_volunteer_pool", 0)) != 1234 or int(state.get("army_mobilized_personnel", 0)) != 12000 or int(state.get("mobilization_core_training", 0)) != 75 or not is_equal_approx(float(state.get("mobilization_core_rate", 0.0)), 0.026):
+			failures.append("Запас добровольцев или состав мобилизованной армии потерян при загрузке.")
 		if str(selected_ministers.get("economy", "")) != "grad" or active_law != "Антикоррупционное бюро" or law_progress != 1:
 			failures.append("Министры или подготовка закона не восстановлены.")
 		if draft_budget_level("budget_social") != 2:
@@ -3812,6 +3897,47 @@ func election_rules_name(rules: String) -> String:
 	return "ещё не определены"
 
 
+func set_election_choice_lock(side: String, reason: String) -> void:
+	if not current_event.has(side):
+		return
+	var choice: Dictionary = current_event[side]
+	if not choice.has("_election_original_hint"):
+		choice["_election_original_hint"] = str(choice.get("hint", ""))
+	if reason == "":
+		if bool(choice.get("_election_locked", false)):
+			choice.erase("unavailable")
+			choice.erase("_election_locked")
+			choice.erase("lock_reason")
+			choice["hint"] = choice["_election_original_hint"]
+	else:
+		choice["unavailable"] = true
+		choice["_election_locked"] = true
+		choice["lock_reason"] = reason
+		choice["hint"] = reason
+	current_event[side] = choice
+
+
+func refresh_election_choice_constraints() -> void:
+	var title := str(current_event.get("title", ""))
+	if title not in ["Кто будет считать", "Досрочные выборы"]:
+		return
+	var course := maxi(0, projected_pending_value("authoritarian"))
+	if title == "Кто будет считать":
+		set_election_choice_lock("left", "НЕДОСТУПНО: сначала нужно смягчить авторитарный курс до уровня 2 или ниже." if course >= ELECTION_HARD_COURSE_MIN else "")
+		set_election_choice_lock("right", "НЕДОСТУПНО: для лояльной комиссии нужен авторитаризм уровня 2 или выше." if course <= ELECTION_OPEN_COURSE_MAX else "")
+		set_election_choice_lock("third", "")
+		return
+	var rules := str(state.get("election_rules", "undecided"))
+	if rules == "managed" and course <= ELECTION_OPEN_COURSE_MAX and not bool(current_event.get("_recount_fallback", false)):
+		current_event["left"] = option("Передать подсчёт наблюдателям", "После смягчения курса лояльная комиссия больше не может скрыть параллельные протоколы • результат решат проверяемые голоса", {}, "Президент разрешил наблюдателям сверить все протоколы с копиями из участков. Комиссия отца уступила контроль над итоговым подсчётом межпартийному совету.", {"election_method": "negotiated"})
+		current_event["_recount_fallback"] = true
+	var left_method := str((current_event.get("left", {}) as Dictionary).get("set", {}).get("election_method", ""))
+	set_election_choice_lock("left", "НЕДОСТУПНО: после жёсткого курса честный подсчёт нельзя восстановить одним решением." if course >= ELECTION_HARD_COURSE_MIN and left_method in ["fair", "negotiated"] else "")
+	set_election_choice_lock("right", "НЕДОСТУПНО: для управления подсчётом нужны лояльная комиссия и авторитаризм не ниже 2." if rules != "managed" or course <= ELECTION_OPEN_COURSE_MAX else "")
+	var third_method := str((current_event.get("third", {}) as Dictionary).get("set", {}).get("election_method", ""))
+	set_election_choice_lock("third", "НЕДОСТУПНО: объявить победу до подсчёта можно только после длительного авторитарного курса." if third_method == "rigged" and course < ELECTION_HARD_COURSE_MIN else "")
+
+
 func election_metric(key: String, projected: bool) -> int:
 	return projected_pending_value(key) if projected else int(state.get(key, 0))
 
@@ -3850,6 +3976,8 @@ func election_honest_score(projected := true) -> int:
 func election_effective_score(projected := true, rules_override := "") -> int:
 	var score := election_honest_score(projected)
 	var rules := rules_override if rules_override != "" else str(state.get("election_rules", "undecided"))
+	if rules_override == "" and rules == "managed" and election_metric("authoritarian", projected) <= ELECTION_OPEN_COURSE_MAX:
+		rules = "negotiated"
 	if rules == "negotiated":
 		score += 2
 	elif rules == "managed":
@@ -3902,6 +4030,9 @@ func election_forecast_color(projected := true) -> Color:
 
 func election_forecast_tooltip(projected := true) -> String:
 	var weeks_left := maxi(0, DEMO_WEEKS - int(state.get("week", 1)) + 1)
+	var forecast_rules := str(state.get("election_rules", "undecided"))
+	if forecast_rules == "managed" and election_metric("authoritarian", projected) <= ELECTION_OPEN_COURSE_MAX:
+		forecast_rules = "negotiated"
 	var support_value := election_metric("support", projected)
 	var stability_value := election_metric("stability", projected)
 	var group_average := roundi(float(
@@ -3910,10 +4041,12 @@ func election_forecast_tooltip(projected := true) -> String:
 		+ election_metric("clan_workers", projected)
 		+ election_metric("clan_regions", projected)
 	) / 4.0)
-	var text := "До досрочных выборов: %d нед.\nПрогноз: %s.\n\nНа честный результат сильнее всего влияет поддержка власти; дополнительно учитываются стабильность, профсоюзы, регионы, Церковь и олигархи.\nТекущие ориентиры: поддержка %d%% • стабильность %d%% • средняя поддержка групп %d%%.\nКампания: %s. Правила: %s." % [weeks_left, election_forecast_label(projected), support_value, stability_value, group_average, election_campaign_name(str(state.get("election_campaign", ""))), election_rules_name(str(state.get("election_rules", "undecided")))]
+	var text := "До досрочных выборов: %d нед.\nПрогноз: %s.\n\nНа честный результат сильнее всего влияет поддержка власти; дополнительно учитываются стабильность, профсоюзы, регионы, Церковь и олигархи.\nТекущие ориентиры: поддержка %d%% • стабильность %d%% • средняя поддержка групп %d%%.\nКампания: %s. Правила: %s." % [weeks_left, election_forecast_label(projected), support_value, stability_value, group_average, election_campaign_name(str(state.get("election_campaign", ""))), election_rules_name(forecast_rules)]
 	if language_code == "en":
-		text = "Early election in %d weeks. Forecast: %s.\n\nGovernment support has the greatest effect on a fair result. Stability and the support of workers, regions, the Church and oligarchs also matter.\nCurrent figures: government support %d%% • stability %d%% • average group support %d%%.\nCampaign: %s. Rules: %s." % [weeks_left, game_localization.text(election_forecast_label(projected)), support_value, stability_value, group_average, game_localization.text(election_campaign_name(str(state.get("election_campaign", "")))), game_localization.text(election_rules_name(str(state.get("election_rules", "undecided"))))]
-	if str(state.get("election_rules", "")) == "managed":
+		text = "Early election in %d weeks. Forecast: %s.\n\nGovernment support has the greatest effect on a fair result. Stability and the support of workers, regions, the Church and oligarchs also matter.\nCurrent figures: government support %d%% • stability %d%% • average group support %d%%.\nCampaign: %s. Rules: %s." % [weeks_left, game_localization.text(election_forecast_label(projected)), support_value, stability_value, group_average, game_localization.text(election_campaign_name(str(state.get("election_campaign", "")))), game_localization.text(election_rules_name(forecast_rules))]
+	var course := maxi(0, projected_pending_value("authoritarian"))
+	text += "\n\nPolitical course: %d. At 0–1, a loyal commission and rigged result are unavailable; at 2, the course can still change; at 3+, a fair count needs earlier reforms. A managed count also needs a loyal commission." % course if language_code == "en" else "\n\nПолитический курс: %d. При 0–1 недоступны лояльная комиссия и подтасовка; при 2 курс ещё можно изменить; при 3+ честный подсчёт требует заранее проведённых реформ. Управляемому подсчёту также нужна лояльная комиссия." % course
+	if forecast_rules == "managed":
 		text += "\n\nA loyal election commission raises the official result. Media restrictions, authoritarian policies and oligarch support strengthen administrative control but do not raise genuine support. The result may go unrecognized." if language_code == "en" else "\n\nЛояльная комиссия повышает официальный результат. Ограничение СМИ, авторитарный курс и поддержка олигархов усиливают административный ресурс, но не повышают реальную поддержку и могут сделать итог непризнанным."
 	else:
 		text += "\n\nThe exact vote share will be revealed after the campaign." if language_code == "en" else "\n\nТочная доля голосов будет раскрыта только после завершения кампании."
@@ -4998,8 +5131,8 @@ func bind_audio_to_new_node(node: Node) -> void:
 		call_deferred("bind_button_audio", node)
 
 
-func bind_button_audio(button: BaseButton) -> void:
-	if not is_instance_valid(button) or bool(button.get_meta("ui_audio_bound", false)):
+func bind_button_audio(button: Variant) -> void:
+	if not is_instance_valid(button) or not button is BaseButton or bool(button.get_meta("ui_audio_bound", false)):
 		return
 	button.set_meta("ui_audio_bound", true)
 	button.mouse_entered.connect(play_button_hover.bind(button))
@@ -5610,7 +5743,7 @@ func normalize_loaded_state() -> void:
 		"week", "campaign_seed", "support", "stability", "army", "war_support", "corruption_tier", "influence",
 		"creditor_obligations", "creditor_review_due_week", "creditor_priority_weeks", "clan_oligarchs", "clan_church",
 		"clan_workers", "clan_regions", "population_total", "population_workable",
-		"army_personnel", "army_equipment", "army_aircraft", "metal_to_equipment", "oil_to_army", "metal_price_weeks",
+		"army_personnel", "army_equipment", "army_aircraft", "contract_volunteer_pool", "army_mobilized_personnel", "mobilization_core_training", "metal_to_equipment", "oil_to_army", "metal_price_weeks",
 		"oil_price_weeks", "budget_social", "budget_health", "health_funding_balance", "budget_admin", "budget_defense", "budget_debt",
 		"budget_infrastructure", "east_relation", "west_relation", "east_pressure", "west_pressure", "east_commitment", "west_commitment", "neutrality",
 		"brother_trust", "authoritarian", "social_protest_due_week", "social_budget_lock_until_week", "regional_administration_penalty_until_week",
@@ -5622,10 +5755,11 @@ func normalize_loaded_state() -> void:
 	for key in integer_keys:
 		if state.has(key):
 			state[key] = int(state[key])
-	for key in ["money", "debt", "debt_weekly_interest_rate", "metal_price_factor", "oil_price_factor"]:
+	for key in ["money", "debt", "debt_weekly_interest_rate", "metal_price_factor", "oil_price_factor", "mobilization_core_rate"]:
 		if state.has(key):
 			state[key] = float(state[key])
 	var loaded_defaults := {
+		"contract_volunteer_pool": CONTRACT_VOLUNTEER_POOL_CAP, "army_mobilized_personnel": 0, "mobilization_core_training": 60, "mobilization_core_rate": 0.014,
 		"war_enemy": "", "war_second_enemy": "", "war_ever_started": bool(state.get("at_war", false)) or int(state.get("war_started_week", 0)) > 0 or int(state.get("war_weeks", 0)) > 0 or bool(state.get("war_armistice_signed", false)), "war_started_week": 0, "war_weeks": 0, "war_casualties": 0,
 		"war_crisis_pending": bool(state.get("at_war", false)), "war_crisis_shown": false,
 		"war_pressure_next_week": maxi(WAR_PRESSURE_INTERVAL, int(state.get("war_weeks", 0)) + WAR_PRESSURE_INTERVAL),
@@ -5663,6 +5797,12 @@ func normalize_loaded_state() -> void:
 	state.debt_weekly_interest_rate = maxf(DEBT_MIN_WEEKLY_RATE, float(state.get("debt_weekly_interest_rate", DEBT_INITIAL_WEEKLY_RATE)))
 	state.population_total = maxi(int(state.get("army_personnel", 0)), int(state.get("population_total", 4250000)))
 	state.population_workable = clampi(int(state.get("population_workable", 2510000)), 0, maxi(0, int(state.population_total) - int(state.get("army_personnel", 0))))
+	state.contract_volunteer_pool = clampi(int(state.get("contract_volunteer_pool", CONTRACT_VOLUNTEER_POOL_CAP)), 0, CONTRACT_VOLUNTEER_POOL_CAP)
+	state.army_mobilized_personnel = clampi(int(state.get("army_mobilized_personnel", 0)), 0, int(state.army_personnel))
+	state.mobilization_core_training = clampi(int(state.get("mobilization_core_training", 60)), 40, 75)
+	state.mobilization_core_rate = clampf(float(state.get("mobilization_core_rate", 0.014)), 0.007, 0.026)
+	state.authoritarian = maxi(0, int(state.get("authoritarian", 0)))
+	state.erase("contract_support_bonus_used")
 	for legacy_population_key in ["pop_children", "pop_employed", "pop_unemployed", "pop_pensioners", "pop_migrants"]:
 		state.erase(legacy_population_key)
 	# Старые сохранения переводятся из накопительных очков в одну из четырёх
@@ -5832,7 +5972,8 @@ func start_game(mode: String, seed_value: int, show_opening_prologue := false) -
 		"clan_oligarchs": 58, "clan_church": 61, "clan_workers": 47,
 		"clan_regions": 50,
 		"population_total": 4250000, "population_workable": 2510000, "army_personnel": 50000,
-		"recruitment_model": "mixed", "army_equipment": 300, "army_aircraft": 12,
+		"recruitment_model": "mixed", "contract_volunteer_pool": CONTRACT_VOLUNTEER_POOL_CAP,
+		"army_mobilized_personnel": 0, "mobilization_core_training": 60, "mobilization_core_rate": 0.014, "army_equipment": 300, "army_aircraft": 12,
 		"metal_to_equipment": 2, "oil_to_army": 8, "at_war": false,
 		"war_enemy": "", "war_second_enemy": "", "war_ever_started": false, "war_started_week": 0, "war_weeks": 0, "war_casualties": 0,
 		"war_crisis_pending": false, "war_crisis_shown": false, "war_pressure_next_week": WAR_PRESSURE_INTERVAL,
@@ -7167,6 +7308,7 @@ func display_current_event(play_default_report_sound := true, play_special_event
 	update_interface()
 	if current_event.is_empty():
 		return
+	refresh_election_choice_constraints()
 	var report_sound := str(current_event.get("_sound", "report"))
 	# «Продолжить» после результата не должно давать двойной электронный
 	# сигнал. Особые звуки войны и протестов всё равно воспроизводятся.
@@ -7192,6 +7334,9 @@ func display_current_event(play_default_report_sound := true, play_special_event
 	left_button.disabled = event_resolved or bool(current_event["left"].get("unavailable", false))
 	right_button.disabled = event_resolved or bool(current_event["right"].get("unavailable", false))
 	third_button.disabled = event_resolved or not has_third or (has_third and bool(current_event["third"].get("unavailable", false)))
+	left_button.tooltip_text = str(current_event["left"].get("lock_reason", ""))
+	right_button.tooltip_text = str(current_event["right"].get("lock_reason", ""))
+	third_button.tooltip_text = str(current_event["third"].get("lock_reason", "")) if has_third else ""
 	if play_default_report_sound or play_special_event_sound:
 		maybe_show_foreign_event_tutorial()
 	localize_visible_tree()
@@ -7218,14 +7363,14 @@ func tutorial_event_touches_foreign_policy(report: Dictionary) -> bool:
 
 func update_event_choice_hint_visibility(has_third_option := false) -> void:
 	if is_instance_valid(left_hint):
-		left_hint.visible = event_choice_hints_enabled
+		left_hint.visible = event_choice_hints_enabled or bool(current_event.get("left", {}).get("_election_locked", false))
 	if is_instance_valid(right_hint):
-		right_hint.visible = event_choice_hints_enabled
+		right_hint.visible = event_choice_hints_enabled or bool(current_event.get("right", {}).get("_election_locked", false))
 	if is_instance_valid(third_hint):
 		var third_exists := has_third_option
 		if not third_exists and not current_event.is_empty():
 			third_exists = current_event.has("third") and not (current_event["third"] as Dictionary).is_empty()
-		third_hint.visible = event_choice_hints_enabled and third_exists
+		third_hint.visible = third_exists and (event_choice_hints_enabled or bool(current_event.get("third", {}).get("_election_locked", false)))
 
 
 func should_trigger_financial_crisis() -> bool:
@@ -7331,9 +7476,9 @@ func build_next_election_milestone_event() -> Dictionary:
 	if int(state.get("week", 1)) >= 18 and not bool(state.get("election_rules_shown", false)):
 		state.election_rules_shown = true
 		return event("Центральная избирательная комиссия", "official", "#536f82", "Кто будет считать", "Парламент должен утвердить порядок досрочных выборов. Независимая комиссия повысит доверие к результату, лояльный состав даст аппарату возможность исправлять неудобные протоколы, а межпартийный контроль заставит власть делить каждую комиссию с губернаторами и оппозицией.",
-			liberal_option("Независимая комиссия", "Доверие к выборам и поддержка вырастут • аппарат и старые покровители потеряют контроль • брат будет недоволен", {"support": 4, "stability": -3, "army": -2, "clan_oligarchs": -6}, "Судьи, учителя и общественные организации получили большинство в комиссии. Аппарат лишился гарантированного подсчёта, зато оппозиция согласилась заранее признать проверяемый результат.", "Доверие к выборам и поддержка вырастут • аппарат и старые покровители потеряют контроль", "Судьи, учителя и общественные организации получили большинство в комиссии. Аппарат лишился гарантированного подсчёта, зато оппозиция согласилась заранее признать проверяемый результат.", {"election_rules": "fair"}),
+			liberal_option("Независимая комиссия", "Доверие к выборам и поддержка вырастут • аппарат и старые покровители потеряют контроль • брат будет недоволен", {"support": 4, "stability": -3, "army": -2, "clan_oligarchs": -6, "authoritarian": -1}, "Судьи, учителя и общественные организации получили большинство в комиссии. Аппарат лишился гарантированного подсчёта, зато оппозиция согласилась заранее признать проверяемый результат.", "Доверие к выборам и поддержка вырастут • аппарат и старые покровители потеряют контроль", "Судьи, учителя и общественные организации получили большинство в комиссии. Аппарат лишился гарантированного подсчёта, зато оппозиция согласилась заранее признать проверяемый результат.", {"election_rules": "fair"}),
 			option("Сохранить лояльную комиссию", "Официальный результат получит административное преимущество • поддержка упадёт • олигархи и аппарат укрепятся", {"support": -5, "stability": 3, "clan_oligarchs": 7, "authoritarian": 1}, "Большинство комиссии сохранили чиновники, назначенные ещё отцом. Они обещали порядок и быстрый подсчёт, а наблюдатели начали собирать параллельные протоколы.", {"election_rules": "managed", "unrest": {"cause": "сохранение подконтрольной избирательной комиссии", "kind": "civic", "base_level": 1, "condition": "low_support", "reversible": false}}),
-			option("Разделить комиссии", "Потребуются деньги и переговоры • регионы и профсоюзы получат контроль • небольшой перевес останется у власти", {"money": -5, "stability": 2, "clan_workers": 5, "clan_regions": 5, "clan_oligarchs": -3}, "Каждый участок получил представителей президента, оппозиции и местной власти. Подсчёт станет медленнее и дороже, зато подменить протокол без свидетелей будет трудно.", {"election_rules": "negotiated"}))
+			option("Разделить комиссии", "Потребуются деньги и переговоры • регионы и профсоюзы получат контроль • авторитарный курс смягчится", {"money": -5, "stability": 2, "clan_workers": 5, "clan_regions": 5, "clan_oligarchs": -3, "authoritarian": -1}, "Каждый участок получил представителей президента, оппозиции и местной власти. Подсчёт станет медленнее и дороже, зато подменить протокол без свидетелей будет трудно.", {"election_rules": "negotiated"}))
 	return {}
 
 
@@ -7546,7 +7691,7 @@ func customize_event_for_ministers() -> void:
 		if not election_memory.is_empty():
 			current_event["body"] += "\n\n" + str(election_memory["ru"])
 			current_event["body_en"] += "\n\n" + str(election_memory["en"])
-		current_event["left"] = option("Признать итог комиссии", "Подсчёт пройдёт по ранее выбранным правилам • прогноз: %s • поражение приведёт к мирной передаче власти" % forecast, {}, "Президент приказал не вмешиваться в передачу протоколов и публично обязался признать итог комиссии.", {"election_method": rules})
+		current_event["left"] = option("Признать официальный результат" if rules == "managed" else "Признать итог комиссии", "Подсчёт пройдёт по ранее выбранным правилам • прогноз: %s • поражение приведёт к мирной передаче власти" % forecast, {}, "Президент приказал не вмешиваться в передачу протоколов и публично обязался признать итог комиссии.", {"election_method": rules})
 		current_event["right"] = option("Использовать весь аппарат", "Административный ресурс повысит официальный результат • поддержка и доверие к процедуре снизятся • итог могут не признать", {"support": -5, "stability": -4, "clan_oligarchs": 6, "authoritarian": 1}, "Администрации получили целевые показатели явки, государственные каналы — единую сетку эфира, а председатели комиссий — звонки из президентской канцелярии.", {"election_method": "managed"})
 		if bool(state.get("at_war", false)) and emergency_powers_override_active():
 			current_event["third"] = option("Перенести выборы", "Доступно только из-за войны и чрезвычайных полномочий • голосование не состоится • реакция зависит от поддержки власти и войны", {"support": -6, "stability": -6, "army": 4, "war_support": -3, "clan_oligarchs": -5, "clan_church": -5, "clan_workers": -8, "clan_regions": -6, "authoritarian": 1}, "Президент отложил голосование до окончания войны, сославшись на чрезвычайный закон. Избирательные комиссии закрылись, а парламент и улица начали спорить, существует ли у временного президента мандат после назначенной даты.", {"election_method": "postponed"})
@@ -7611,6 +7756,7 @@ func apply_media_support_filter(effects: Dictionary) -> Dictionary:
 func choose_option(side: String) -> void:
 	if current_event.is_empty() or event_resolved or not current_event.has(side):
 		return
+	refresh_election_choice_constraints()
 	if bool((current_event[side] as Dictionary).get("unavailable", false)):
 		return
 	left_button.disabled = true
@@ -7622,6 +7768,8 @@ func choose_option(side: String) -> void:
 	var decision_effects := amplify_decision_effects(original_effects, str(current_event.get("_kind", "general")))
 	var change_source := "Доклад «%s»: %s" % [str(current_event.get("title", "Событие")), str(option.get("label", "решение"))]
 	var option_flags: Dictionary = (option.get("set", {}) as Dictionary).duplicate(true)
+	if str(state.get("recruitment_model", "mixed")) == "contract" and str(option_flags.get("recruitment_model", "")) not in ["", "contract"]:
+		decision_effects["support"] = int(decision_effects.get("support", 0)) - 2
 	if bool(option_flags.get("printed_money", false)):
 		play_game_sound("money_print")
 	var free_foreign_appointment := str(option_flags.get("free_foreign_appointment", ""))
@@ -7646,10 +7794,19 @@ func apply_option_flags(option_data: Dictionary) -> void:
 
 
 func apply_state_flags(option_flags: Dictionary) -> void:
+	var entering_mobilization := str(option_flags.get("recruitment_model", "")) == "mobilization" and str(state.get("recruitment_model", "mixed")) != "mobilization"
+	var already_mobilized := str(state.get("recruitment_model", "mixed")) == "mobilization"
+	var previous_training := int(RECRUITMENT_MODELS.get(str(state.get("recruitment_model", "mixed")), RECRUITMENT_MODELS["mixed"]).get("training", 60)) if entering_mobilization else 0
+	var previous_rate := float(RECRUITMENT_MODELS.get(str(state.get("recruitment_model", "mixed")), RECRUITMENT_MODELS["mixed"]).get("rate", 0.014)) if entering_mobilization else 0.0
 	for flag in option_flags.keys():
-		if str(flag) in ["unrest", "unrest_resolved", "unrest_reverse_policy", "unrest_continue", "war_frontline_retreat", "war_medical_priority", "war_ammo_conservation"]:
+		if str(flag) in ["unrest", "unrest_resolved", "unrest_reverse_policy", "unrest_continue", "war_frontline_retreat", "war_medical_priority", "war_ammo_conservation", "mobilization_event_recruits"]:
 			continue
 		state[flag] = option_flags[flag]
+	if entering_mobilization:
+		state.mobilization_core_training = previous_training
+		state.mobilization_core_rate = previous_rate
+	if not already_mobilized and int(option_flags.get("mobilization_event_recruits", 0)) > 0:
+		state.army_mobilized_personnel = mini(int(state.get("army_personnel", 0)), int(state.get("army_mobilized_personnel", 0)) + int(option_flags["mobilization_event_recruits"]))
 	if bool(option_flags.get("financial_crisis_ignored", false)):
 		state.financial_crisis_refusal_week = int(state.get("week", 1))
 		state.financial_crisis_survival_pending = true
@@ -7772,6 +7929,8 @@ func projected_pending_value(key: String) -> int:
 			value = maxi(0, value)
 		elif key == "corruption_tier":
 			value = clampi(value, 0, CORRUPTION_LABELS.size() - 1)
+		elif key == "authoritarian":
+			value = maxi(0, value)
 		elif key == "creditor_obligations":
 			value = clampi(value, 0, CREDITOR_OBLIGATION_LABELS.size() - 1)
 		elif key in ["east_relation", "west_relation"]:
@@ -7822,7 +7981,7 @@ func projected_army_snapshot() -> Dictionary:
 	var equipment_coverage := minf(100.0, float(equipment) / float(required_equipment) * 100.0)
 	var aviation_coverage := minf(100.0, float(aircraft) / float(required_aircraft) * 100.0)
 	var quality := clampi(roundi(
-		float(army_training()) * 0.30
+		float(army_training(personnel)) * 0.30
 		+ equipment_coverage * 0.30
 		+ aviation_coverage * 0.15
 		+ float(supply) * 0.20
@@ -7833,7 +7992,7 @@ func projected_army_snapshot() -> Dictionary:
 	var frontline_required := maxi(35000, roundi(110000.0 - float(quality) * 750.0) - shortened_front)
 	var effectiveness := quality
 	if bool(state.get("at_war", false)):
-		effectiveness = clampi(roundi(float(quality) * clampf(float(personnel) / float(maxi(frontline_required, 1)), 0.0, 1.0)), 0, 100)
+		effectiveness = clampi(roundi(float(quality) * clampf(float(personnel) / float(maxi(frontline_required, 1)), 0.0, 1.0)) + mobilization_manpower_bonus(quality, personnel, equipment, frontline_required), 0, 100)
 	return {
 		"personnel": personnel,
 		"equipment": equipment,
@@ -7881,6 +8040,8 @@ func preview_deferred_effects(effects: Dictionary) -> Dictionary:
 			after = maxi(0, after)
 		elif key == "corruption_tier":
 			after = clampi(after, 0, CORRUPTION_LABELS.size() - 1)
+		elif key == "authoritarian":
+			after = maxi(0, after)
 		elif key == "creditor_obligations":
 			after = clampi(after, 0, CREDITOR_OBLIGATION_LABELS.size() - 1)
 		elif key in ["east_relation", "west_relation"]:
@@ -7989,6 +8150,8 @@ func apply_effects(effects: Dictionary) -> Dictionary:
 	var normalized := block_war_enemy_relation_improvement(convert_legacy_foreign_effects(effects))
 	var applied := normalized.duplicate()
 	var transaction_tier := int(state.corruption_tier)
+	var personnel_before_effect := int(state.get("army_personnel", 0))
+	var mobilized_before_effect := int(state.get("army_mobilized_personnel", 0))
 	var before_values: Dictionary = {}
 	for key in normalized.keys():
 		if key == "money":
@@ -8005,10 +8168,19 @@ func apply_effects(effects: Dictionary) -> Dictionary:
 			state[key] = maxi(0, int(state[key]))
 	state.population_total = maxi(int(state.get("army_personnel", 0)), int(state.get("population_total", 0)))
 	state.population_workable = clampi(int(state.get("population_workable", 0)), 0, maxi(0, int(state.population_total) - int(state.get("army_personnel", 0))))
+	if normalized.has("army_personnel") and str(state.get("recruitment_model", "mixed")) == "mobilization":
+		var personnel_delta := int(state.army_personnel) - personnel_before_effect
+		if personnel_delta > 0:
+			state.army_mobilized_personnel = mini(int(state.army_personnel), mobilized_before_effect + personnel_delta)
+		elif personnel_delta < 0:
+			var mobilized_loss := roundi(float(-personnel_delta) * float(mobilized_before_effect) / float(maxi(1, personnel_before_effect)))
+			state.army_mobilized_personnel = maxi(0, mobilized_before_effect - mobilized_loss)
+	state.army_mobilized_personnel = clampi(int(state.get("army_mobilized_personnel", 0)), 0, int(state.get("army_personnel", 0)))
 	for key in ["east_relation", "west_relation"]:
 		if state.has(key):
 			state[key] = clampi(int(state[key]), 0, 3)
 	state.corruption_tier = clampi(int(state.corruption_tier), 0, CORRUPTION_LABELS.size() - 1)
+	state.authoritarian = maxi(0, int(state.get("authoritarian", 0)))
 	state.creditor_obligations = clampi(int(state.get("creditor_obligations", 0)), 0, CREDITOR_OBLIGATION_LABELS.size() - 1)
 	# Возвращаем фактическое изменение после ограничений 0…100, иначе экран
 	# результата мог обещать +8 при реальном росте, например, только с 98 до 100.
@@ -8193,6 +8365,8 @@ func effects_to_text(original_effects: Dictionary, applied_effects: Dictionary, 
 	var parts: Array[String] = []
 	for key in original_effects.keys():
 		if names.has(key):
+			if key == "authoritarian" and int(applied_effects.get(key, original_effects[key])) == 0:
+				continue
 			if key == "money":
 				var requested_amount := float(original_effects[key])
 				var actual_amount := float(applied_effects.get(key, requested_amount))
@@ -8413,7 +8587,8 @@ func recruitment_target() -> int:
 	elif model == "universal":
 		share = 0.05
 	elif model == "mobilization":
-		share = 0.09
+		if bool(state.get("at_war", false)) or bool(state.get("military_threat", false)):
+			return frontline_required_personnel() + MOBILIZATION_FRONT_RESERVE
 	return maxi(1000, roundi(float(adult_citizens) * share))
 
 
@@ -8524,9 +8699,15 @@ func imported_army_fuel_bonus() -> int:
 	return KRES_IMPORTED_FUEL_BONUS if agreement_weeks_left("kres_fuel_supply_until_week") > 0 else 0
 
 
-func army_training() -> int:
+func army_training(personnel_override := -1, mobilized_override := -1) -> int:
 	var model: Dictionary = RECRUITMENT_MODELS.get(str(state.get("recruitment_model", "mixed")), RECRUITMENT_MODELS["mixed"])
-	return int(model.get("training", 60))
+	var personnel := int(state.get("army_personnel", 0)) if personnel_override < 0 else personnel_override
+	var mobilized := int(state.get("army_mobilized_personnel", 0)) if mobilized_override < 0 else mobilized_override
+	mobilized = clampi(mobilized, 0, maxi(0, personnel))
+	var regular_training := int(state.get("mobilization_core_training", 60)) if str(state.get("recruitment_model", "mixed")) == "mobilization" else int(model.get("training", 60))
+	if personnel <= 0:
+		return regular_training
+	return roundi((float(personnel - mobilized) * float(regular_training) + float(mobilized) * float(RECRUITMENT_MODELS["mobilization"]["training"])) / float(personnel))
 
 
 func army_morale() -> int:
@@ -8573,31 +8754,68 @@ func army_effectiveness() -> int:
 	if not bool(state.get("at_war", false)):
 		return quality
 	var required := frontline_required_personnel(quality)
-	var personnel_coverage := clampf(float(state.get("army_personnel", 0)) / float(maxi(required, 1)), 0.0, 1.0)
-	return clampi(roundi(float(quality) * personnel_coverage), 0, 100)
+	var personnel := int(state.get("army_personnel", 0))
+	var personnel_coverage := clampf(float(personnel) / float(maxi(required, 1)), 0.0, 1.0)
+	return clampi(roundi(float(quality) * personnel_coverage) + mobilization_manpower_bonus(quality, personnel, int(state.get("army_equipment", 0)), required), 0, 100)
+
+
+func mobilization_manpower_bonus(quality: int, personnel: int, equipment: int, required := -1) -> int:
+	if str(state.get("recruitment_model", "mixed")) != "mobilization" or not bool(state.get("at_war", false)):
+		return 0
+	var frontline_need := frontline_required_personnel(quality) if required < 0 else required
+	var extra_thousands := float(maxi(0, personnel - frontline_need)) / 1000.0
+	var equipment_need := maxi(1, ceili(float(personnel) / 1000.0 * 8.0))
+	var equipment_coverage := minf(100.0, float(equipment) / float(equipment_need) * 100.0)
+	var shortage_factor := clampf((100.0 - equipment_coverage) / 40.0, 0.0, 1.0)
+	return mini(12, roundi(extra_thousands * 1.1 * shortage_factor))
+
+
+func mobilization_logistics_cost() -> float:
+	return snappedf(float(int(state.get("army_mobilized_personnel", 0))) / 1000.0 * MOBILIZATION_LOGISTICS_PER_THOUSAND, 0.01)
+
+
+func mobilization_output_multiplier() -> float:
+	return maxf(0.75, 1.0 - float(int(state.get("army_mobilized_personnel", 0))) / 100000.0 * MOBILIZATION_OUTPUT_LOSS_PER_100K)
+
+
+func army_personnel_cost() -> float:
+	var personnel := int(state.get("army_personnel", 0))
+	var model_id := str(state.get("recruitment_model", "mixed"))
+	var model: Dictionary = RECRUITMENT_MODELS.get(model_id, RECRUITMENT_MODELS["mixed"])
+	if model_id != "mobilization":
+		return float(personnel) / 1000.0 * float(model.get("rate", 0.014))
+	var mobilized := clampi(int(state.get("army_mobilized_personnel", 0)), 0, personnel)
+	return float(personnel - mobilized) / 1000.0 * float(state.get("mobilization_core_rate", 0.014)) + float(mobilized) / 1000.0 * float(model.get("rate", 0.007))
 
 
 func army_base_cost() -> float:
-	var model: Dictionary = RECRUITMENT_MODELS.get(str(state.get("recruitment_model", "mixed")), RECRUITMENT_MODELS["mixed"])
-	var personnel_cost := float(state.get("army_personnel", 0)) / 1000.0 * float(model.get("rate", 0.014))
-	return snappedf(0.4 + personnel_cost + float(state.get("army_equipment", 0)) * 0.0005 + float(state.get("army_aircraft", 0)) * 0.01 + production_order_cost(), 0.01)
+	var personnel_cost := army_personnel_cost()
+	return snappedf(0.4 + personnel_cost + float(state.get("army_equipment", 0)) * 0.0005 + float(state.get("army_aircraft", 0)) * 0.01 + production_order_cost() + mobilization_logistics_cost(), 0.01)
 
 
 func army_budget_breakdown_tooltip(corruption_tier: int) -> String:
 	var model: Dictionary = RECRUITMENT_MODELS.get(str(state.get("recruitment_model", "mixed")), RECRUITMENT_MODELS["mixed"])
-	var personnel_cost := float(state.get("army_personnel", 0)) / 1000.0 * float(model.get("rate", 0.014))
+	var personnel_cost := army_personnel_cost()
+	var personnel_detail := ""
+	if str(state.get("recruitment_model", "mixed")) == "mobilization":
+		var mobilized := clampi(int(state.get("army_mobilized_personnel", 0)), 0, int(state.get("army_personnel", 0)))
+		var regular := int(state.get("army_personnel", 0)) - mobilized
+		var regular_cost := float(regular) / 1000.0 * float(state.get("mobilization_core_rate", 0.014))
+		var mobilized_cost := float(mobilized) / 1000.0 * float(model.get("rate", 0.007))
+		personnel_detail = "\nRegular units: %d × %.3f M / 1,000 = %.2f M\nMobilized: %d × %.3f M / 1,000 = %.2f M" % [regular, float(state.get("mobilization_core_rate", 0.014)), regular_cost, mobilized, float(model.get("rate", 0.007)), mobilized_cost] if language_code == "en" else "\nКадровые части: %d × %.3f млн / 1000 = %.2f млн\nМобилизованные: %d × %.3f млн / 1000 = %.2f млн" % [regular, float(state.get("mobilization_core_rate", 0.014)), regular_cost, mobilized, float(model.get("rate", 0.007)), mobilized_cost]
 	var equipment_cost := float(state.get("army_equipment", 0)) * 0.0005
 	var aviation_cost := float(state.get("army_aircraft", 0)) * 0.01
 	var orders_cost := production_order_cost()
+	var logistics_cost := mobilization_logistics_cost()
 	var raw_total := army_base_cost()
 	var level := budget_level("budget_defense")
 	var planned := budget_amount_by_key("budget_defense")
 	var final_amount := absf(adjusted_money_transaction(-planned, corruption_tier))
 	if language_code == "en":
-		return "Defense cost breakdown:\nStanding services: 0.40 M\nPersonnel (%s): %.2f M\nGround equipment maintenance: %.2f M\nImported aircraft maintenance: %.2f M\nGround equipment orders: %.2f M\nBase need: %.2f M\nFunding level %s: ×%.2f = %.2f M\nCorruption does not affect expenses or prices.\nTotal: %.2f M" % [game_localization.text(str(model.get("title", "Смешанная"))), personnel_cost, equipment_cost, aviation_cost, orders_cost, raw_total, game_localization.text(BUDGET_LEVEL_NAMES[level]), budget_level_multiplier("budget_defense", level), planned, final_amount]
-	return "Почему оборона стоит именно столько:\nПостоянные службы: 0.40 млн\nЛичный состав (%s): %.2f млн\nСодержание наземной техники: %.2f млн\nСодержание импортной авиации: %.2f млн\nЗаказ наземной техники: %.2f млн\nПотребность до уровня бюджета: %.2f млн\nУровень «%s»: ×%.2f = %.2f млн\nКоррупция «%s»: на расходы и цены не влияет\nИтого: %.2f млн" % [
-		str(model.get("title", "Смешанная")), personnel_cost, equipment_cost, aviation_cost,
-		orders_cost, raw_total, BUDGET_LEVEL_NAMES[level], budget_level_multiplier("budget_defense", level), planned,
+		return "Defense cost breakdown:\nStanding services: 0.40 M\nPersonnel (%s): %.2f M%s\nGround equipment maintenance: %.2f M\nImported aircraft maintenance: %.2f M\nGround equipment orders: %.2f M\nMobilization logistics: %.2f M\nBase need: %.2f M\nFunding level %s: ×%.2f = %.2f M\nCorruption does not affect expenses or prices.\nTotal: %.2f M" % [game_localization.text(str(model.get("title", "Смешанная"))), personnel_cost, personnel_detail, equipment_cost, aviation_cost, orders_cost, logistics_cost, raw_total, game_localization.text(BUDGET_LEVEL_NAMES[level]), budget_level_multiplier("budget_defense", level), planned, final_amount]
+	return "Почему оборона стоит именно столько:\nПостоянные службы: 0.40 млн\nЛичный состав (%s): %.2f млн%s\nСодержание наземной техники: %.2f млн\nСодержание импортной авиации: %.2f млн\nЗаказ наземной техники: %.2f млн\nСнабжение мобилизованных: %.2f млн\nПотребность до уровня бюджета: %.2f млн\nУровень «%s»: ×%.2f = %.2f млн\nКоррупция «%s»: на расходы и цены не влияет\nИтого: %.2f млн" % [
+		str(model.get("title", "Смешанная")), personnel_cost, personnel_detail, equipment_cost, aviation_cost,
+		orders_cost, logistics_cost, raw_total, BUDGET_LEVEL_NAMES[level], budget_level_multiplier("budget_defense", level), planned,
 		corruption_level(corruption_tier), final_amount
 	]
 
@@ -9023,7 +9241,7 @@ func build_war_crisis_event() -> Dictionary:
 		"25 тыс. человек перейдут из гражданской экономики в армию • поддержка, стабильность и поддержка войны снизятся • лояльность штаба вырастет",
 		{"population_workable": -25000, "army_personnel": 25000, "support": -6, "stability": -3, "war_support": -4, "army": 4},
 		"Правительство объявило экстренную мобилизацию. Военкоматы получили списки работоспособных граждан, предприятия лишились части смен, а первые пополнения направились к линии фронта без полного цикла подготовки.",
-		{"recruitment_model": "mobilization", "war_emergency_mobilization": true}
+		{"recruitment_model": "mobilization", "war_emergency_mobilization": true, "mobilization_event_recruits": 25000}
 	)
 	var procurement := option(
 		"Закупить вооружение через посредников",
@@ -9214,6 +9432,9 @@ func process_war_week(defer_effects := false) -> Dictionary:
 		aircraft_loss += 1
 	aircraft_loss = mini(aircraft_before, aircraft_loss)
 	state.army_personnel = personnel_before - personnel_loss
+	var mobilized_before := mini(personnel_before, int(state.get("army_mobilized_personnel", 0)))
+	var mobilized_losses := mini(mobilized_before, roundi(float(personnel_loss) * float(mobilized_before) / float(maxi(1, personnel_before))))
+	state.army_mobilized_personnel = mobilized_before - mobilized_losses
 	state.population_total = maxi(0, total_population() - personnel_loss)
 	state.army_equipment = equipment_before - equipment_loss
 	state.army_aircraft = aircraft_before - aircraft_loss
@@ -9453,22 +9674,26 @@ func weekly_income_breakdown(strike_level_override := -1, workforce_override := 
 		strike_suffix = " После влияния состояния «%s»%s." % [unrest_level_title(strike_level, true), " и закона о коллективных договорах" if collective_agreements else ""]
 	var workforce_value := workable_population() if workforce_override < 0 else workforce_override
 	var health_tax_multiplier := health_workforce_tax_multiplier()
-	var labor_calculation := "%s работоспособных × %.2f млн за 1 млн человек × %.0f%% (образование и медицина)" % [format_people(workforce_value), WORKFORCE_TAX_PER_MILLION, health_tax_multiplier * 100.0]
+	var mobilization_multiplier := mobilization_output_multiplier()
+	var labor_calculation := "%s работоспособных × %.2f млн за 1 млн человек × %.0f%% (образование и медицина) × %.0f%% (отвлечение работников на службу)" % [format_people(workforce_value), WORKFORCE_TAX_PER_MILLION, health_tax_multiplier * 100.0, mobilization_multiplier * 100.0]
 	if language_code == "en":
-		labor_calculation = "%s workers × %.2f M per million people × %.0f%% (education and healthcare)" % [format_people(workforce_value), WORKFORCE_TAX_PER_MILLION, health_tax_multiplier * 100.0]
+		labor_calculation = "%s workers × %.2f M per million people × %.0f%% (education and healthcare) × %.0f%% (mobilization disruption)" % [format_people(workforce_value), WORKFORCE_TAX_PER_MILLION, health_tax_multiplier * 100.0, mobilization_multiplier * 100.0]
 	if strike_level > 0:
 		labor_calculation += " × %.0f%% (%s)" % [labor_tax_multiplier * 100.0, game_localization.text(unrest_level_title(strike_level, true)) if language_code == "en" else unrest_level_title(strike_level, true)]
 	var enterprise_base := state_enterprise_base_income()
-	var enterprise_calculation := "Базовая перечисляемая прибыль %.2f млн%s × %.0f%%%s" % [
+	var enterprise_calculation := "Базовая перечисляемая прибыль %.2f млн%s × %.0f%% (забастовки) × %.0f%% (мобилизация)%s" % [
 		enterprise_base,
 		" (включая +%.2f млн от национализированной промышленности)" % NATIONALIZED_STATE_ENTERPRISE_INCOME_BONUS if bool(state.get("strategic_industry_nationalized", false)) else "",
 		state_enterprise_multiplier * 100.0,
+		mobilization_multiplier * 100.0,
 		strike_suffix
 	]
+	if language_code == "en":
+		enterprise_calculation = "State enterprise base %.2f M × %.0f%% (strikes) × %.0f%% (mobilization disruption)" % [enterprise_base, state_enterprise_multiplier * 100.0, mobilization_multiplier * 100.0]
 	var result: Array[Dictionary] = [
-		{"title": "Налоги работоспособных", "amount": snappedf(float(workforce_value) / 1000000.0 * WORKFORCE_TAX_PER_MILLION * labor_tax_multiplier * health_tax_multiplier, 0.01), "calculation": labor_calculation},
+		{"title": "Налоги работоспособных", "amount": snappedf(float(workforce_value) / 1000000.0 * WORKFORCE_TAX_PER_MILLION * labor_tax_multiplier * health_tax_multiplier * mobilization_multiplier, 0.01), "calculation": labor_calculation},
 		{"title": "Налог на бизнес", "amount": 1.0, "calculation": "Текущая базовая ставка налога на бизнес"},
-		{"title": "Государственные предприятия", "amount": snappedf(enterprise_base * state_enterprise_multiplier, 0.01), "calculation": enterprise_calculation},
+		{"title": "Государственные предприятия", "amount": snappedf(enterprise_base * state_enterprise_multiplier * mobilization_multiplier, 0.01), "calculation": enterprise_calculation},
 		{"title": "Пошлины", "amount": 0.4, "calculation": "Текущие импортные и экспортные пошлины"},
 		{"title": "Экспорт нефти", "amount": snappedf(float(exported_oil()) * current_oil_price() * export_multiplier, 0.01), "calculation": "%d ед. на экспорт × %.2f млн за единицу × %.0f%%%s" % [exported_oil(), current_oil_price(), export_multiplier * 100.0, strike_suffix]},
 		{"title": "Экспорт металлов", "amount": snappedf(float(exported_metal()) * current_metal_price() * export_multiplier, 0.01), "calculation": "%d ед. на экспорт × %.2f млн за единицу × %.0f%%%s" % [exported_metal(), current_metal_price(), export_multiplier * 100.0, strike_suffix]}
@@ -9800,9 +10025,11 @@ func army_loyalty_levels_tooltip(current_value: int, projected_value: int) -> St
 
 
 func process_army_recruitment() -> Dictionary:
+	state.contract_volunteer_pool = mini(CONTRACT_VOLUNTEER_POOL_CAP, int(state.get("contract_volunteer_pool", CONTRACT_VOLUNTEER_POOL_CAP)) + (CONTRACT_VOLUNTEER_REGEN_WAR if bool(state.get("at_war", false)) else CONTRACT_VOLUNTEER_REGEN_PEACE))
 	var current := int(state.get("army_personnel", 0))
 	var target := recruitment_target()
-	var model: Dictionary = RECRUITMENT_MODELS.get(str(state.get("recruitment_model", "mixed")), RECRUITMENT_MODELS["mixed"])
+	var model_id := str(state.get("recruitment_model", "mixed"))
+	var model: Dictionary = RECRUITMENT_MODELS.get(model_id, RECRUITMENT_MODELS["mixed"])
 	var base_speed := int(model.get("speed", 6000))
 	var speed_multiplier := recruitment_speed_multiplier()
 	var speed := maxi(1, roundi(float(base_speed) * speed_multiplier))
@@ -9812,21 +10039,29 @@ func process_army_recruitment() -> Dictionary:
 	var evaders := 0
 	if difference > 0:
 		var requested := mini(mini(difference, speed), workable_population())
+		if model_id == "contract":
+			requested = mini(requested, int(state.contract_volunteer_pool))
+			state.contract_volunteer_pool = int(state.contract_volunteer_pool) - requested
 		if speed_multiplier < 1.0:
-			evaders = maxi(0, mini(difference, base_speed) - requested)
+			evaders = maxi(0, mini(difference, base_speed) - mini(difference, speed))
 		state.population_workable = workable_population() - requested
 		state.army_personnel = current + requested
+		if model_id == "mobilization":
+			state.army_mobilized_personnel = int(state.get("army_mobilized_personnel", 0)) + requested
 		recruited = requested
-	elif difference < 0:
+	elif difference < 0 and (not bool(state.get("at_war", false)) or model_id in ["mixed", "universal"]):
 		demobilized = mini(-difference, speed)
 		state.army_personnel = current - demobilized
 		state.population_workable = workable_population() + demobilized
+		state.army_mobilized_personnel = maxi(0, int(state.get("army_mobilized_personnel", 0)) - demobilized)
 	var deserters := 0
 	var desertion_rate := wartime_desertion_rate()
 	if bool(state.get("at_war", false)) and desertion_rate > 0.0:
 		var mobilization_multiplier := 1.5 if str(state.get("recruitment_model", "mixed")) == "mobilization" else 1.0
 		var duration_multiplier := 1.0 + float(mini(int(state.get("war_weeks", 0)), 12)) * 0.05
 		deserters = mini(int(state.get("army_personnel", 0)), maxi(100, roundi(float(state.get("army_personnel", 0)) * desertion_rate * mobilization_multiplier * duration_multiplier)))
+		var mobilized_share := float(int(state.get("army_mobilized_personnel", 0))) / float(maxi(1, int(state.get("army_personnel", 0))))
+		state.army_mobilized_personnel = maxi(0, int(state.get("army_mobilized_personnel", 0)) - roundi(float(deserters) * mobilized_share))
 		state.army_personnel = int(state.get("army_personnel", 0)) - deserters
 		state.population_workable = workable_population() + deserters
 	var notes: Array[String] = []
@@ -9894,6 +10129,9 @@ func process_weekly_budget_consequences(closed_week: int, effect_collector: Dict
 	elif budget_level("budget_defense") == 2 and closed_week % 2 == 0:
 		effects["army"] = int(effects.get("army", 0)) + 2
 		notes.append("Приоритетное финансирование армии: лояльность штаба +2.")
+	if bool(state.get("at_war", false)) and int(state.get("army_mobilized_personnel", 0)) >= 20000 and int(state.get("war_support", 0)) < 50:
+		effects["stability"] = int(effects.get("stability", 0)) - 1
+		notes.append("Затяжная массовая мобилизация при низкой поддержке войны: стабильность −1.")
 	if budget_level("budget_infrastructure") == 0:
 		effects["clan_regions"] = int(effects.get("clan_regions", 0)) - 1
 		if closed_week % 4 == 0:
@@ -12267,6 +12505,10 @@ func show_army(scroll_position := 0) -> void:
 	content.add_child(model_grid)
 	for model_id in ["contract", "mixed", "universal", "mobilization"]:
 		add_recruitment_option(model_grid, model_id)
+	if str(state.get("recruitment_model", "mixed")) == "contract":
+		var volunteer_note := label("Available contract volunteers: %d ⓘ" % int(state.get("contract_volunteer_pool", 0)) if language_code == "en" else "Доступные добровольцы для контракта: %d ⓘ" % int(state.get("contract_volunteer_pool", 0)), 15, BLUE, HORIZONTAL_ALIGNMENT_CENTER)
+		volunteer_note.tooltip_text = "Recruitment draws from this pool. It recovers by %d per week in peace or %d during war. Contract soldiers are not automatically demobilized during war." % [CONTRACT_VOLUNTEER_REGEN_PEACE, CONTRACT_VOLUNTEER_REGEN_WAR] if language_code == "en" else "Набор расходует этот запас. В мирное время он восстанавливается на %d в неделю, во время войны — на %d. Во время войны контрактников не демобилизуют автоматически." % [CONTRACT_VOLUNTEER_REGEN_PEACE, CONTRACT_VOLUNTEER_REGEN_WAR]
+		content.add_child(volunteer_note)
 	var current_loyalty := int(state.get("army", 50))
 	var loyalty := projected_pending_value("army")
 	var projected_army := projected_army_snapshot()
@@ -12351,9 +12593,13 @@ func add_recruitment_option(parent: Container, model_id: String) -> void:
 
 func recruitment_target_for(model_id: String) -> int:
 	var old_model := str(state.get("recruitment_model", "mixed"))
+	var old_core_training := int(state.get("mobilization_core_training", 60))
+	if model_id == "mobilization" and old_model != "mobilization":
+		state.mobilization_core_training = int(RECRUITMENT_MODELS.get(old_model, RECRUITMENT_MODELS["mixed"]).get("training", 60))
 	state.recruitment_model = model_id
 	var target := recruitment_target()
 	state.recruitment_model = old_model
+	state.mobilization_core_training = old_core_training
 	return target
 
 
@@ -12367,6 +12613,14 @@ func show_recruitment_confirmation(model_id: String) -> void:
 	var adjusted_speed := roundi(float(data.get("speed", 6000)) * recruitment_speed_multiplier(projected_pending_value("war_support")))
 	content.add_child(label("Целевая численность: %s. Текущий предел изменения: %s в неделю. Переход будет постепенным; люди физически перейдут между гражданскими группами и армией." % [format_people(recruitment_target_for(model_id)), format_people(adjusted_speed)], 17, Color("#4c4941"), HORIZONTAL_ALIGNMENT_CENTER))
 	content.add_child(label("Стоимость: 1 очко решения. Подготовка модели: %d%%. %s" % [int(data["training"]), str(data["description"])], 16, Color("#5f594d"), HORIZONTAL_ALIGNMENT_CENTER))
+	if model_id == "contract":
+		content.add_child(label("Available volunteers: %d. The pool limits new contracts." % int(state.get("contract_volunteer_pool", 0)) if language_code == "en" else "Доступно добровольцев: %d. Их запас ограничивает набор." % int(state.get("contract_volunteer_pool", 0)), 16, BLUE, HORIZONTAL_ALIGNMENT_CENTER))
+	if model_id == "contract":
+		content.add_child(label("Government support +2 at the end of the week; leaving contracts removes the bonus." if language_code == "en" else "Поддержка власти +2 в конце недели; отказ от контрактов уберёт бонус.", 16, GREEN, HORIZONTAL_ALIGNMENT_CENTER))
+	elif str(state.get("recruitment_model", "mixed")) == "contract":
+		content.add_child(label("Leaving the contract model reduces government support by 2." if language_code == "en" else "Отказ от контрактной армии снизит поддержку власти на 2.", 16, RED, HORIZONTAL_ALIGNMENT_CENTER))
+	if model_id == "mobilization":
+		content.add_child(label("The mobilization order also reduces stability by 2 at the end of the week." if language_code == "en" else "Приказ о мобилизации также снизит стабильность на 2 в конце недели.", 16, RED, HORIZONTAL_ALIGNMENT_CENTER))
 	var confirm := menu_button("ПОДТВЕРДИТЬ")
 	confirm.disabled = int(state.get("influence", 0)) < 1
 	confirm.pressed.connect(set_recruitment_model.bind(model_id))
@@ -12381,12 +12635,18 @@ func set_recruitment_model(model_id: String) -> void:
 	if int(state.get("influence", 0)) < 1 or recruitment_changed_this_week:
 		show_notice("Сменить способ комплектования на этой неделе нельзя.")
 		return
+	if model_id == str(state.get("recruitment_model", "mixed")):
+		show_notice("Этот способ комплектования уже выбран.")
+		return
 	if model_id == "mobilization" and not bool(state.get("at_war", false)) and not bool(state.get("military_threat", false)):
 		show_notice("Мобилизация доступна только во время войны или объявленной военной угрозы.")
 		return
 	var previous_model_id := str(state.get("recruitment_model", "mixed"))
 	var recruitment_order := {"contract": 0, "mixed": 1, "universal": 2, "mobilization": 3}
 	var expands_draft := int(recruitment_order.get(model_id, 0)) > int(recruitment_order.get(previous_model_id, 0))
+	if model_id == "mobilization" and previous_model_id != "mobilization":
+		state.mobilization_core_training = int(RECRUITMENT_MODELS.get(previous_model_id, RECRUITMENT_MODELS["mixed"]).get("training", 60))
+		state.mobilization_core_rate = float(RECRUITMENT_MODELS.get(previous_model_id, RECRUITMENT_MODELS["mixed"]).get("rate", 0.014))
 	state.recruitment_model = model_id
 	state.influence = int(state.get("influence", 0)) - 1
 	recruitment_changed_this_week = true
@@ -12394,11 +12654,13 @@ func set_recruitment_model(model_id: String) -> void:
 	if model_id == "universal":
 		reaction = {"support": -1, "war_support": -2, "army": 2}
 	elif model_id == "contract":
-		reaction = {"army": 1, "clan_workers": 2}
+		reaction = {"army": 1, "clan_workers": 2, "support": 1}
 	elif model_id == "mobilization":
-		reaction = {"support": -3, "war_support": -5, "army": 4}
+		reaction = {"support": -3, "war_support": -5, "stability": -1, "army": 4}
 	reaction = amplify_decision_effects(reaction, "general")
 	reaction = apply_media_support_filter(reaction)
+	if previous_model_id == "contract":
+		reaction["support"] = int(reaction.get("support", 0)) - 2
 	var previous_corruption_tier := projected_corruption_tier()
 	var applied_reaction := queue_week_change("Смена способа комплектования", reaction) if not reaction.is_empty() else {}
 	if expands_draft and projected_pending_value("war_support") <= WAR_SUPPORT_LOW:
@@ -13901,7 +14163,7 @@ func build_event_database() -> void:
 			option("Обвинить Восток", "Поддержка и военные настроения вырастут • порядок и отношения с Востоком пострадают", {"support": 5, "stability": -4, "east_pressure": 6, "west_commitment": 1, "war_support": 6}, "Вы обвинили Восточный Союз в убийстве отца. Его посол покинул церемонию, у посольства начались стычки, а западные дипломаты предложили помощь.", {"accused_east": true}),
 			option("Не спешить", "Поддержка снизится • порядок и нейтральность укрепятся", {"support": -3, "stability": 2, "neutrality": 3}, "Вы отказались превращать неполные материалы в обвинение. Сторонники назвали это слабостью, зато следователи сохранили контакты по обе стороны границы.", {"investigation_open": true})),
 		event("Старший брат", "military", "#a9473f", "Офицеры помнят отца", "Брат требует закрепить особую роль армии в конституции. По его словам, парламентские партии уже готовятся продать страну тому, кто предложит больше денег.",
-			liberal_option("Гражданский контроль", "Брат поднимет штаб против реформы • парламент станет свободнее", {"support": 5, "army": -12, "stability": -3, "brother_trust": -2}, "Право назначать командование передано гражданскому правительству. Под давлением брата несколько генералов демонстративно подали рапорты.", "Парламент станет свободнее • влияние военных на назначения сократится", "Право назначать командование передано гражданскому правительству. Новый министр обороны обеспечил исполнение реформы без организованного выступления штаба.", {"parliament_free": true}),
+			liberal_option("Гражданский контроль", "Брат поднимет штаб против реформы • парламент станет свободнее", {"support": 5, "army": -12, "stability": -3, "brother_trust": -2, "authoritarian": -1}, "Право назначать командование передано гражданскому правительству. Под давлением брата несколько генералов демонстративно подали рапорты.", "Парламент станет свободнее • влияние военных на назначения сократится", "Право назначать командование передано гражданскому правительству. Новый министр обороны обеспечил исполнение реформы без организованного выступления штаба.", {"parliament_free": true}),
 			option("Гарантии армии", "Стабильность вырастет • военные усилятся", {"army": 10, "stability": 6, "support": -4, "authoritarian": 1}, "Армия получила места в Совете безопасности. Брат заявил, что отец одобрил бы ваше решение.")),
 		event("Западная делегация", "diplomat", "#536f82", "Пакет модернизации", "Западная Федерация предлагает первый транш, подготовку чиновников и временный доступ к рынку. Через несколько недель комиссия проверит государственные компании и закупки перед открытием второго этапа.",
 			liberal_option("Подписать", "Казна вырастет • брат и Восток ответят • Запад потребует реформ", {"money": 18, "support": 2, "west_commitment": 2, "east_pressure": 5, "army": -6}, "Соглашение подписано. Брат назвал реформы капитуляцией, Восточный Союз начал проверку грузов на границе, а совместная комиссия запросила реестры компаний до перечисления следующей помощи.", "Казна вырастет • Восток ответит • Запад потребует реформ", "Соглашение подписано. Запад объявил его историческим, Восточный Союз начал проверку грузов на границе, а совместная комиссия запросила реестры компаний до перечисления следующей помощи.", {"western_package": true}),
@@ -13912,7 +14174,7 @@ func build_event_database() -> void:
 			option("Расширить простенки", "Расходы и недовольство общества • армия и брат поддержат жест", {"money": -6, "support": -3, "army": 5, "brother_trust": 1, "authoritarian": 1}, "Министерство образования нашло средства на ремонт стен. Строители называют программу буквальным расширением власти, зато портреты торжественно открыли армейские делегации."),
 			option("Продать тираж на аукционе", "Казна вернёт часть денег • скандал станет народной сатирой • партийный подрядчик потеряет контракт", {"money": 2, "support": 2, "stability": -2, "clan_oligarchs": -4}, "Портреты продавали поштучно с сертификатом неудачной закупки. Самый большой купила сатирическая газета и повесила напротив парламента, а подрядчик потребовал компенсацию.")),
 		event("Министерство внутренних дел", "official", "#a9473f", "Весна в столице", "Студенты требуют раскрыть материалы о покушении и провести досрочные выборы. Пока протест мирный, но министр сообщает о людях с оружием среди участников.",
-			liberal_option("Допустить митинг", "Стабильность может снизиться • поддержка вырастет • брат обвинит власть в слабости", {"support": 6, "stability": -5, "army": -3}, "Митинг прошёл без вмешательства армии. К вечеру радикалы ушли, а площадь осталась за студентами; брат публично обвинил правительство в слабости.", "Стабильность может снизиться • поддержка вырастет", "Митинг прошёл без вмешательства армии. К вечеру радикалы ушли, а площадь осталась за студентами."),
+			liberal_option("Допустить митинг", "Стабильность может снизиться • поддержка вырастет • брат обвинит власть в слабости", {"support": 6, "stability": -5, "army": -3, "authoritarian": -1}, "Митинг прошёл без вмешательства армии. К вечеру радикалы ушли, а площадь осталась за студентами; брат публично обвинил правительство в слабости.", "Стабильность может снизиться • поддержка вырастет", "Митинг прошёл без вмешательства армии. К вечеру радикалы ушли, а площадь осталась за студентами."),
 			option("Зачистить площадь", "Порядок восстановится • будут жертвы", {"stability": 9, "support": -10, "army": 4, "war_support": -2, "authoritarian": 1}, "Площадь очищена за сорок минут. Больницы сообщили о погибших, телевидение — о восстановленном движении.")),
 		event("Совет безопасности", "military", "#536f82", "Учебный центр", "Западная Федерация предлагает постоянный учебный центр и обмен разведданными. Это повысит совместимость армии и доступ к помощи, но иностранные специалисты получат сведения о штабах, связи и снабжении.",
 			option("Разместить постоянный центр", "Армия и казна укрепятся • Восток ответит резко • при низкой поддержке начнутся протесты", {"army": 10, "war_support": 4, "support": -5, "west_commitment": 2, "east_pressure": 7, "money": 7}, "Западные военнослужащие прибыли как инструкторы. Восточный Союз объявил договор прямой угрозой, а жители соседних посёлков потребовали ограничить передвижение конвоев.", {"foreign_base": "west", "western_intelligence_link": true, "unrest": {"cause": "размещение постоянного иностранного учебного центра", "kind": "civic", "base_level": 1, "reversible": false, "condition": "low_support"}}),

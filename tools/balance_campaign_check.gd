@@ -26,6 +26,10 @@ func run_checks() -> void:
 		print("BALANCE_MECHANICS: %d/4 passed" % [4 - mechanics_errors])
 		quit(0 if mechanics_errors == 0 else 1)
 		return
+	if "--recruitment" in OS.get_cmdline_user_args():
+		var recruitment_errors := check_recruitment_balance()
+		quit(0 if recruitment_errors == 0 else 1)
+		return
 	if "--armistice" in OS.get_cmdline_user_args():
 		var prepared_result := play_campaign(19, "prepared_armistice")
 		var reachable := bool(prepared_result.get("armistice", false)) and int(prepared_result.get("forecast_errors", 0)) == 0
@@ -125,8 +129,11 @@ func check_edge_mechanics() -> int:
 		var unsupplied_ready := bool(game.armistice_readiness().get("ready", false))
 		game.state = ready_snapshot.duplicate(true)
 		game.state.recruitment_model = "contract"
-		game.state.army_personnel = game.frontline_required_personnel() + game.ARMISTICE_PERSONNEL_RESERVE
+		# A high-quality small force passes today's troop threshold but loses it
+		# during the five-week forecast when no replacements are available.
+		game.state.army_personnel = 46000
 		game.state.population_workable = 0
+		game.state.contract_volunteer_pool = 0
 		var fragile_ready := bool(game.armistice_readiness().get("ready", false))
 		game.state = ready_snapshot.duplicate(true)
 		if early_ready or poorly_equipped_ready or unsupplied_ready or fragile_ready:
@@ -152,15 +159,114 @@ func check_edge_mechanics() -> int:
 	return failures
 
 
+func check_recruitment_balance() -> int:
+	var outcomes: Dictionary = {}
+	for later_model in ["mixed", "mobilization"]:
+		game.start_game("Без сохранений", 19)
+		game.state.at_war = true
+		game.state.war_enemy = "east"
+		game.state.war_support = 65
+		game.state.recruitment_model = "contract"
+		game.state.metal_to_equipment = 0
+		game.state.budget_defense = 0
+		var short_war: Dictionary = {}
+		var preserved_core: Dictionary = {}
+		for war_week in range(1, 13):
+			if war_week == 7:
+				game.set_recruitment_model(later_model)
+				game.resolve_pending_week_changes()
+				if later_model == "mobilization":
+					preserved_core = {"training": game.army_training(), "rate": float(game.state.get("mobilization_core_rate", 0.0))}
+			game.process_army_recruitment()
+			game.process_military_production()
+			var battle: Dictionary = game.process_war_week(true)
+			game.apply_effects(battle.get("political_effects", {}))
+			if war_week == 6:
+				short_war = {"readiness": game.army_effectiveness(), "volunteers": int(game.state.contract_volunteer_pool)}
+			game.state.week = int(game.state.get("week", 1)) + 1
+		outcomes[later_model] = {
+			"short_war": short_war,
+			"readiness": game.army_effectiveness(),
+			"personnel": int(game.state.army_personnel),
+			"war_support": int(game.state.war_support),
+			"target": game.recruitment_target(),
+			"balance": game.weekly_actual_income() - game.weekly_actual_expenses(),
+			"mobilized": int(game.state.army_mobilized_personnel),
+			"preserved_core": preserved_core,
+			"training": game.army_training()
+		}
+	var contract_six: Dictionary = outcomes["mixed"]["short_war"]
+	var mixed_twelve: Dictionary = outcomes["mixed"]
+	var mobilized_twelve: Dictionary = outcomes["mobilization"]
+	var preserved_core: Dictionary = mobilized_twelve["preserved_core"]
+	var valid := int(contract_six["readiness"]) >= 65 and int(contract_six["volunteers"]) <= 1000 and int(mobilized_twelve["readiness"]) > int(mixed_twelve["readiness"]) and int(mobilized_twelve["personnel"]) < 100000 and int(mobilized_twelve["target"]) < 100000 and int(mobilized_twelve["war_support"]) < int(mixed_twelve["war_support"]) and float(mobilized_twelve["balance"]) < float(mixed_twelve["balance"]) - 0.2 and int(preserved_core.get("training", 0)) == 75 and is_equal_approx(float(preserved_core.get("rate", 0.0)), 0.026) and int(mobilized_twelve["training"]) > 40
+	game.start_game("Без сохранений", 19)
+	game.state.recruitment_model = "contract"
+	game.state.war_support = 80
+	var high_support_contract_target: int = game.recruitment_target()
+	game.state.war_support = 20
+	var low_support_contract_target: int = game.recruitment_target()
+	valid = valid and high_support_contract_target > low_support_contract_target
+	game.start_game("Без сохранений", 19)
+	var support_before: int = int(game.state.support)
+	game.set_recruitment_model("contract")
+	game.resolve_pending_week_changes()
+	valid = valid and int(game.state.support) - support_before == 2
+	game.recruitment_changed_this_week = false
+	game.state.influence = 3
+	game.state.media_restricted = true
+	game.set_recruitment_model("mixed")
+	game.resolve_pending_week_changes()
+	valid = valid and int(game.state.support) == support_before
+	game.recruitment_changed_this_week = false
+	game.state.influence = 3
+	game.set_recruitment_model("contract")
+	game.resolve_pending_week_changes()
+	valid = valid and int(game.state.support) == support_before + 2
+	game.recruitment_changed_this_week = false
+	game.state.influence = 3
+	game.set_recruitment_model("contract")
+	game.resolve_pending_week_changes()
+	valid = valid and int(game.state.support) == support_before + 2 and int(game.state.influence) == 3
+	game.recruitment_changed_this_week = false
+	game.state.influence = 3
+	game.state.at_war = true
+	game.state.media_restricted = false
+	var stability_before: int = int(game.state.stability)
+	game.set_recruitment_model("mobilization")
+	game.resolve_pending_week_changes()
+	valid = valid and int(game.state.stability) == stability_before - 2 and int(game.state.support) == support_before - 5
+	game.start_game("Без сохранений", 19)
+	game.state.at_war = true
+	game.apply_effects({"army_personnel": 25000, "population_workable": -25000})
+	game.apply_state_flags({"recruitment_model": "mobilization", "mobilization_event_recruits": 25000})
+	valid = valid and int(game.state.army_mobilized_personnel) == 25000 and int(game.state.mobilization_core_training) == 60 and is_equal_approx(float(game.state.mobilization_core_rate), 0.014)
+	game.start_game("Без сохранений", 19)
+	game.state.at_war = true
+	game.current_event = game.build_war_crisis_event()
+	game.choose_option("left")
+	var mixed_event_support: int = int((game.pending_week_changes.back() as Dictionary).get("effects", {}).get("support", 0))
+	game.start_game("Без сохранений", 19)
+	game.state.at_war = true
+	game.state.recruitment_model = "contract"
+	game.current_event = game.build_war_crisis_event()
+	game.choose_option("left")
+	var contract_event_support: int = int((game.pending_week_changes.back() as Dictionary).get("effects", {}).get("support", 0))
+	valid = valid and contract_event_support == mixed_event_support - 2
+	print("RECRUITMENT_BALANCE: %s | contract week 6: %d%%, volunteers %d | mixed week 12: %d%%, war support %d, balance %.2f | late mobilization week 12: %d%%, troops %d, mobilized %d, target %d, war support %d, balance %.2f" % ["OK" if valid else "FAIL", int(contract_six["readiness"]), int(contract_six["volunteers"]), int(mixed_twelve["readiness"]), int(mixed_twelve["war_support"]), float(mixed_twelve["balance"]), int(mobilized_twelve["readiness"]), int(mobilized_twelve["personnel"]), int(mobilized_twelve["mobilized"]), int(mobilized_twelve["target"]), int(mobilized_twelve["war_support"]), float(mobilized_twelve["balance"])])
+	return 0 if valid else 1
+
+
 func choose_report_side(report: Dictionary, style: String) -> String:
 	if str(report.get("title", "")) == "Счета к оплате" and style == "optimize_credit":
 		return "right"
 	if str(report.get("title", "")) == "Условия кредитной линии" and style == "optimize_credit":
 		return "left"
 	if str(report.get("title", "")) == "Кто будет считать":
-		return "left" if style in ["fair", "fair_loss", "fair_win"] else "right"
+		return available_report_side(report, "left" if style in ["fair", "fair_loss", "fair_win"] else "right")
 	if str(report.get("title", "")) == "Досрочные выборы":
-		return "third" if style in ["rigged", "rigged_crisis", "rigged_protocol", "postponed", "postponed_good", "postponed_bad"] and report.has("third") else "right" if style in ["managed", "managed_loss", "managed_win", "unrecognized"] else "left"
+		var preferred := "third" if style in ["rigged", "rigged_crisis", "rigged_protocol", "postponed", "postponed_good", "postponed_bad"] and report.has("third") else "right" if style in ["managed", "managed_loss", "managed_win", "unrecognized"] else "left"
+		return available_report_side(report, preferred)
 	var best: String = game.adaptive_side(report)
 	var best_score := -100000.0
 	for side in ["left", "right", "third"]:
@@ -238,6 +344,15 @@ func choose_report_side(report: Dictionary, style: String) -> String:
 			best_score = score
 			best = side
 	return best
+
+
+func available_report_side(report: Dictionary, preferred: String) -> String:
+	if report.has(preferred) and not bool((report[preferred] as Dictionary).get("unavailable", false)):
+		return preferred
+	for side in ["left", "right", "third"]:
+		if report.has(side) and not bool((report[side] as Dictionary).get("unavailable", false)):
+			return side
+	return preferred
 
 
 func configure_week(style: String) -> void:

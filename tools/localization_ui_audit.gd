@@ -35,6 +35,23 @@ func audit() -> void:
 		game.call(screen)
 		check_screen(screen, game.overlay)
 		game.close_overlay(false)
+	game.state.recruitment_model = "contract"
+	game.show_army()
+	check_screen("contract_army", game.overlay)
+	game.close_overlay(false)
+	game.show_recruitment_confirmation("contract")
+	check_screen("contract_confirmation", game.overlay)
+	game.close_overlay(false)
+	game.state.recruitment_model = "mobilization"
+	game.state.at_war = true
+	game.state.war_enemy = "east"
+	game.state.army_mobilized_personnel = 20000
+	game.show_army()
+	check_screen("mobilization_army", game.overlay)
+	game.close_overlay(false)
+	game.show_economy()
+	check_screen("mobilization_economy", game.overlay)
+	game.close_overlay(false)
 	game.budget_draft["budget_health"] = 0
 	var forecast: Dictionary = game.parliament_vote_forecast("budget")
 	var vote_message := "%d за, %d против. Новые уровни бюджета зафиксированы; денежный расчёт и реакция групп произойдут при переходе к следующей неделе.\n\nОбразование и медицина: базовый → сокращённый" % [int(forecast.get("yes", 0)), int(forecast.get("no", 0))]
@@ -52,6 +69,37 @@ func audit() -> void:
 	await create_timer(0.25).timeout
 	check_screen("first_decision_result", game.overlay)
 	game.close_overlay(false)
+	game.start_game("Без сохранений", 1991)
+	game.state.week = 18
+	game.state.election_rules_shown = false
+	game.state.authoritarian = 0
+	game.current_event = game.build_next_election_milestone_event()
+	game.event_resolved = false
+	game.display_current_event(false, false)
+	await process_frame
+	check_screen("election_rules_open", game.screen_layer)
+	check_choice_bounds("election_rules_open", game)
+	game.state.authoritarian = 3
+	game.display_current_event(false, false)
+	await process_frame
+	check_screen("election_rules_hard", game.screen_layer)
+	check_choice_bounds("election_rules_hard", game)
+	game.state.week = 26
+	game.state.election_rules = "fair"
+	game.current_event = game.election_event_template()
+	game.customize_event_for_ministers()
+	game.display_current_event(false, false)
+	await process_frame
+	check_screen("election_final_hard", game.screen_layer)
+	check_choice_bounds("election_final_hard", game)
+	game.state.authoritarian = 0
+	game.state.election_rules = "managed"
+	game.current_event = game.election_event_template()
+	game.customize_event_for_ministers()
+	game.display_current_event(false, false)
+	await process_frame
+	check_screen("election_final_recount", game.screen_layer)
+	check_choice_bounds("election_final_recount", game)
 	game.start_game("Без сохранений", 1991)
 	for report in game.recurring_events:
 		if not report.has("body_en") or not report.has("title_en"):
@@ -82,6 +130,17 @@ func check_screen(name: String, node: Node) -> void:
 	print("LOCALIZATION_TOOLTIP_AUDIT ", name, " untranslated=", untranslated_tooltips.size())
 	for item in untranslated_tooltips.slice(0, 8):
 		print("  ", item)
+
+
+func check_choice_bounds(name: String, game: Node) -> void:
+	var viewport_size: Vector2 = game.get_viewport().get_visible_rect().size
+	for node in [game.left_button, game.right_button, game.third_button, game.left_hint, game.right_hint, game.third_hint]:
+		if not node.visible:
+			continue
+		var bounds: Rect2 = node.get_global_rect()
+		if bounds.position.x < 0 or bounds.position.y < 0 or bounds.end.x > viewport_size.x or bounds.end.y > viewport_size.y:
+			untranslated_count += 1
+			push_error("ELECTION_LAYOUT: %s / %s outside viewport %s" % [name, node.name, viewport_size])
 
 
 func check_event_catalog(game: Node) -> void:
