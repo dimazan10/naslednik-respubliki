@@ -6501,13 +6501,20 @@ func add_stat(parent: Container, key: String, caption: String, value: String, co
 func add_sidebar_summary_row(parent: Container, key: String, caption: String, value: String) -> void:
 	var row := HBoxContainer.new()
 	row.custom_minimum_size = Vector2(0, 19)
+	row.add_theme_constant_override("separation", 5)
 	row.mouse_filter = Control.MOUSE_FILTER_STOP
 	parent.add_child(row)
-	var caption_label := label(caption, 13, MUTED)
+	var relation_row := key in ["east_relation", "west_relation"]
+	var caption_label := label(caption, 12 if relation_row else 13, MUTED)
 	caption_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	caption_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	caption_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	row.add_child(caption_label)
-	var value_label := label(value, 14, CREAM, HORIZONTAL_ALIGNMENT_RIGHT)
+	var value_label := label(value, 12 if relation_row else 14, CREAM, HORIZONTAL_ALIGNMENT_LEFT if relation_row else HORIZONTAL_ALIGNMENT_RIGHT)
+	if relation_row:
+		# Both relationship values start at the same position. Reserve enough room for
+		# the longer translated status and the pending-change arrow.
+		value_label.custom_minimum_size.x = 106
 	value_label.autowrap_mode = TextServer.AUTOWRAP_OFF
 	value_label.mouse_filter = Control.MOUSE_FILTER_STOP
 	row.add_child(value_label)
