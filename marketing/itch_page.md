@@ -53,7 +53,7 @@ Found a bug or a confusing decision? Leave a comment on this page. Tell me the c
 
 ## Visual configuration
 
-- Cover: `itch_cover.png` (1260 × 1000, ratio 315:250).
+- Cover: `itch_cover.png` (1260 × 1000, ratio 315:250). Generated illustration source: `itch_cover_source.png`. The cover is kept separate from `generate_art.py` so regenerating other page graphics does not replace it.
 - Header image: `itch_header.png` (1600 × 400).
 - Screenshots, in order (from `marketing/screenshots/`): `preview_game.png`, `preview_economy.png`, `preview_foreign.png`, `preview_war_crisis.png`, `preview_weekly.png`.
 - Layout: screenshots in the right sidebar.

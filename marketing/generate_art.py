@@ -65,25 +65,6 @@ def grain(image, rectangle, seed=42):
         pixels[x, y] = tuple(max(0, min(255, c + shift)) for c in (r, g, b))
 
 
-def cover():
-    w, h = 1260, 1000
-    im = background((w, h))
-    d = ImageDraw.Draw(im)
-    d.rounded_rectangle((75, 64, 1185, 936), radius=24, fill=PAPER, outline=GOLD, width=4)
-    d.rectangle((75, 64, 1185, 151), fill="#ded3ba")
-    tracked(d, (117, 95), "CONFIDENTIAL  /  PRESIDENTIAL OFFICE", sans(23, True), RED, 2)
-    d.text((1079, 91), "01", font=sans(33, True), fill=MUTED)
-    d.line((116, 195, 1144, 195), fill="#a59d8b", width=2)
-    seal(d, (630, 348), 116)
-    d.text((112, 505), "HEIR TO THE", font=font(100, True), fill=INK)
-    d.text((112, 630), "REPUBLIC", font=font(124, True), fill=INK)
-    d.line((116, 793, 1144, 793), fill="#a59d8b", width=2)
-    tracked(d, (118, 816), "26 WEEKS TO THE ELECTION", sans(27, True), RED, 2)
-    d.text((117, 865), "Two neighbors. One fragile country. Your decisions.", font=sans(28), fill="#3e4343")
-    grain(im, (77, 153, 1183, 934))
-    im.save(OUT / "itch_cover.png", optimize=True)
-
-
 def page_header():
     w, h = 1600, 400
     im = background((w, h))
@@ -132,7 +113,6 @@ def social_card():
 
 
 if __name__ == "__main__":
-    cover()
     page_header()
     profile_header()
     social_card()
