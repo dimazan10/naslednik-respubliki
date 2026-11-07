@@ -880,6 +880,9 @@ func capture_preview_if_requested() -> void:
 		output_path = "res://preview_debug_cheats.png"
 	elif requested_capture.begins_with("--capture-ending-"):
 		output_path = "res://preview_%s.png" % requested_capture.trim_prefix("--capture-").replace("-", "_")
+	var capture_directory := "res://build/captures"
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(capture_directory))
+	output_path = output_path.replace("res://", capture_directory + "/")
 	image.save_png(output_path)
 	get_tree().quit()
 
@@ -3360,7 +3363,7 @@ func run_settings_smoke_test() -> void:
 		failures.append("Включённые подсказки решений неверно отражены в настройках.")
 	event_choice_hints_enabled = original_hint_setting
 	if failures.is_empty():
-		print("SETTINGS_SMOKE_TEST: OK | exit_button=yes | audio=13+music | separate_volume_sliders=yes | event_hints=optional_default_off | paper_tabs=yes | war=yes | war_siren=yes | protest=yes | save=yes | money_print=yes | F4=yes | F11=yes | Esc=closes_tabs | Alt+F4=reserved")
+		print("SETTINGS_SMOKE_TEST: OK | exit_button=yes | audio=%d+music | separate_volume_sliders=yes | event_hints=optional_default_off | paper_tabs=yes | war=yes | war_siren=yes | protest=yes | save=yes | money_print=yes | F4=yes | F11=yes | Esc=closes_tabs | Alt+F4=reserved" % audio_streams.size())
 		get_tree().quit(0)
 	else:
 		for failure in failures:
@@ -4806,11 +4809,6 @@ func show_credits() -> void:
 		{"name": "Alexander / Orange Free Sounds · CC BY 4.0", "detail": "Звук счётной машинки · CC BY 4.0; запись укорочена, переведена в моно и приглушена на входе и выходе\nhttps://orangefreesounds.com/money-counting-machine/\nhttps://creativecommons.org/licenses/by/4.0/"},
 		{"name": "NenadSimic", "detail": "Звук взрыва · CC0 1.0\nhttps://opengameart.org/content/muffled-distant-explosion"},
 		{"name": "KVV_Audio", "detail": "Сирена воздушной тревоги, Сумы · CC0 1.0; начало записи с плавным затуханием\nhttps://freesound.org/people/KVV_Audio/sounds/727588/"},
-		{"name": "pauliuw", "detail": "Вариант звука взрыва · CC0 1.0\nhttps://opengameart.org/content/explosion-somewhere-far"},
-		{"name": "Kostrava", "detail": "Вариант звука взрыва · CC0 1.0\nhttps://freesound.org/people/Kostrava/sounds/320788/"},
-		{"name": "StarNinjas", "detail": "Варианты звучания толпы · CC0 1.0\nhttps://opengameart.org/content/crowd-shoutingspeaking-ambience"},
-		{"name": "InspectorJ", "detail": "Вариант звука протеста · CC0 1.0\nhttps://freesound.org/people/InspectorJ/sounds/485621/"},
-		{"name": "CHallSmith", "detail": "Вариант звука протеста · CC0 1.0\nhttps://freesound.org/people/CHallSmith/packs/46342/"},
 		{"name": "bevibeldesign", "detail": "Звучание разъярённой толпы · CC0 1.0\nhttps://freesound.org/people/bevibeldesign/sounds/316640/"},
 		{"name": "NeoSpica", "detail": "Звук массового освистывания · CC0 1.0\nhttps://freesound.org/people/NeoSpica/sounds/504621/"}
 	]
@@ -5024,7 +5022,6 @@ func setup_audio() -> void:
 		"report": load_audio_wav("res://audio/cc0/report_01.wav", make_ui_tone(280.0, 430.0, 0.145, 0.13, 0.12)),
 		"decision": load_audio_wav("res://audio/cc0/decision_01.wav", make_ui_tone(410.0, 680.0, 0.190, 0.16, 0.20)),
 		"warning": load_audio_wav("res://audio/cc0/warning_01.wav", make_ui_tone(205.0, 105.0, 0.280, 0.17, 0.24)),
-		"week": load_audio_wav("res://audio/cc0/week_report.wav", make_ui_tone(300.0, 590.0, 0.340, 0.15, 0.18)),
 		"ending": load_audio_wav("res://audio/cc0/ending_01.wav", make_ui_tone(360.0, 115.0, 0.520, 0.17, 0.22)),
 		"war": load_audio_wav("res://audio/cc0/war_01.wav", make_ui_tone(105.0, 48.0, 1.200, 0.22, 0.45)),
 		"war_siren": load_audio_wav("res://audio/cc0/war_siren_sumy.wav", make_ui_tone(535.0, 390.0, 5.100, 0.10, 0.42)),
@@ -5032,7 +5029,7 @@ func setup_audio() -> void:
 		"save": load_audio_wav("res://audio/licensed/save.wav", make_ui_tone(520.0, 320.0, 0.220, 0.14, 0.18)),
 		"money_print": load_audio_wav("res://audio/attributed/money_counter.wav", make_ui_tone(135.0, 105.0, 0.900, 0.16, 0.42))
 	}
-	var volume_by_sound := {"hover": -8.0, "click": -5.0, "page": -4.0, "report": -4.0, "decision": -3.0, "warning": -2.0, "week": -3.0, "ending": -2.0, "war": 1.0, "war_siren": -3.0, "protest": -5.0, "save": -3.0, "money_print": -4.0}
+	var volume_by_sound := {"hover": -8.0, "click": -5.0, "page": -4.0, "report": -4.0, "decision": -3.0, "warning": -2.0, "ending": -2.0, "war": 1.0, "war_siren": -3.0, "protest": -5.0, "save": -3.0, "money_print": -4.0}
 	for sound_name in audio_streams.keys():
 		var player := AudioStreamPlayer.new()
 		player.name = "Audio_%s" % str(sound_name)

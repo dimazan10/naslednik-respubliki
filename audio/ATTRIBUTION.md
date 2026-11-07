@@ -7,8 +7,8 @@
 - **Kenney Interface Sounds**, автор Kenney — CC0 1.0.
 - Источник: https://kenney.nl/assets/interface-sounds
 - Резервная страница: https://opengameart.org/content/interface-sounds
-- Использованы и перекодированы отдельные файлы `select`, `tick`, `click`, `open`, `confirmation`, `error`, `maximize` и `close`.
-- Производные файлы: `hover_*.wav`, `click_*.wav`, `report_*.wav`, `decision_02.wav`, `decision_03.wav`, `warning_*.wav`, `week_*.wav`, `ending_*.wav`.
+- Использованы и перекодированы отдельные звуки интерфейса.
+- Файлы в игре: `hover_01.wav`, `click_01.wav`, `report_01.wav`, `warning_01.wav`, `ending_01.wav`.
 
 ## Принятие решения
 
@@ -20,14 +20,12 @@
 ## Недельная сводка
 
 - Недельная сводка использует тот же `page_01.wav`, что и остальные управленческие вкладки, без дополнительного электронного сигнала.
-- Собранный ранее `week_report.wav` сохранён только как неиспользуемый запасной вариант.
 
 ## Бумага
 
 - **Various Paper Sound Effects**, автор Luckius — CC0 1.0.
 - Источник: https://opengameart.org/content/various-paper-sound-effects
-- Использованы записи `Paper Sound - 1/2/3.wav`.
-- Производные файлы: `page_01.wav`, `page_02.wav`, `page_03.wav`.
+- Использована запись для `page_01.wav`.
 
 ## Сохранение
 
@@ -56,24 +54,9 @@
 - **Muffled Distant Explosion**, автор NenadSimic — CC0 1.0.
 - Источник: https://opengameart.org/content/muffled-distant-explosion
 - Производный файл: `war_01.wav`.
-- **Explosion somewhere far**, автор pauliuw — CC0 1.0.
-- Источник: https://opengameart.org/content/explosion-somewhere-far
-- Производный файл: `war_02.wav`.
-- **distant explosions**, автор Kostrava — CC0 1.0.
-- Источник: https://freesound.org/people/Kostrava/sounds/320788/
-- Производный файл: `war_03.wav`.
 
 ## Протесты
 
-- **Crowd Shouting/Speaking Ambience**, автор StarNinjas — CC0 1.0.
-- Источник: https://opengameart.org/content/crowd-shoutingspeaking-ambience
-- Этот материал остаётся одним из запасных компонентов протестных вариантов.
-- **Protesting Crowd, Climate Strike, Guildford**, автор InspectorJ — CC0 1.0 / Public Domain.
-- Источник: https://freesound.org/people/InspectorJ/sounds/485621/
-- Производный файл: `protest_02.wav`; запись смешана с CC0-материалом StarNinjas, чтобы отдельные лозунги нельзя было разобрать, и сокращена до трёх секунд.
-- **Protest-CHallSmith**, автор CHallSmith — CC0 1.0.
-- Источник: https://freesound.org/people/CHallSmith/packs/46342/
-- Производный файл: `protest_03.wav`; запись смешана с CC0-материалом StarNinjas, чтобы отдельные лозунги нельзя было разобрать, и сокращена до трёх секунд.
 - **angry mob loop**, автор bevibeldesign — CC0 1.0.
 - Источник: https://freesound.org/people/bevibeldesign/sounds/316640/
 - **Booing Crowd**, автор NeoSpica — CC0 1.0.

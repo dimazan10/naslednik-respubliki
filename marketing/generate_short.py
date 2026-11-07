@@ -33,7 +33,7 @@ def title(image, kicker, headline, subline):
 
 def screenshot_slide(number, path, crop, kicker, headline, subline):
     dark = background((1080, 1920))
-    shot = Image.open(ROOT / path).convert("RGB").crop(crop)
+    shot = Image.open(OUT / "screenshots" / path).convert("RGB").crop(crop)
     shot.thumbnail((936, 1050), Image.Resampling.LANCZOS)
     x = (1080 - shot.width) // 2
     y = 362 + (950 - shot.height) // 2

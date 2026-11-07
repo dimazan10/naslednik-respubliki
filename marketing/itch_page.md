@@ -55,7 +55,7 @@ Found a bug or a confusing decision? Leave a comment on this page. Tell me the c
 
 - Cover: `itch_cover.png` (1260 × 1000, ratio 315:250).
 - Header image: `itch_header.png` (1600 × 400).
-- Screenshots, in order: `preview_game.png`, `preview_economy.png`, `preview_foreign.png`, `preview_war_crisis.png`, `preview_weekly.png`.
+- Screenshots, in order (from `marketing/screenshots/`): `preview_game.png`, `preview_economy.png`, `preview_foreign.png`, `preview_war_crisis.png`, `preview_weekly.png`.
 - Layout: screenshots in the right sidebar.
 - Background `#15191d`; content column `#e8dfcb`; text `#15191d`; links/buttons `#38586b`; headers `#9a413a`.
 - Keep the page in Draft until the tested Windows and Linux archives are uploaded and the preview has been checked on desktop and mobile.
